@@ -6,7 +6,6 @@
     "name": "Xenia.fm",
     "description": "24/7 bangers at your service"
   },
-  "playlist": {
     "name": "Xenia.fm Playlist",
     "version": "1",
     "tracks": [
@@ -25,5 +24,4 @@
         "duration": 200
       }
     ]
-  }
 }

@@ -1,0 +1,137 @@
+local config = require("rednet_radio.config")
+local directory = require("rednet_radio.directory")
+local playlist = require("rednet_radio.playlist")
+local station_module = require("rednet_radio.station")
+local rednet_api = require("rednet_radio.rednet_api")
+local util = require("rednet_radio.util")
+
+local args = { ... }
+local stationId = args[1]
+
+if not stationId or stationId == "" then
+  print("Usage: radio_host <station_id>")
+  return
+end
+
+local function log(message)
+  print(("[%s] %s"):format(textutils.formatTime(os.time(), true), message))
+end
+
+local function loadStationDefinition()
+  local stations, source, err = directory.loadStations(config.directory_url)
+  if not stations then
+    return nil, source, err
+  end
+
+  for _, station in ipairs(stations) do
+    if station.station_id == stationId then
+      return station, source
+    end
+  end
+
+  return nil, nil, ("Station '%s' was not found in stations.json"):format(stationId)
+end
+
+local function loadPlaylist(stationDefinition)
+  return playlist.loadPlaylist(
+    stationDefinition.station_id,
+    stationDefinition.playlist_url,
+    stationDefinition.name
+  )
+end
+
+if rednet_api.openModems() == 0 then
+  error("No modem was found. Attach a modem before starting a station host.")
+end
+
+local stationDefinition, definitionSource, definitionErr = loadStationDefinition()
+if not stationDefinition then
+  error(definitionErr)
+end
+
+local playlistDoc, playlistSource, playlistErr = loadPlaylist(stationDefinition)
+if not playlistDoc then
+  error(playlistErr)
+end
+
+local stationRuntime = station_module.new(stationDefinition, playlistDoc)
+rednet_api.hostStation(stationDefinition)
+
+log(("Hosting station '%s' using %s directory data and %s playlist data."):format(
+  stationDefinition.name,
+  definitionSource,
+  playlistSource
+))
+
+rednet_api.broadcastAnnounce(stationDefinition, stationRuntime:getSnapshot())
+rednet_api.broadcastNowPlaying(stationDefinition, stationRuntime:getSnapshot())
+
+local timers = {}
+
+local function schedule(name, seconds)
+  timers[os.startTimer(seconds)] = name
+end
+
+schedule("tick", 1)
+schedule("sync", config.sync_interval_seconds)
+schedule("announce", config.announce_interval_seconds)
+schedule("refresh_directory", config.directory_refresh_seconds)
+schedule("refresh_playlist", config.playlist_refresh_seconds)
+
+while true do
+  local event, p1, p2, p3 = os.pullEvent()
+
+  if event == "timer" then
+    local timerName = timers[p1]
+    timers[p1] = nil
+
+    if timerName == "tick" then
+      local changed = stationRuntime:update(util.nowMilliseconds())
+      if changed then
+        rednet_api.broadcastNowPlaying(stationDefinition, stationRuntime:getSnapshot())
+      end
+      schedule("tick", 1)
+    elseif timerName == "sync" then
+      rednet_api.broadcastSync(stationDefinition, stationRuntime:getSnapshot())
+      schedule("sync", config.sync_interval_seconds)
+    elseif timerName == "announce" then
+      rednet_api.broadcastAnnounce(stationDefinition, stationRuntime:getSnapshot())
+      schedule("announce", config.announce_interval_seconds)
+    elseif timerName == "refresh_directory" then
+      local freshDefinition, source, err = loadStationDefinition()
+      if freshDefinition then
+        stationDefinition = util.mergeTables(stationDefinition, freshDefinition)
+        rednet_api.hostStation(stationDefinition)
+        log(("Reloaded station definition from %s."):format(source))
+      else
+        log(("Directory refresh failed: %s"):format(err or "unknown error"))
+      end
+      schedule("refresh_directory", config.directory_refresh_seconds)
+    elseif timerName == "refresh_playlist" then
+      local freshPlaylist, source, err = loadPlaylist(stationDefinition)
+      if freshPlaylist then
+        local changed = stationRuntime:setPlaylist(freshPlaylist)
+        log(("Reloaded playlist from %s."):format(source))
+        if changed then
+          rednet_api.broadcastNowPlaying(stationDefinition, stationRuntime:getSnapshot())
+        end
+      else
+        log(("Playlist refresh failed: %s"):format(err or "unknown error"))
+      end
+      schedule("refresh_playlist", config.playlist_refresh_seconds)
+    end
+  elseif event == "rednet_message" then
+    local senderId = p1
+    local message = p2
+    local protocol = p3
+
+    if rednet_api.acceptsProtocol(stationDefinition, protocol) and rednet_api.isRadioMessage(message) then
+      if message.message_type == config.message_types.ping then
+        rednet_api.sendStationInfo(senderId, stationDefinition, stationRuntime:getSnapshot())
+      elseif message.message_type == config.message_types.tune_request then
+        rednet_api.sendStationInfo(senderId, stationDefinition, stationRuntime:getSnapshot())
+        rednet_api.sendNowPlaying(senderId, stationDefinition, stationRuntime:getSnapshot())
+      end
+    end
+  end
+end

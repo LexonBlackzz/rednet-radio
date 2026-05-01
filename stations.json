@@ -12,7 +12,7 @@
       "station_id": "xenia_fm",
       "name": "Xenia.fm",
       "description": "24/7 bangers at your service",
-      "playlist_url": "https://raw.githubusercontent.com/LexonBlackzz/rednet-radio/main/playlists/xenia_fm.json",
+      "playlist_url": "https://raw.githubusercontent.com/LexonBlackzz/rednet-radio/main/playlists/3_submission.json",
       "rednet_channel": "rednet_radio_v1:station:xenia_fm",
       "host_label": "xenia-fm-host"
     }

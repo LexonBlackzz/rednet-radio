@@ -103,6 +103,10 @@ local function renderTunedScreen()
       shownElapsed,
       currentSnapshot.duration
     ))
+    print(("Track: %d / %d"):format(
+      currentSnapshot.track_index or 0,
+      currentSnapshot.track_count or 0
+    ))
     print(("Source URL: %s"):format(currentSnapshot.track.source_url))
 
     if currentSnapshot.track.playback_url then

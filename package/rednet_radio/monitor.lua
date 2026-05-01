@@ -103,8 +103,12 @@ function monitor.renderClient(station, snapshot, playbackStatus)
     writeAt(device, 3, 10, fit(snapshot.track.title or "Unknown Track", width - 6), colors.cyan, palette.panel)
     drawProgressBar(device, 3, 12, barWidth, ratio, snapshot.in_gap and palette.warn or palette.good, colors.gray)
     writeAt(device, 3, 13, ("%02ds / %02ds"):format(shownElapsed, snapshot.duration or 0), colors.white, palette.panel)
+    writeAt(device, 3, 14, ("Track %d / %d"):format(
+      snapshot.track_index or 0,
+      snapshot.track_count or 0
+    ), colors.yellow, palette.panel)
     if snapshot.in_gap then
-      writeAt(device, 3, 15, "INTERMISSION", colors.yellow, palette.panel)
+      writeAt(device, 3, 16, "INTERMISSION", colors.yellow, palette.panel)
     end
   else
     writeAt(device, 3, 10, "Waiting for station...", colors.white, palette.panel)
@@ -135,8 +139,12 @@ function monitor.renderHost(station, snapshot, playlistSource)
       shownElapsed,
       snapshot.duration or 0
     ), colors.white, palette.panel)
+    writeAt(device, 3, 15, ("Queue %d / %d"):format(
+      snapshot.track_index or 0,
+      snapshot.track_count or 0
+    ), colors.yellow, palette.panel)
     if snapshot.in_gap then
-      writeAt(device, 3, 15, "Holding before next track", colors.yellow, palette.panel)
+      writeAt(device, 3, 16, "Holding before next track", colors.yellow, palette.panel)
     end
   else
     writeAt(device, 3, 11, "No track loaded", colors.white, palette.panel)

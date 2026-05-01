@@ -114,6 +114,7 @@ function Station:getSnapshot()
     playlist_version = self.playlist_version,
     started_at_ms = self.started_at_ms,
     track_index = self.current_index,
+    track_count = #self.tracks,
     duration = track and track.duration or 0,
     gap_seconds = config.track_gap_seconds or 0,
     in_gap = in_gap,

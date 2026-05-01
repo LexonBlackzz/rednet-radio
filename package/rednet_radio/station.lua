@@ -1,3 +1,4 @@
+local config = require("rednet_radio.config")
 local util = require("rednet_radio.util")
 
 local Station = {}
@@ -89,13 +90,15 @@ function Station:update(nowMs)
   end
 
   local changed = false
-  while nowMs >= self.started_at_ms + (track.duration * 1000) do
-    self:advanceTrack(self.started_at_ms + (track.duration * 1000))
+  local trackWindowMs = (track.duration + (config.track_gap_seconds or 0)) * 1000
+  while nowMs >= self.started_at_ms + trackWindowMs do
+    self:advanceTrack(self.started_at_ms + trackWindowMs)
     track = self:getCurrentTrack()
     changed = true
     if not track then
       break
     end
+    trackWindowMs = (track.duration + (config.track_gap_seconds or 0)) * 1000
   end
 
   return changed
@@ -103,11 +106,17 @@ end
 
 function Station:getSnapshot()
   local track = self:getCurrentTrack()
+  local elapsed_ms = track and math.max(0, util.nowMilliseconds() - (self.started_at_ms or util.nowMilliseconds())) or 0
+  local duration_ms = track and (track.duration * 1000) or 0
+  local gap_ms = (config.track_gap_seconds or 0) * 1000
+  local in_gap = track and elapsed_ms >= duration_ms and elapsed_ms < (duration_ms + gap_ms) or false
   return {
     playlist_version = self.playlist_version,
     started_at_ms = self.started_at_ms,
     track_index = self.current_index,
     duration = track and track.duration or 0,
+    gap_seconds = config.track_gap_seconds or 0,
+    in_gap = in_gap,
     track = track,
   }
 end

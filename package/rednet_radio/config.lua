@@ -11,6 +11,7 @@ return {
   playlist_refresh_seconds = 60,
   directory_refresh_seconds = 120,
   client_ping_interval_seconds = 8,
+  track_gap_seconds = 2,
   message_types = {
     announce = "announce",
     station_info = "station_info",

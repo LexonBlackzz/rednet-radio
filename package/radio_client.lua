@@ -4,10 +4,6 @@ local rednet_api = require("rednet_radio.rednet_api")
 local util = require("rednet_radio.util")
 local audio = require("rednet_radio.audio")
 
-if rednet_api.openModems() == 0 then
-  error("No modem was found. Attach a modem before running the radio client.")
-end
-
 local stations = {}
 local currentStation
 local currentSnapshot
@@ -191,13 +187,31 @@ local function tuneStation(station)
   end
 end
 
-while true do
-  local station = chooseStation()
-  if not station then
-    clear()
-    print("Goodbye.")
-    return
+local function main()
+  if rednet_api.openModems() == 0 then
+    error("No modem was found. Attach a modem before running the radio client.")
   end
 
-  tuneStation(station)
+  while true do
+    local station = chooseStation()
+    if not station then
+      clear()
+      print("Goodbye.")
+      return
+    end
+
+    tuneStation(station)
+  end
+end
+
+local ok, err = xpcall(main, function(message)
+  return debug and debug.traceback and debug.traceback(message, 2) or tostring(message)
+end)
+
+if not ok then
+  print("radio_client failed:")
+  print(err)
+  print("")
+  print("Press any key to exit.")
+  os.pullEvent("key")
 end

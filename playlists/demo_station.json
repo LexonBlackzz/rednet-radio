@@ -4,17 +4,17 @@
   "tracks": [
     {
       "id": "track_01",
-      "title": "Skyline Loop",
-      "artist": "Open Example",
-      "source_url": "https://files.catbox.moe/example1.mp3",
-      "duration": 180
+      "title": "Flourish",
+      "artist": "Nathan Grigg",
+      "source_url": "https://file.garden/adrOmj8ZxlwaPhB3/flourish.dfpwm",
+      "duration": 87
     },
     {
       "id": "track_02",
-      "title": "Garden Echo",
-      "artist": "Open Example",
-      "source_url": "https://file.garden/example2.mp3",
-      "duration": 210
+      "title": "Shuric Scan",
+      "artist": "T-Port, SoFT-MANiAC",
+      "source_url": "https://file.garden/adrOmj8ZxlwaPhB3/shuric.dfpwm",
+      "duration": 77
     }
   ]
 }

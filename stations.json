@@ -4,7 +4,7 @@
       "station_id": "demo_station",
       "name": "Demo Station",
       "description": "Example station for Rednet Radio v1.",
-      "playlist_url": "https://raw.githubusercontent.com/LexonBlackzz/rednet-radio/refs/heads/main/site/playlists/demo_station.json",
+      "playlist_url": "https://raw.githubusercontent.com/LexonBlackzz/rednet-radio/main/playlists/demo_station.json",
       "rednet_channel": "rednet_radio_v1:station:demo_station",
       "host_label": "demo-host"
     }

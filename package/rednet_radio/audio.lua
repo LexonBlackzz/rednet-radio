@@ -235,13 +235,20 @@ function audio.syncToSnapshot(snapshot)
   end
 
   local track = snapshot.track
+  local elapsedSeconds = util.trackElapsedMilliseconds(snapshot) / 1000
+  if snapshot.in_gap or elapsedSeconds >= (snapshot.duration or 0) then
+    audio.stopTrack()
+    state.status = "intermission"
+    return nil
+  end
+
   if not track.playback_url or track.playback_url == "" then
     audio.stopTrack()
     state.status = "metadata mode only (no playback_url)"
     return nil
   end
 
-  local targetOffsetSeconds = util.trackElapsedMilliseconds(snapshot) / 1000
+  local targetOffsetSeconds = elapsedSeconds
   local sameTrack = state.current_track_id == track.id and state.current_playback_url == track.playback_url
 
   if sameTrack then

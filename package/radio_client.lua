@@ -3,6 +3,7 @@ local directory = require("rednet_radio.directory")
 local rednet_api = require("rednet_radio.rednet_api")
 local util = require("rednet_radio.util")
 local audio = require("rednet_radio.audio")
+local monitor = require("rednet_radio.monitor")
 
 local stations = {}
 local currentStation
@@ -114,6 +115,8 @@ local function renderTunedScreen()
   print(("Playback: %s"):format(audio.getStatusSummary()))
   print(("Last sync: %s"):format(lastUpdateMs and util.formatAge(lastUpdateMs) or "never"))
   print("Keys: q = back to station list, p = ping station, r = reload directory")
+
+  monitor.renderClient(currentStation, currentSnapshot, audio.getStatusSummary())
 end
 
 local function tuneStation(station)

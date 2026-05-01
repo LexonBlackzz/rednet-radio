@@ -4,6 +4,7 @@ local playlist = require("rednet_radio.playlist")
 local station_module = require("rednet_radio.station")
 local rednet_api = require("rednet_radio.rednet_api")
 local util = require("rednet_radio.util")
+local monitor = require("rednet_radio.monitor")
 local launchArgs = { ... }
 
 local function log(message)
@@ -21,7 +22,10 @@ local function main(args)
   local function loadStationDefinition()
     local stations, source, err = directory.loadStations(config.directory_url)
     if not stations then
-      return nil, source, err
+      return nil, ("Could not load stations from %s: %s"):format(
+        config.directory_url,
+        err or source or "unknown error"
+      )
     end
 
     for _, station in ipairs(stations) do
@@ -30,29 +34,41 @@ local function main(args)
       end
     end
 
-    return nil, nil, ("Station '%s' was not found in stations.json"):format(stationId)
+    return nil, ("Station '%s' was not found in stations.json at %s"):format(
+      stationId,
+      config.directory_url
+    )
   end
 
   local function loadPlaylist(stationDefinition)
-    return playlist.loadPlaylist(
+    local playlistDoc, source, err = playlist.loadPlaylist(
       stationDefinition.station_id,
       stationDefinition.playlist_url,
       stationDefinition.name
     )
+    if not playlistDoc then
+      return nil, ("Could not load playlist for station '%s' from %s: %s"):format(
+        stationDefinition.station_id,
+        stationDefinition.playlist_url,
+        err or source or "unknown error"
+      )
+    end
+
+    return playlistDoc, source
   end
 
   if rednet_api.openModems() == 0 then
     error("No modem was found. Attach a modem before starting a station host.")
   end
 
-  local stationDefinition, definitionSource, definitionErr = loadStationDefinition()
+  local stationDefinition, definitionSourceOrErr = loadStationDefinition()
   if not stationDefinition then
-    error(definitionErr)
+    error(definitionSourceOrErr or "Unknown station directory error")
   end
 
-  local playlistDoc, playlistSource, playlistErr = loadPlaylist(stationDefinition)
+  local playlistDoc, playlistSourceOrErr = loadPlaylist(stationDefinition)
   if not playlistDoc then
-    error(playlistErr)
+    error(playlistSourceOrErr or "Unknown playlist error")
   end
 
   local stationRuntime = station_module.new(stationDefinition, playlistDoc)
@@ -60,9 +76,10 @@ local function main(args)
 
   log(("Hosting station '%s' using %s directory data and %s playlist data."):format(
     stationDefinition.name,
-    definitionSource,
-    playlistSource
+    definitionSourceOrErr,
+    playlistSourceOrErr
   ))
+  monitor.renderHost(stationDefinition, stationRuntime:getSnapshot(), playlistSourceOrErr)
 
   rednet_api.broadcastAnnounce(stationDefinition, stationRuntime:getSnapshot())
   rednet_api.broadcastNowPlaying(stationDefinition, stationRuntime:getSnapshot())
@@ -89,8 +106,18 @@ local function main(args)
       if timerName == "tick" then
         local changed = stationRuntime:update(util.nowMilliseconds())
         if changed then
+          local snapshot = stationRuntime:getSnapshot()
+          local track = snapshot.track
+          if track then
+            log(("Advanced to track %d: %s - %s"):format(
+              snapshot.track_index or 0,
+              track.artist or "Unknown Artist",
+              track.title or "Unknown Track"
+            ))
+          end
           rednet_api.broadcastNowPlaying(stationDefinition, stationRuntime:getSnapshot())
         end
+        monitor.renderHost(stationDefinition, stationRuntime:getSnapshot(), playlistSourceOrErr)
         schedule("tick", 1)
       elseif timerName == "sync" then
         rednet_api.broadcastSync(stationDefinition, stationRuntime:getSnapshot())
@@ -116,6 +143,8 @@ local function main(args)
           if changed then
             rednet_api.broadcastNowPlaying(stationDefinition, stationRuntime:getSnapshot())
           end
+          playlistSourceOrErr = source
+          monitor.renderHost(stationDefinition, stationRuntime:getSnapshot(), playlistSourceOrErr)
         else
           log(("Playlist refresh failed: %s"):format(err or "unknown error"))
         end

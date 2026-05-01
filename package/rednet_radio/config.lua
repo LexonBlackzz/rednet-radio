@@ -1,9 +1,9 @@
-local baseUrl = "https://rednetradio.rf.gd"
+local baseUrl = "https://raw.githubusercontent.com/LexonBlackzz/rednet-radio/main"
 
 return {
   base_url = baseUrl,
   directory_url = baseUrl .. "/stations.json",
-  package_url = baseUrl .. "/install",
+  package_url = baseUrl .. "/package",
   cache_dir = "/rednet_radio_cache",
   protocol = "rednet_radio_v1",
   announce_interval_seconds = 30,

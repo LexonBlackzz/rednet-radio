@@ -94,18 +94,22 @@ local function renderTunedScreen()
 
   if currentSnapshot and currentSnapshot.track then
     local elapsedSeconds = math.floor(util.trackElapsedMilliseconds(currentSnapshot) / 1000)
+    local shownElapsed = math.min(elapsedSeconds, currentSnapshot.duration)
     print(("Now Playing: %s - %s"):format(
       currentSnapshot.track.artist,
       currentSnapshot.track.title
     ))
     print(("Elapsed: %ss / %ss"):format(
-      elapsedSeconds,
+      shownElapsed,
       currentSnapshot.duration
     ))
     print(("Source URL: %s"):format(currentSnapshot.track.source_url))
 
     if currentSnapshot.track.playback_url then
       print(("Playback URL: %s"):format(currentSnapshot.track.playback_url))
+    end
+    if currentSnapshot.in_gap then
+      print(("Intermission: %ss"):format(currentSnapshot.gap_seconds or 0))
     end
   else
     print("Waiting for station data...")

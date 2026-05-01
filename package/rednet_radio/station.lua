@@ -22,12 +22,14 @@ end
 function Station.new(stationDefinition, playlistDoc)
   local self = setmetatable({}, Station)
   self.definition = stationDefinition
+  self.tracks = {}
+  self.current_index = 0
   self:setPlaylist(playlistDoc, true)
   return self
 end
 
 function Station:setPlaylist(playlistDoc, isFirstLoad)
-  local previousTrack = self and self:getCurrentTrack()
+  local previousTrack = self:getCurrentTrack()
   self.playlist = playlistDoc
   self.tracks = playlistDoc.tracks or {}
   self.playlist_version = playlistDoc.version
@@ -60,6 +62,10 @@ function Station:setPlaylist(playlistDoc, isFirstLoad)
 end
 
 function Station:getCurrentTrack()
+  if not self.tracks or not self.current_index or self.current_index < 1 then
+    return nil
+  end
+
   return self.tracks[self.current_index]
 end
 

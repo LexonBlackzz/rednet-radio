@@ -1,0 +1,20 @@
+{
+  "name": "Demo Station Playlist",
+  "version": "1",
+  "tracks": [
+    {
+      "id": "track_01",
+      "title": "Skyline Loop",
+      "artist": "Open Example",
+      "source_url": "https://files.catbox.moe/example1.mp3",
+      "duration": 180
+    },
+    {
+      "id": "track_02",
+      "title": "Garden Echo",
+      "artist": "Open Example",
+      "source_url": "https://file.garden/example2.mp3",
+      "duration": 210
+    }
+  ]
+}

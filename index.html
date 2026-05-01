@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rednet Radio Directory</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Verdana, sans-serif;
+      background: linear-gradient(135deg, #081421, #17324a);
+      color: #f4f7fa;
+    }
+    main {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 48px 20px 64px;
+    }
+    h1 {
+      margin: 0 0 12px;
+      font-size: 2.4rem;
+    }
+    p, li {
+      line-height: 1.55;
+    }
+    .card {
+      margin-top: 24px;
+      padding: 18px 20px;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+    }
+    a {
+      color: #9ad9ff;
+    }
+    code {
+      color: #ffe7a3;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Rednet Radio</h1>
+    <p>This site hosts static JSON files for the ComputerCraft Rednet Radio project.</p>
+
+    <div class="card">
+      <h2>Directory Files</h2>
+      <ul>
+        <li><a href="./stations.json">stations.json</a></li>
+        <li><a href="./playlists/demo_station.json">playlists/demo_station.json</a></li>
+        <li><a href="./install/">install/ package folder</a></li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>How To Add A Station</h2>
+      <p>Create a playlist JSON file in <code>playlists/</code>, then add its metadata entry into <code>stations.json</code>.</p>
+    </div>
+  </main>
+</body>
+</html>

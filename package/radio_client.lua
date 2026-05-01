@@ -17,7 +17,10 @@ end
 local function loadStations()
   local loadedStations, source, err = directory.loadStations(config.directory_url)
   if not loadedStations then
-    return nil, source, err
+    return nil, source, ("Could not load stations from %s: %s"):format(
+      config.directory_url,
+      err or source or "unknown error"
+    )
   end
 
   stations = loadedStations
@@ -102,14 +105,13 @@ local function renderTunedScreen()
 
     if currentSnapshot.track.playback_url then
       print(("Playback URL: %s"):format(currentSnapshot.track.playback_url))
-    else
-      print(("Playback: %s"):format(audio.getStatusSummary()))
     end
   else
     print("Waiting for station data...")
   end
 
   print("")
+  print(("Playback: %s"):format(audio.getStatusSummary()))
   print(("Last sync: %s"):format(lastUpdateMs and util.formatAge(lastUpdateMs) or "never"))
   print("Keys: q = back to station list, p = ping station, r = reload directory")
 end
@@ -118,6 +120,7 @@ local function tuneStation(station)
   currentStation = station
   currentSnapshot = nil
   lastUpdateMs = nil
+  audio.stopTrack()
 
   rednet_api.listenToStation(station)
   rednet_api.requestTune(station)
@@ -157,17 +160,22 @@ local function tuneStation(station)
             currentStation = util.mergeTables(currentStation, message.station)
             currentSnapshot = message.snapshot or currentSnapshot
             lastUpdateMs = util.nowMilliseconds()
+            audio.syncToSnapshot(currentSnapshot)
           elseif message.message_type == config.message_types.now_playing
             or message.message_type == config.message_types.sync
             or message.message_type == config.message_types.announce then
             currentSnapshot = message.snapshot or currentSnapshot
             lastUpdateMs = util.nowMilliseconds()
+            audio.syncToSnapshot(currentSnapshot)
           end
         end
       end
+    elseif event == "speaker_audio_empty" then
+      audio.handleEvent(event)
     elseif event == "char" then
       local key = p1
       if key == "q" then
+        audio.stopTrack()
         return
       elseif key == "p" then
         rednet_api.sendPing(station)
@@ -182,6 +190,7 @@ local function tuneStation(station)
         end
       end
     elseif event == "key" and p1 == keys.backspace then
+      audio.stopTrack()
       return
     end
   end

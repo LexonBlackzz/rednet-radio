@@ -1,0 +1,29 @@
+{
+  "submission_type": "rednet_radio_playlist",
+  "submitted_at_utc": "2026-05-01T22:38:27Z",
+  "station": {
+    "station_id": "3",
+    "name": "Xenia.fm",
+    "description": "24/7 bangers at your service"
+  },
+  "playlist": {
+    "name": "Xenia.fm Playlist",
+    "version": "1",
+    "tracks": [
+      {
+        "id": "track_01",
+        "title": "General Serum",
+        "artist": "Kot & A64",
+        "playback_url": "https://github.com/XeniaGames/radiostuff/blob/main/BotB%2060184%20Kot%20and%20A64%20-%20~%20GENERAL%20SERUM%20~.dfpwm",
+        "duration": 248
+      },
+      {
+        "id": "track_02",
+        "title": "Stop-motion",
+        "artist": "Frums",
+        "playback_url": "https://github.com/XeniaGames/radiostuff/blob/main/stop-motion.dfpwm",
+        "duration": 200
+      }
+    ]
+  }
+}

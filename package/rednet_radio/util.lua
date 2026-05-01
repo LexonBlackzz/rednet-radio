@@ -51,9 +51,16 @@ function util.fetchJson(url, cachePath)
     local raw = response.readAll()
     response.close()
 
+    if type(raw) == "string" then
+      -- GitHub/raw-hosted JSON may include a UTF-8 BOM, which breaks
+      -- textutils.unserializeJSON on some CC:Tweaked versions.
+      raw = raw:gsub("^\239\187\191", "")
+    end
+
     local decoded = textutils.unserializeJSON(raw)
     if decoded == nil then
-      return nil, ("Could not parse JSON from %s"):format(url)
+      local preview = tostring(raw or ""):sub(1, 120):gsub("%s+", " ")
+      return nil, ("Could not parse JSON from %s. Preview: %s"):format(url, preview)
     end
 
     if cachePath then
@@ -66,6 +73,7 @@ function util.fetchJson(url, cachePath)
   if cachePath and fs.exists(cachePath) then
     local cached = util.readAll(cachePath)
     if cached then
+      cached = cached:gsub("^\239\187\191", "")
       local decoded = textutils.unserializeJSON(cached)
       if decoded ~= nil then
         return decoded, "cache", err

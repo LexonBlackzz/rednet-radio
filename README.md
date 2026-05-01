@@ -173,3 +173,7 @@ If you want live reloads later, set them to a positive number of seconds.
 This project now supports client-side `.dfpwm` playback through the speaker peripheral.
 
 Normal MP3 links are still just source assets and metadata. For in-game playback, tracks should provide a `playback_url` pointing to a `.dfpwm` file.
+
+
+
+NOTE: stations.json and playlists/ folder will be constantly updated, either due to new content or fixes!

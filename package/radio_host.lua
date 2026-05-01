@@ -4,6 +4,7 @@ local playlist = require("rednet_radio.playlist")
 local station_module = require("rednet_radio.station")
 local rednet_api = require("rednet_radio.rednet_api")
 local util = require("rednet_radio.util")
+local launchArgs = { ... }
 
 local function log(message)
   print(("[%s] %s"):format(textutils.formatTime(os.time(), true), message))
@@ -138,7 +139,7 @@ local function main(args)
 end
 
 local ok, err = xpcall(function()
-  main({ ... })
+  main(launchArgs)
 end, function(message)
   return debug and debug.traceback and debug.traceback(message, 2) or tostring(message)
 end)

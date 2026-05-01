@@ -10,6 +10,7 @@ local FILES = {
   "rednet_radio/station.lua",
   "rednet_radio/rednet_api.lua",
   "rednet_radio/audio.lua",
+  "rednet_radio/monitor.lua",
 }
 
 local ROLE_FILES = {
@@ -22,6 +23,7 @@ local ROLE_FILES = {
     "rednet_radio/station.lua",
     "rednet_radio/rednet_api.lua",
     "rednet_radio/audio.lua",
+    "rednet_radio/monitor.lua",
   },
   client = {
     "radio_client.lua",
@@ -30,8 +32,16 @@ local ROLE_FILES = {
     "rednet_radio/directory.lua",
     "rednet_radio/rednet_api.lua",
     "rednet_radio/audio.lua",
+    "rednet_radio/monitor.lua",
   },
   all = FILES,
+}
+
+local MANAGED_PATHS = {
+  "radio_host.lua",
+  "radio_client.lua",
+  "rednet_radio",
+  "rednet_radio_cache",
 }
 
 local function clear()
@@ -64,6 +74,15 @@ local function ensureDirFor(path)
   local dir = fs.getDir(path)
   if dir and dir ~= "" and not fs.exists(dir) then
     fs.makeDir(dir)
+  end
+end
+
+local function cleanupExistingInstall()
+  for _, path in ipairs(MANAGED_PATHS) do
+    if fs.exists(path) then
+      print("Removing " .. path)
+      fs.delete(path)
+    end
   end
 end
 
@@ -171,6 +190,7 @@ local function main()
   end
 
   print("")
+  cleanupExistingInstall()
   local ok, err = installFiles(role, packageUrl, websiteUrl)
   if not ok then
     print("Install failed: " .. err)

@@ -8,8 +8,8 @@ return {
   protocol = "rednet_radio_v1",
   announce_interval_seconds = 30,
   sync_interval_seconds = 5,
-  playlist_refresh_seconds = 60,
-  directory_refresh_seconds = 120,
+  playlist_refresh_seconds = 0,
+  directory_refresh_seconds = 0,
   client_ping_interval_seconds = 8,
   track_gap_seconds = 2,
   message_types = {

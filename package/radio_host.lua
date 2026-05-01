@@ -93,8 +93,12 @@ local function main(args)
   schedule("tick", 1)
   schedule("sync", config.sync_interval_seconds)
   schedule("announce", config.announce_interval_seconds)
-  schedule("refresh_directory", config.directory_refresh_seconds)
-  schedule("refresh_playlist", config.playlist_refresh_seconds)
+  if (config.directory_refresh_seconds or 0) > 0 then
+    schedule("refresh_directory", config.directory_refresh_seconds)
+  end
+  if (config.playlist_refresh_seconds or 0) > 0 then
+    schedule("refresh_playlist", config.playlist_refresh_seconds)
+  end
 
   while true do
     local event, p1, p2, p3 = os.pullEvent()
@@ -134,7 +138,9 @@ local function main(args)
         else
           log(("Directory refresh failed: %s"):format(err or "unknown error"))
         end
-        schedule("refresh_directory", config.directory_refresh_seconds)
+        if (config.directory_refresh_seconds or 0) > 0 then
+          schedule("refresh_directory", config.directory_refresh_seconds)
+        end
       elseif timerName == "refresh_playlist" then
         local freshPlaylist, source, err = loadPlaylist(stationDefinition)
         if freshPlaylist then
@@ -148,7 +154,9 @@ local function main(args)
         else
           log(("Playlist refresh failed: %s"):format(err or "unknown error"))
         end
-        schedule("refresh_playlist", config.playlist_refresh_seconds)
+        if (config.playlist_refresh_seconds or 0) > 0 then
+          schedule("refresh_playlist", config.playlist_refresh_seconds)
+        end
       end
     elseif event == "rednet_message" then
       local senderId = p1

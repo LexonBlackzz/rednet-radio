@@ -67,6 +67,25 @@ def prompt(label: str, default: str | None = None, required: bool = True) -> str
             return ""
 
 
+def normalize_github_url(url: str) -> str:
+    if not url:
+        return url
+    if "github.com/" not in url or "/blob/" not in url:
+        return url
+
+    before_blob, after_blob = url.split("/blob/", 1)
+    github_prefix = "https://github.com/"
+    if not before_blob.startswith(github_prefix):
+        return url
+
+    repo_path = before_blob[len(github_prefix):]
+    if "/" not in repo_path or "/" not in after_blob:
+        return url
+
+    branch, file_path = after_blob.split("/", 1)
+    return f"https://raw.githubusercontent.com/{repo_path}/{branch}/{file_path}"
+
+
 def next_track_id(tracks: list[dict]) -> str:
     highest = 0
     for track in tracks:
@@ -130,15 +149,20 @@ def command_add_track(layout: Layout, args: argparse.Namespace) -> int:
         "id": args.track_id or next_track_id(tracks),
         "title": args.title or prompt("Track title"),
         "artist": args.artist or prompt("Artist"),
-        "source_url": args.source_url or prompt("Source URL"),
         "duration": int(args.duration or prompt("Duration seconds")),
     }
+
+    source_url = args.source_url
+    if source_url is None:
+        source_url = prompt("Source URL", required=False)
+    if source_url:
+        track["source_url"] = source_url
 
     playback_url = args.playback_url
     if playback_url is None:
         playback_url = prompt("Playback URL (.dfpwm)", required=False)
     if playback_url:
-        track["playback_url"] = playback_url
+        track["playback_url"] = normalize_github_url(playback_url)
 
     art_url = args.art_url
     if art_url is None:

@@ -27,19 +27,27 @@ local function normalizeTrack(track)
     return nil, ("Track '%s' is missing artist"):format(track.id)
   end
 
-  if not util.isNonEmptyString(track.source_url) then
-    return nil, ("Track '%s' is missing source_url"):format(track.id)
-  end
-
   if not util.isPositiveNumber(track.duration) then
     return nil, ("Track '%s' has invalid duration"):format(track.id)
+  end
+
+  if track.source_url ~= nil and type(track.source_url) ~= "string" then
+    return nil, ("Track '%s' has invalid source_url"):format(track.id)
+  end
+
+  if track.art_url ~= nil and type(track.art_url) ~= "string" then
+    return nil, ("Track '%s' has invalid art_url"):format(track.id)
+  end
+
+  if track.playback_url ~= nil and type(track.playback_url) ~= "string" then
+    return nil, ("Track '%s' has invalid playback_url"):format(track.id)
   end
 
   return {
     id = track.id,
     title = track.title,
     artist = track.artist,
-    source_url = track.source_url,
+    source_url = track.source_url or "",
     art_url = track.art_url,
     duration = track.duration,
     playback_url = track.playback_url,
@@ -55,6 +63,10 @@ function playlist.loadPlaylist(stationId, url, fallbackName)
   local trackItems = decoded
   local playlistName = fallbackName or stationId
   local version = tostring(util.nowMilliseconds())
+
+  if decoded.playlist and type(decoded.playlist) == "table" then
+    decoded = decoded.playlist
+  end
 
   if decoded.tracks then
     trackItems = decoded.tracks

@@ -131,10 +131,24 @@ It asks for:
 It writes a file like:
 
 ```text
+demo_station.json
+```
+
+By default this is a drop-in playlist file you can place in `playlists/`.
+
+If you want the older wrapped submission format with station metadata too:
+
+```text
+python playlist_submission.py --wrap-submission
+```
+
+That writes a file like:
+
+```text
 demo_station_submission.json
 ```
 
-You can then copy the `playlist.tracks` data into your repo playlist, or use it as the starting point for a new station.
+The host now accepts both plain playlist files and wrapped submission JSON.
 
 ## Monitor Support
 
@@ -174,6 +188,4 @@ This project now supports client-side `.dfpwm` playback through the speaker peri
 
 Normal MP3 links are still just source assets and metadata. For in-game playback, tracks should provide a `playback_url` pointing to a `.dfpwm` file.
 
-
-
-NOTE: stations.json and playlists/ folder will be constantly updated, either due to new content or fixes!
+If you use GitHub-hosted audio, use raw file URLs, not `github.com/.../blob/...` page URLs. The helper scripts will convert common GitHub blob links to `raw.githubusercontent.com` automatically.

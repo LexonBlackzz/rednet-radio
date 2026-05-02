@@ -6,6 +6,7 @@ local audio = require("rednet_radio.audio")
 local monitor = require("rednet_radio.monitor")
 local settings = require("rednet_radio.settings")
 local updater = require("rednet_radio.updater")
+local version = require("rednet_radio.version")
 
 local stations = {}
 local currentStation
@@ -111,6 +112,7 @@ end
 local function printStationList(source)
   clear()
   print("Rednet Radio")
+  print(("Version: %s"):format(version.version))
   print(("Directory: %s"):format(source or "unknown"))
   print(("Updates: %s"):format(updateStatus))
   print("")
@@ -172,6 +174,7 @@ local function renderTunedScreen()
     local currentSettings = settings.get()
     print("Client Settings")
     print("")
+    print(("Installed version: %s"):format(version.version))
     print(("Never button in update prompt: %s"):format(
       currentSettings.show_never_option and "ON" or "OFF"
     ))

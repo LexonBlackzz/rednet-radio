@@ -107,16 +107,27 @@ local function getClientSettingsButtonLayout(width, height)
   }
 end
 
-local function getSettingsScreenLayout(width, height, showNeverOption)
+local function getSettingsScreenLayout(width, height, showNeverOption, remindLaterMinutes)
   local toggleLabel = showNeverOption and "[ON]" or "[OFF]"
+  local reminderDownLabel = "[-]"
+  local reminderUpLabel = "[+]"
+  local reminderValueLabel = ("%dm"):format(remindLaterMinutes or 60)
   local toggleRow = 10
+  local reminderRow = 14
   local backLabel = "[BACK]"
   return {
     toggleRow = toggleRow,
     toggleX = math.max(3, width - #toggleLabel - 3),
     toggleWidth = #toggleLabel,
     toggleLabel = toggleLabel,
-    backRow = math.max(toggleRow + 3, height - 2),
+    reminderRow = reminderRow,
+    reminderDownX = math.max(3, width - (#reminderUpLabel + #reminderValueLabel + #reminderDownLabel + 6)),
+    reminderDownLabel = reminderDownLabel,
+    reminderValueX = math.max(8, width - (#reminderUpLabel + #reminderValueLabel + 5)),
+    reminderValueLabel = reminderValueLabel,
+    reminderUpX = math.max(12, width - #reminderUpLabel - 3),
+    reminderUpLabel = reminderUpLabel,
+    backRow = math.max(reminderRow + 3, height - 2),
     backX = math.max(3, width - #backLabel - 2),
     backWidth = #backLabel,
     backLabel = backLabel,
@@ -252,11 +263,20 @@ function monitor.renderClientSettings(playbackStatus, settingsState)
   end
 
   local width, height = drawFrame(device, "Client Settings")
-  local layout = getSettingsScreenLayout(width, height, settingsState and settingsState.show_never_option)
+  local layout = getSettingsScreenLayout(
+    width,
+    height,
+    settingsState and settingsState.show_never_option,
+    settingsState and settingsState.remind_later_minutes
+  )
   writeAt(device, 3, 6, fit("Update prompt style", width - 6), colors.white, palette.panel)
   writeAt(device, 3, 8, fit("Show optional NEVER button", width - 6), colors.white, palette.panel)
   writeAt(device, layout.toggleX, layout.toggleRow, layout.toggleLabel, colors.black, colors.lightGray)
   writeAt(device, 3, 12, fit("OFF keeps the prompt to OK and LATER only.", width - 6), colors.black, palette.panel)
+  writeAt(device, 3, layout.reminderRow, fit("Remind me later delay", width - 6), colors.white, palette.panel)
+  writeAt(device, layout.reminderDownX, layout.reminderRow, layout.reminderDownLabel, colors.black, colors.lightGray)
+  writeAt(device, layout.reminderValueX, layout.reminderRow, layout.reminderValueLabel, colors.black, palette.panel)
+  writeAt(device, layout.reminderUpX, layout.reminderRow, layout.reminderUpLabel, colors.black, colors.lightGray)
   writeAt(device, layout.backX, layout.backRow, layout.backLabel, colors.black, colors.lightGray)
   writeAt(device, 3, height - 2, fit(playbackStatus or "idle", width - 6), colors.white, palette.panel)
 end
@@ -283,13 +303,32 @@ function monitor.getClientTouchAction(side, x, y, screenMode, prompt, settingsSt
   end
 
   if screenMode == "settings" then
-    local layout = getSettingsScreenLayout(width, height, settingsState and settingsState.show_never_option)
+    local layout = getSettingsScreenLayout(
+      width,
+      height,
+      settingsState and settingsState.show_never_option,
+      settingsState and settingsState.remind_later_minutes
+    )
     if hitButton(x, y, {
       x = layout.toggleX,
       y = layout.toggleRow,
       label = layout.toggleLabel,
     }) then
       return "toggle_never_option"
+    end
+    if hitButton(x, y, {
+      x = layout.reminderDownX,
+      y = layout.reminderRow,
+      label = layout.reminderDownLabel,
+    }) then
+      return "remind_delay_down"
+    end
+    if hitButton(x, y, {
+      x = layout.reminderUpX,
+      y = layout.reminderRow,
+      label = layout.reminderUpLabel,
+    }) then
+      return "remind_delay_up"
     end
     if hitButton(x, y, {
       x = layout.backX,

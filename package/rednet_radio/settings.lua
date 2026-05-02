@@ -4,12 +4,16 @@ local version = require("rednet_radio.version")
 local settings = {}
 
 local SETTINGS_PATH = "/rednet_radio/settings.json"
-local REMIND_LATER_MS = 60 * 60 * 1000
+local DEFAULT_REMIND_LATER_MINUTES = 60
+local MIN_REMIND_LATER_MINUTES = 5
+local MAX_REMIND_LATER_MINUTES = 180
+local REMIND_LATER_STEP_MINUTES = 5
 
 local defaults = {
   show_never_option = false,
   remind_at_ms = 0,
   ignored_version = nil,
+  remind_later_minutes = DEFAULT_REMIND_LATER_MINUTES,
   settings_version = version.version,
 }
 
@@ -69,8 +73,35 @@ function settings.toggleShowNeverOption()
   return not current
 end
 
+function settings.getRemindLaterMinutes()
+  local minutes = tonumber(settings.get().remind_later_minutes) or DEFAULT_REMIND_LATER_MINUTES
+  minutes = math.floor(minutes + 0.5)
+  if minutes < MIN_REMIND_LATER_MINUTES then
+    minutes = MIN_REMIND_LATER_MINUTES
+  elseif minutes > MAX_REMIND_LATER_MINUTES then
+    minutes = MAX_REMIND_LATER_MINUTES
+  end
+  return minutes
+end
+
+function settings.getRemindLaterStepMinutes()
+  return REMIND_LATER_STEP_MINUTES
+end
+
+function settings.setRemindLaterMinutes(minutes)
+  settings.get().remind_later_minutes = minutes
+  settings.get().remind_later_minutes = settings.getRemindLaterMinutes()
+  return persist()
+end
+
+function settings.adjustRemindLaterMinutes(deltaMinutes)
+  local current = settings.getRemindLaterMinutes()
+  settings.setRemindLaterMinutes(current + (deltaMinutes or 0))
+  return settings.getRemindLaterMinutes()
+end
+
 function settings.remindLater()
-  settings.get().remind_at_ms = util.nowMilliseconds() + REMIND_LATER_MS
+  settings.get().remind_at_ms = util.nowMilliseconds() + (settings.getRemindLaterMinutes() * 60 * 1000)
   return persist()
 end
 

@@ -5,6 +5,7 @@ local station_module = require("rednet_radio.station")
 local rednet_api = require("rednet_radio.rednet_api")
 local util = require("rednet_radio.util")
 local monitor = require("rednet_radio.monitor")
+local updater = require("rednet_radio.updater")
 local launchArgs = { ... }
 
 local function log(message)
@@ -79,6 +80,7 @@ local function main(args)
     definitionSourceOrErr,
     playlistSourceOrErr
   ))
+  log(("Updates: %s"):format(updater.getStatusSummary()))
   monitor.renderHost(stationDefinition, stationRuntime:getSnapshot(), playlistSourceOrErr)
 
   rednet_api.broadcastAnnounce(stationDefinition, stationRuntime:getSnapshot())

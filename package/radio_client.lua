@@ -4,15 +4,95 @@ local rednet_api = require("rednet_radio.rednet_api")
 local util = require("rednet_radio.util")
 local audio = require("rednet_radio.audio")
 local monitor = require("rednet_radio.monitor")
+local settings = require("rednet_radio.settings")
+local updater = require("rednet_radio.updater")
 
 local stations = {}
 local currentStation
 local currentSnapshot
 local lastUpdateMs
+local updateStatus = "update check pending"
+local updateInfo = nil
+local screenMode = "main"
+local updatePrompt = {
+  visible = false,
+  latest_version = nil,
+  show_never_option = false,
+}
 
 local function clear()
   term.clear()
   term.setCursorPos(1, 1)
+end
+
+local function adjustVolume(deltaPercent)
+  audio.adjustVolumePercent(deltaPercent)
+end
+
+local function refreshUpdateState(statusOverride)
+  updateInfo = nil
+
+  local result, err = updater.check()
+  if not result then
+    updateStatus = statusOverride or ("update check failed (%s)"):format(err or "unknown error")
+    updatePrompt.visible = false
+    updatePrompt.latest_version = nil
+    updatePrompt.show_never_option = settings.shouldShowNeverOption()
+    return
+  end
+
+  updateInfo = result
+  if result.update_available then
+    updateStatus = statusOverride or ("update available: %s -> %s"):format(
+      result.current_version,
+      result.latest_version
+    )
+    updatePrompt.visible = settings.shouldPromptForVersion(result.latest_version)
+    updatePrompt.latest_version = result.latest_version
+    updatePrompt.show_never_option = settings.shouldShowNeverOption()
+  else
+    updateStatus = statusOverride or ("up to date (%s)"):format(result.current_version)
+    updatePrompt.visible = false
+    updatePrompt.latest_version = nil
+    updatePrompt.show_never_option = settings.shouldShowNeverOption()
+  end
+end
+
+local function remindAboutUpdateLater()
+  settings.remindLater()
+  updatePrompt.visible = false
+  if updateInfo and updateInfo.latest_version then
+    updateStatus = ("update available: %s (remind later)"):format(updateInfo.latest_version)
+  end
+end
+
+local function neverShowThisUpdate()
+  if updateInfo and updateInfo.latest_version and settings.shouldShowNeverOption() then
+    settings.ignoreVersion(updateInfo.latest_version)
+    updatePrompt.visible = false
+    updateStatus = ("ignored update %s"):format(updateInfo.latest_version)
+  end
+end
+
+local function installAvailableUpdate()
+  local result, err = updater.applyLocalUpdate()
+  if not result then
+    updateStatus = ("local update failed (%s)"):format(err or "unknown error")
+    updatePrompt.visible = false
+    return
+  end
+
+  settings.clearReminder()
+  settings.clearIgnoredVersion()
+  updatePrompt.visible = false
+  updateStatus = result.message
+  if result.updated then
+    updateInfo = nil
+    updatePrompt.latest_version = nil
+    return
+  end
+
+  refreshUpdateState(result.message)
 end
 
 local function loadStations()
@@ -32,6 +112,7 @@ local function printStationList(source)
   clear()
   print("Rednet Radio")
   print(("Directory: %s"):format(source or "unknown"))
+  print(("Updates: %s"):format(updateStatus))
   print("")
 
   if #stations == 0 then
@@ -87,6 +168,21 @@ end
 
 local function renderTunedScreen()
   clear()
+  if screenMode == "settings" then
+    local currentSettings = settings.get()
+    print("Client Settings")
+    print("")
+    print(("Never button in update prompt: %s"):format(
+      currentSettings.show_never_option and "ON" or "OFF"
+    ))
+    print(("Updates: %s"):format(updateStatus))
+    print("")
+    print("Keys: b = back, t = toggle NEVER option, q = back to station list")
+
+    monitor.renderClientSettings(audio.getStatusSummary(), currentSettings)
+    return
+  end
+
   print(("Tuned to: %s"):format(currentStation.name))
   print(("Station ID: %s"):format(currentStation.station_id))
   print(("Protocol: %s"):format(rednet_api.getStationProtocol(currentStation)))
@@ -121,16 +217,38 @@ local function renderTunedScreen()
 
   print("")
   print(("Playback: %s"):format(audio.getStatusSummary()))
+  print(("Volume: %d%% / %d%%"):format(
+    audio.getVolumePercent(),
+    audio.getMaxVolumePercent()
+  ))
+  print(("Updates: %s"):format(updateStatus))
   print(("Last sync: %s"):format(lastUpdateMs and util.formatAge(lastUpdateMs) or "never"))
-  print("Keys: q = back to station list, p = ping station, r = reload directory")
+  print("Keys: q = back, p = ping, r = reload, s = settings, [ / ] = volume")
 
-  monitor.renderClient(currentStation, currentSnapshot, audio.getStatusSummary())
+  if updatePrompt.visible then
+    local promptLine = "Update prompt: o = OK, l = remind me later"
+    if updatePrompt.show_never_option then
+      promptLine = promptLine .. ", n = never"
+    end
+    print(promptLine)
+  end
+
+  monitor.renderClient(
+    currentStation,
+    currentSnapshot,
+    audio.getStatusSummary(),
+    audio.getVolumePercent(),
+    audio.getMaxVolumePercent(),
+    updateStatus,
+    updatePrompt
+  )
 end
 
 local function tuneStation(station)
   currentStation = station
   currentSnapshot = nil
   lastUpdateMs = nil
+  screenMode = "main"
   audio.stopTrack()
 
   rednet_api.listenToStation(station)
@@ -188,6 +306,27 @@ local function tuneStation(station)
       if key == "q" then
         audio.stopTrack()
         return
+      elseif screenMode == "settings" then
+        if key == "b" then
+          screenMode = "main"
+        elseif key == "t" then
+          settings.toggleShowNeverOption()
+          refreshUpdateState()
+        end
+      elseif updatePrompt.visible then
+        if key == "o" then
+          installAvailableUpdate()
+        elseif key == "l" then
+          remindAboutUpdateLater()
+        elseif key == "n" then
+          neverShowThisUpdate()
+        elseif key == "s" then
+          screenMode = "settings"
+        elseif key == "[" then
+          adjustVolume(-audio.getVolumeStepPercent())
+        elseif key == "]" then
+          adjustVolume(audio.getVolumeStepPercent())
+        end
       elseif key == "p" then
         rednet_api.sendPing(station)
       elseif key == "r" then
@@ -199,6 +338,39 @@ local function tuneStation(station)
             rednet_api.listenToStation(currentStation)
           end
         end
+      elseif key == "s" then
+        screenMode = "settings"
+      elseif key == "[" then
+        adjustVolume(-audio.getVolumeStepPercent())
+      elseif key == "]" then
+        adjustVolume(audio.getVolumeStepPercent())
+      end
+    elseif event == "monitor_touch" then
+      local action = monitor.getClientTouchAction(
+        p1,
+        p2,
+        p3,
+        screenMode,
+        updatePrompt,
+        settings.get()
+      )
+      if action == "volume_down" then
+        adjustVolume(-audio.getVolumeStepPercent())
+      elseif action == "volume_up" then
+        adjustVolume(audio.getVolumeStepPercent())
+      elseif action == "open_settings" then
+        screenMode = "settings"
+      elseif action == "settings_back" then
+        screenMode = "main"
+      elseif action == "toggle_never_option" then
+        settings.toggleShowNeverOption()
+        refreshUpdateState()
+      elseif action == "update_ok" then
+        installAvailableUpdate()
+      elseif action == "update_later" then
+        remindAboutUpdateLater()
+      elseif action == "update_never" then
+        neverShowThisUpdate()
       end
     elseif event == "key" and p1 == keys.backspace then
       audio.stopTrack()
@@ -211,6 +383,9 @@ local function main()
   if rednet_api.openModems() == 0 then
     error("No modem was found. Attach a modem before running the radio client.")
   end
+
+  settings.load()
+  refreshUpdateState()
 
   while true do
     local station = chooseStation()

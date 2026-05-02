@@ -14,11 +14,11 @@
       "description": "24/7 bangers at your service",
       "playlist_url": "https://raw.githubusercontent.com/LexonBlackzz/rednet-radio/main/playlists/3_submission.json",
       "rednet_channel": "rednet_radio_v1:station:xenia_fm",
-      "host_label": "xenia-fm-host"
+      "host_label": "user-submitted"
     },
     {
       "station_id": "real_hits",
-      "name": "real hits",
+      "name": "Lexon's Real Hits",
       "description": "Imported from my Youtube playlist.. A little more curated though",
       "playlist_url": "https://raw.githubusercontent.com/LexonBlackzz/rednet-radio/main/playlists/real_hits.json",
       "rednet_channel": "rednet_radio_v1:station:real_hits",

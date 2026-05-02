@@ -112,8 +112,10 @@ local function getSettingsScreenLayout(width, height, showNeverOption, remindLat
   local reminderDownLabel = "[-]"
   local reminderUpLabel = "[+]"
   local reminderValueLabel = ("%dm"):format(remindLaterMinutes or 60)
+  local updateNowLabel = "[UPDATE NOW]"
   local toggleRow = 10
   local reminderRow = 14
+  local updateRow = 17
   local backLabel = "[BACK]"
   return {
     toggleRow = toggleRow,
@@ -127,7 +129,10 @@ local function getSettingsScreenLayout(width, height, showNeverOption, remindLat
     reminderValueLabel = reminderValueLabel,
     reminderUpX = math.max(12, width - #reminderUpLabel - 3),
     reminderUpLabel = reminderUpLabel,
-    backRow = math.max(reminderRow + 3, height - 2),
+    updateRow = updateRow,
+    updateX = math.max(3, width - #updateNowLabel - 3),
+    updateLabel = updateNowLabel,
+    backRow = math.max(updateRow + 2, height - 2),
     backX = math.max(3, width - #backLabel - 2),
     backWidth = #backLabel,
     backLabel = backLabel,
@@ -277,6 +282,8 @@ function monitor.renderClientSettings(playbackStatus, settingsState)
   writeAt(device, layout.reminderDownX, layout.reminderRow, layout.reminderDownLabel, colors.black, colors.lightGray)
   writeAt(device, layout.reminderValueX, layout.reminderRow, layout.reminderValueLabel, colors.black, palette.panel)
   writeAt(device, layout.reminderUpX, layout.reminderRow, layout.reminderUpLabel, colors.black, colors.lightGray)
+  writeAt(device, 3, layout.updateRow, fit("Manual update", width - 6), colors.white, palette.panel)
+  writeAt(device, layout.updateX, layout.updateRow, layout.updateLabel, colors.black, colors.lightGray)
   writeAt(device, layout.backX, layout.backRow, layout.backLabel, colors.black, colors.lightGray)
   writeAt(device, 3, height - 2, fit(playbackStatus or "idle", width - 6), colors.white, palette.panel)
 end
@@ -329,6 +336,13 @@ function monitor.getClientTouchAction(side, x, y, screenMode, prompt, settingsSt
       label = layout.reminderUpLabel,
     }) then
       return "remind_delay_up"
+    end
+    if hitButton(x, y, {
+      x = layout.updateX,
+      y = layout.updateRow,
+      label = layout.updateLabel,
+    }) then
+      return "update_now"
     end
     if hitButton(x, y, {
       x = layout.backX,

@@ -30,6 +30,10 @@ local function adjustVolume(deltaPercent)
   audio.adjustVolumePercent(deltaPercent)
 end
 
+local function adjustRemindLaterMinutes(deltaMinutes)
+  settings.adjustRemindLaterMinutes(deltaMinutes)
+end
+
 local function refreshUpdateState(statusOverride)
   updateInfo = nil
 
@@ -178,9 +182,10 @@ local function renderTunedScreen()
     print(("Never button in update prompt: %s"):format(
       currentSettings.show_never_option and "ON" or "OFF"
     ))
+    print(("Remind me later delay: %d minutes"):format(settings.getRemindLaterMinutes()))
     print(("Updates: %s"):format(updateStatus))
     print("")
-    print("Keys: b = back, t = toggle NEVER option, q = back to station list")
+    print("Keys: b = back, t = toggle NEVER option, - / = = reminder delay, q = back to station list")
 
     monitor.renderClientSettings(audio.getStatusSummary(), currentSettings)
     return
@@ -315,6 +320,10 @@ local function tuneStation(station)
         elseif key == "t" then
           settings.toggleShowNeverOption()
           refreshUpdateState()
+        elseif key == "-" then
+          adjustRemindLaterMinutes(-settings.getRemindLaterStepMinutes())
+        elseif key == "=" then
+          adjustRemindLaterMinutes(settings.getRemindLaterStepMinutes())
         end
       elseif updatePrompt.visible then
         if key == "o" then
@@ -368,6 +377,10 @@ local function tuneStation(station)
       elseif action == "toggle_never_option" then
         settings.toggleShowNeverOption()
         refreshUpdateState()
+      elseif action == "remind_delay_down" then
+        adjustRemindLaterMinutes(-settings.getRemindLaterStepMinutes())
+      elseif action == "remind_delay_up" then
+        adjustRemindLaterMinutes(settings.getRemindLaterStepMinutes())
       elseif action == "update_ok" then
         installAvailableUpdate()
       elseif action == "update_later" then

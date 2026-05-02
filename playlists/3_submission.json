@@ -15,6 +15,125 @@
       "artist": "Frums",
       "duration": 200,
       "playback_url": "https://raw.githubusercontent.com/XeniaGames/radiostuff/main/stop-motion.dfpwm"
+    },
+    {
+      "id": "track_03",
+      "title": "Yumi",
+      "artist": "Artichoke",
+      "duration": 113,
+      "playback_url": "https://raw.githubusercontent.com/XeniaGames/radiostuff/main/Artichoke%20-%20Yumi.dfpwm"
+    },
+    {
+      "id": "track_04",
+      "title": "Cosmic Diffusion",
+      "artist": "Kobaryo",
+      "duration": 179,
+      "playback_url": "https://raw.githubusercontent.com/XeniaGames/radiostuff/main/Cosmic%20Diffusion.dfpwm"
+    },
+    {
+      "id": "track_05",
+      "title": "Execution Clap",
+      "artist": "TRAP CHICK",
+      "duration": 194,
+      "playback_url": "https://raw.githubusercontent.com/XeniaGames/radiostuff/main/Execution%20Clap.dfpwm"
+    },
+    {
+      "id": "track_06",
+      "title": "GOD COMPLEX",
+      "artist": "DnST3r_7",
+      "duration": 120,
+      "playback_url": "https://raw.githubusercontent.com/XeniaGames/radiostuff/main/GOD%20COMPLEX.dfpwm"
+    },
+    {
+      "id": "track_07",
+      "title": "Singularity at 2.64e6 BPM",
+      "artist": "Kobaryo",
+      "duration": 229,
+      "playback_url": "https://raw.githubusercontent.com/XeniaGames/radiostuff/main/Kobaryo%20-%20Singularity%20at%202.64e6%20BPM.dfpwm"
+    },
+    {
+      "id": "track_08",
+      "title": "Lamprey Hole",
+      "artist": "sm20342896",
+      "duration": 221,
+      "playback_url": "https://raw.githubusercontent.com/XeniaGames/radiostuff/main/Lamprey%20Hole.dfpwm"
+    },
+    {
+      "id": "track_09",
+      "title": "Through Patches of Violet [Limbus Company]",
+      "artist": "Mili",
+      "duration": 233,
+      "playback_url": "https://raw.githubusercontent.com/XeniaGames/radiostuff/main/Mili%20-%20Through%20Patches%20of%20Violet%20%5BLimbus%20Company%5D.dfpwm"
+    },
+    {
+      "id": "track_10",
+      "title": "The Third Sanctuary",
+      "artist": "Toby Fox",
+      "duration": 252,
+      "playback_url": "https://raw.githubusercontent.com/XeniaGames/radiostuff/main/The%20Third%20Sanctuary.dfpwm"
+    },
+    {
+      "id": "track_11",
+      "title": "DYNAMITE",
+      "artist": "Treb",
+      "duration": 134,
+      "playback_url": "https://raw.githubusercontent.com/XeniaGames/radiostuff/main/Treb%20-%20DYNAMITE.dfpwm"
+    },
+    {
+      "id": "track_12",
+      "title": "VENGEFUL",
+      "artist": "Treb",
+      "duration": 140,
+      "playback_url": "https://raw.githubusercontent.com/XeniaGames/radiostuff/main/Treb%20-%20VENGEFUL.dfpwm"
+    },
+    {
+      "id": "track_13",
+      "title": "Energy Drink",
+      "artist": "Virtual Riot",
+      "duration": 304,
+      "playback_url": "https://raw.githubusercontent.com/XeniaGames/radiostuff/main/Virtual%20Riot%20-%20Energy%20Drink%20(FREE%20DOWNLOAD).dfpwm"
+    },
+    {
+      "id": "track_14",
+      "title": "Sanctuary",
+      "artist": "Wildstylez",
+      "duration": 232,
+      "playback_url": "https://raw.githubusercontent.com/XeniaGames/radiostuff/main/Wildstylez%20-%20Sanctuary%20(feat.%20Lindi)%20%5BOfficial%20Videoclip%5D.dfpwm"
+    },
+    {
+      "id": "track_15",
+      "title": "HAL 30000 Special 30k subs",
+      "artist": "Kobaryo",
+      "duration": 146,
+      "playback_url": "https://raw.githubusercontent.com/XeniaGames/radiostuff/main/%5B30000%20BPM%5D%20Kobaryo%20-%20HAL%2030000%20Special%2030k%20subs.dfpwm"
+    },
+    {
+      "id": "track_16",
+      "title": "A DARK ZONE",
+      "artist": "Toby Fox",
+      "duration": 143,
+      "playback_url": "https://raw.githubusercontent.com/XeniaGames/radiostuff/main/adarkzone.dfpwm"
+    },
+    {
+      "id": "track_17",
+      "title": "BPM=RT (Uncut Edition)",
+      "artist": "t+pazolite",
+      "duration": 237,
+      "playback_url": "https://raw.githubusercontent.com/XeniaGames/radiostuff/main/tpazolite%20-%20BPM%3DRT%20(Uncut%20Edition).dfpwm"
+    },
+    {
+      "id": "track_18",
+      "title": "Letter to the Black World",
+      "artist": "Kasane Teto",
+      "duration": 132,
+      "playback_url": "https://raw.githubusercontent.com/XeniaGames/radiostuff/main/%E9%BB%92%E5%A1%97%E3%82%8A%E4%B8%96%E7%95%8C%E5%AE%9B%E3%81%A6%E6%9B%B8%E7%B0%A1%E9%87%8D%E9%9F%B3%E3%83%86%E3%83%88Letter%20to%20the%20Black%20World%20Kasane%20Teto.dfpwm"
+    }
+     "id": "track_19",
+      "title": "Signaling",
+      "artist": "Hatsune Miku & Kasane Teto",
+      "duration": 179,
+      "playback_url": "https://raw.githubusercontent.com/XeniaGames/radiostuff/main/%5BMV%5D%20ABM%20-%20'次元通信'%20(Signaling)%20初音ミク%20%26%20重音テト.dfpwm"
+    {
     }
   ]
 }

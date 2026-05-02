@@ -7,6 +7,10 @@ local BYTES_PER_SECOND = SAMPLE_RATE / 8
 local CHUNK_BYTES = 16 * 1024
 local PRE_ROLL_SECONDS = 1
 local RESYNC_THRESHOLD_SECONDS = 2
+local MIN_VOLUME_PERCENT = 0
+local MAX_VOLUME_PERCENT = 300
+local DEFAULT_VOLUME_PERCENT = 100
+local VOLUME_STEP_PERCENT = 5
 
 local state = {
   speaker = nil,
@@ -20,9 +24,26 @@ local state = {
   sync_offset_seconds = 0,
   sync_clock_ms = 0,
   bytes_started_at = 0,
+  volume_percent = DEFAULT_VOLUME_PERCENT,
   status = "metadata mode only",
   last_error = nil,
 }
+
+local function clampVolumePercent(volumePercent)
+  volumePercent = tonumber(volumePercent) or DEFAULT_VOLUME_PERCENT
+  volumePercent = math.floor(volumePercent + 0.5)
+  if volumePercent < MIN_VOLUME_PERCENT then
+    return MIN_VOLUME_PERCENT
+  end
+  if volumePercent > MAX_VOLUME_PERCENT then
+    return MAX_VOLUME_PERCENT
+  end
+  return volumePercent
+end
+
+local function getSpeakerVolume()
+  return state.volume_percent / 100
+end
 
 local function closeStream()
   if state.stream and state.stream.close then
@@ -85,7 +106,7 @@ local function playPendingBuffer()
     return false
   end
 
-  if speaker.playAudio(state.pending_buffer) then
+  if speaker.playAudio(state.pending_buffer, getSpeakerVolume()) then
     state.pending_buffer = nil
     state.status = "playing"
     return true
@@ -225,6 +246,27 @@ function audio.getStatusSummary()
   end
 
   return state.status
+end
+
+function audio.getVolumePercent()
+  return state.volume_percent
+end
+
+function audio.getMaxVolumePercent()
+  return MAX_VOLUME_PERCENT
+end
+
+function audio.getVolumeStepPercent()
+  return VOLUME_STEP_PERCENT
+end
+
+function audio.setVolumePercent(volumePercent)
+  state.volume_percent = clampVolumePercent(volumePercent)
+  return state.volume_percent
+end
+
+function audio.adjustVolumePercent(deltaPercent)
+  return audio.setVolumePercent(state.volume_percent + (deltaPercent or 0))
 end
 
 function audio.syncToSnapshot(snapshot)

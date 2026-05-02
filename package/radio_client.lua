@@ -185,7 +185,7 @@ local function renderTunedScreen()
     print(("Remind me later delay: %d minutes"):format(settings.getRemindLaterMinutes()))
     print(("Updates: %s"):format(updateStatus))
     print("")
-    print("Keys: b = back, t = toggle NEVER option, - / = = reminder delay, q = back to station list")
+    print("Keys: b = back, t = toggle NEVER option, - / = = reminder delay, u = update now, q = back to station list")
 
     monitor.renderClientSettings(audio.getStatusSummary(), currentSettings)
     return
@@ -324,6 +324,8 @@ local function tuneStation(station)
           adjustRemindLaterMinutes(-settings.getRemindLaterStepMinutes())
         elseif key == "=" then
           adjustRemindLaterMinutes(settings.getRemindLaterStepMinutes())
+        elseif key == "u" then
+          installAvailableUpdate()
         end
       elseif updatePrompt.visible then
         if key == "o" then
@@ -381,6 +383,8 @@ local function tuneStation(station)
         adjustRemindLaterMinutes(-settings.getRemindLaterStepMinutes())
       elseif action == "remind_delay_up" then
         adjustRemindLaterMinutes(settings.getRemindLaterStepMinutes())
+      elseif action == "update_now" then
+        installAvailableUpdate()
       elseif action == "update_ok" then
         installAvailableUpdate()
       elseif action == "update_later" then

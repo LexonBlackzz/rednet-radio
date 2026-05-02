@@ -23,16 +23,13 @@ Modular `CC:Tweaked` radio scripts backed by a simple website that hosts station
 - a modem attached to each participating computer
 
 ## Quick Start
-
-1. Edit [rednet_radio/config.lua](/d:/Projects/rednet%20radio/rednet_radio/config.lua) and set `base_url` to your website URL.
-2. Upload the contents of [site](/d:/Projects/rednet%20radio/site) to your host.
-3. On the station computer, run:
+1. On the station computer, run:
 
 ```lua
 radio_host demo_station
 ```
 
-4. On another computer, run:
+2. On another computer, run:
 
 ```lua
 radio_client
@@ -42,7 +39,7 @@ radio_client
 
 You can also install this inside ComputerCraft using a single installer script.
 
-1. Upload [install.lua](/d:/Projects/rednet%20radio/install.lua) to Pastebin.
+1. Upload [install.lua](https://github.com/LexonBlackzz/rednet-radio/blob/main/install.lua) to Pastebin.
 2. Upload the installable Lua files to a static host under one folder, for example:
    - `radio_host.lua`
    - `radio_client.lua`
@@ -86,7 +83,7 @@ With your current layout, keep `stations.json` and `playlists/` at the repo root
 
 ## Playlist Tool
 
-Use [manage_radio.py](/d:/Projects/rednet%20radio/manage_radio.py) to avoid hand-editing JSON.
+Use [manage_radio.py](https://github.com/LexonBlackzz/rednet-radio/blob/main/manage_radio.py) to avoid hand-editing JSON.
 
 List stations:
 
@@ -114,7 +111,7 @@ python manage_radio.py --root C:\path\to\repo create-station chill
 
 ## Submission Tool
 
-Use [playlist_submission.py](/d:/Projects/rednet%20radio/playlist_submission.py) if you want contributors to build a ready-to-send JSON file.
+Use [playlist_submission.py](https://github.com/LexonBlackzz/rednet-radio/blob/main/playlist_submission.py) if you want contributors to build a ready-to-send JSON file.
 
 They run:
 
@@ -167,7 +164,7 @@ The default gap is:
 2 seconds
 ```
 
-You can change it in [rednet_radio/config.lua](/d:/Projects/rednet%20radio/rednet_radio/config.lua) with:
+You can change it in [rednet_radio/config.lua]([/d:/Projects/rednet%20radio/rednet_radio/config.lua](https://github.com/LexonBlackzz/rednet-radio/blob/main/package/rednet_radio/config.lua)) with:
 
 ```lua
 track_gap_seconds = 2,

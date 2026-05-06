@@ -20,7 +20,7 @@
       "id": "track_03",
       "title": "Yumi",
       "artist": "Artichoke",
-      "duration": 113,
+      "duration": 133,
       "playback_url": "https://raw.githubusercontent.com/XeniaGames/radiostuff/main/Artichoke%20-%20Yumi.dfpwm"
     },
     {
@@ -126,14 +126,70 @@
       "title": "Letter to the Black World",
       "artist": "Kasane Teto",
       "duration": 132,
-      "playback_url": "https://raw.githubusercontent.com/XeniaGames/radiostuff/main/%E9%BB%92%E5%A1%97%E3%82%8A%E4%B8%96%E7%95%8C%E5%AE%9B%E3%81%A6%E6%9B%B8%E7%B0%A1%E9%87%8D%E9%9F%B3%E3%83%86%E3%83%88Letter%20to%20the%20Black%20World%20Kasane%20Teto.dfpwm"
+      "playback_url": "https://github.com/XeniaGames/radiostuff/raw/refs/heads/main/Letter%20to%20the%20black%20world.dfpwm"
     },
     {
       "id": "track_19",
       "title": "Signaling",
       "artist": "Hatsune Miku & Kasane Teto",
       "duration": 179,
-      "playback_url": "https://raw.githubusercontent.com/XeniaGames/radiostuff/main/%5BMV%5D%20ABM%20-%20'次元通信'%20(Signaling)%20初音ミク%20%26%20重音テト.dfpwm"
+      "playback_url": "https://github.com/XeniaGames/radiostuff/raw/refs/heads/main/Signaling.dfpwm"
+    },
+    {
+      "id": "track_20",
+      "title": "THERAPY",
+      "artist": "YUMI",
+      "duration": 127,
+      "playback_url": "https://github.com/XeniaGames/radiostuff/raw/refs/heads/main/YUMI%20-%20THERAPYAMV.dfpwm"
+    },
+    {
+      "id": "track_21",
+      "title": "RUN",
+      "artist": "YUMI",
+      "duration": 170,
+      "playback_url": "https://github.com/XeniaGames/radiostuff/raw/refs/heads/main/YUMI%20-%20RUNAMV.dfpwm"
+    },
+    {
+      "id": "track_22",
+      "title": "POISON",
+      "artist": "YUMI",
+      "duration": 152,
+      "playback_url": "https://github.com/XeniaGames/radiostuff/raw/refs/heads/main/YUMI%20-%20POISONAMV.dfpwm"
+    },
+    {
+      "id": "track_23",
+      "title": "MIND",
+      "artist": "YUMI",
+      "duration": 126,
+      "playback_url": "https://github.com/XeniaGames/radiostuff/raw/refs/heads/main/YUMI%20-%20MINDAMV.dfpwm"
+    },
+    {
+      "id": "track_24",
+      "title": "LIFE",
+      "artist": "YUMI",
+      "duration": 155,
+      "playback_url": "https://github.com/XeniaGames/radiostuff/raw/refs/heads/main/YUMI%20-%20LIFEAMV.dfpwm"
+    },
+    {
+      "id": "track_25",
+      "title": "BLACKTOP",
+      "artist": "YUMI",
+      "duration": 80,
+      "playback_url": "https://github.com/XeniaGames/radiostuff/raw/refs/heads/main/YUMI%20-%20BLACKTOPAMV.dfpwm"
+    },
+    {
+      "id": "track_26",
+      "title": "DANCE",
+      "artist": "YUMI",
+      "duration": 162,
+      "playback_url": "https://github.com/XeniaGames/radiostuff/raw/refs/heads/main/YUMI%20-%20DANCEAMV.dfpwm"
+    },
+    {
+      "id": "track_27",
+      "title": "FLOW",
+      "artist": "YUMI",
+      "duration": 127,
+      "playback_url": "https://github.com/XeniaGames/radiostuff/raw/refs/heads/main/YUMI%20-%20FLOWAMV.dfpwm"
     }
   ]
 }

@@ -21,6 +21,39 @@ local updatePrompt = {
   show_never_option = false,
 }
 
+-- list of palletes to show in the editor
+local PALETTE_ROLES = { "bg", "panel", "header", "accent", "text", "dim", "good", "warn" }
+local ROLE_LABELS   = {
+  bg     = "Background",
+  panel  = "Panel",
+  header = "Header",
+  accent = "Accent",
+  text   = "Text",
+  dim    = "Dim Text",
+  good   = "Good/Active",
+  warn   = "Warning",
+}
+-- colors in order (i think)
+local COLOR_LIST = {
+  { name = "white",     value = 1     },
+  { name = "orange",    value = 2     },
+  { name = "magenta",   value = 4     },
+  { name = "lightBlue", value = 8     },
+  { name = "yellow",    value = 16    },
+  { name = "lime",      value = 32    },
+  { name = "pink",      value = 64    },
+  { name = "gray",      value = 128   },
+  { name = "lightGray", value = 256   },
+  { name = "cyan",      value = 512   },
+  { name = "purple",    value = 1024  },
+  { name = "blue",      value = 2048  },
+  { name = "brown",     value = 4096  },
+  { name = "green",     value = 8192  },
+  { name = "red",       value = 16384 },
+  { name = "black",     value = 32768 },
+}
+local paletteState = { selectedRole = 1 }
+
 local function clear()
   term.clear()
   term.setCursorPos(1, 1)
@@ -171,7 +204,7 @@ local function chooseStation()
     end
   end
 end
-
+-- pallete editor
 local function renderTunedScreen()
   clear()
   if screenMode == "settings" then
@@ -184,10 +217,22 @@ local function renderTunedScreen()
     ))
     print(("Remind me later delay: %d minutes"):format(settings.getRemindLaterMinutes()))
     print(("Updates: %s"):format(updateStatus))
+    print("Keys: b = back, t = toggle NEVER, - / = = delay, u = update, q = quit")
     print("")
-    print("Keys: b = back, t = toggle NEVER option, - / = = reminder delay, u = update now, q = back to station list")
+    print("Use the monitor to open the Colour Palette editor.")
 
     monitor.renderClientSettings(audio.getStatusSummary(), currentSettings)
+    return
+  end
+
+  if screenMode == "palette" then
+    print("Palette Editor")
+    print("")
+    print("Editing colours on the monitor.")
+    print("Use the monitor to select roles, cycle colours,")
+    print("apply presets, and press [BACK] when done.")
+    local selectedRoleName = PALETTE_ROLES[paletteState.selectedRole] or "bg"
+    monitor.renderPaletteEditor(settings.getPalette(), selectedRoleName)
     return
   end
 
@@ -354,6 +399,7 @@ local function tuneStation(station)
         end
       elseif key == "s" then
         screenMode = "settings"
+        paletteState.selectedRole = 1
       elseif key == "[" then
         adjustVolume(-audio.getVolumeStepPercent())
       elseif key == "]" then
@@ -366,7 +412,7 @@ local function tuneStation(station)
         p3,
         screenMode,
         updatePrompt,
-        settings.get()
+        util.mergeTables(settings.get(), { palette = settings.getPalette() })
       )
       if action == "volume_down" then
         adjustVolume(-audio.getVolumeStepPercent())
@@ -389,12 +435,69 @@ local function tuneStation(station)
         installAvailableUpdate()
       elseif action == "update_later" then
         remindAboutUpdateLater()
+      elseif action == "open_palette" then
+        screenMode = "palette"
+        paletteState.selectedRole = 1
       elseif action == "update_never" then
         neverShowThisUpdate()
+      else
+        -- action = "palette_cycle_<role>"
+        local role = action and action:match("^palette_cycle_(.+)$")
+        if role then
+          local cp  = settings.getPalette()
+          local cv  = cp[role] or 1
+          local COLOR_LIST_MON = {
+            1,2,4,8,16,32,64,128,256,512,1024,2048,4096,8192,16384,32768
+          }
+          local idx = 1
+          for ci, v in ipairs(COLOR_LIST_MON) do
+            if v == cv then idx = ci; break end
+          end
+          idx = idx + 1; if idx > #COLOR_LIST_MON then idx = 1 end
+          settings.setPaletteColor(role, COLOR_LIST_MON[idx])
+          monitor.setPalette(settings.getPalette())
+        end
+        -- Palette editor touch actions
+        local selRole = action and action:match("^palette_select_(.+)$")
+        if selRole then
+          for i, r in ipairs(PALETTE_ROLES) do
+            if r == selRole then paletteState.selectedRole = i; break end
+          end
+        end
+        if action == "palette_prev" or action == "palette_next" then
+          local role = PALETTE_ROLES[paletteState.selectedRole] or "bg"
+          local cp   = settings.getPalette()
+          local cv   = cp[role] or 1
+          local vals = {1,2,4,8,16,32,64,128,256,512,1024,2048,4096,8192,16384,32768}
+          local idx  = 1
+          for ci, v in ipairs(vals) do if v == cv then idx = ci; break end end
+          if action == "palette_prev" then
+            idx = idx - 1; if idx < 1 then idx = #vals end
+          else
+            idx = idx + 1; if idx > #vals then idx = 1 end
+          end
+          settings.setPaletteColor(role, vals[idx])
+          monitor.setPalette(settings.getPalette())
+        end
+        if action == "preset_default" then
+          settings.applyPreset("default")
+          monitor.setPalette(settings.getPalette())
+        elseif action == "preset_light" then
+          settings.applyPreset("light")
+          monitor.setPalette(settings.getPalette())
+        elseif action == "preset_dark" then
+          settings.applyPreset("dark")
+          monitor.setPalette(settings.getPalette())
+        end
+        if action == "palette_back" then
+          screenMode = "settings"
+        end
       end
-    elseif event == "key" and p1 == keys.backspace then
-      audio.stopTrack()
-      return
+    elseif event == "key" then
+      if p1 == keys.backspace then
+        audio.stopTrack()
+        return
+      end
     end
   end
 end
@@ -405,6 +508,7 @@ local function main()
   end
 
   settings.load()
+  monitor.setPalette(settings.getPalette())
   refreshUpdateState()
 
   while true do

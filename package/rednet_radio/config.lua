@@ -11,7 +11,8 @@ return {
   playlist_refresh_seconds = 0,
   directory_refresh_seconds = 0,
   client_ping_interval_seconds = 8,
-  track_gap_seconds = 2,
+  track_gap_seconds = 5,
+  track_start_buffer_seconds = 2,
   message_types = {
     announce = "announce",
     station_info = "station_info",
@@ -19,5 +20,7 @@ return {
     sync = "sync",
     ping = "ping",
     tune_request = "tune_request",
+    skip_request = "skip_request",
+    shuffle_request = "shuffle_request",
   },
 }

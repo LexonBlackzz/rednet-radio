@@ -116,4 +116,12 @@ function api.requestTune(station)
   rednet.broadcast(api.makeMessage(config.message_types.tune_request, station, nil), stationProtocolFor(station))
 end
 
+function api.requestSkip(station)
+  rednet.broadcast(api.makeMessage(config.message_types.skip_request, station, nil), stationProtocolFor(station))
+end
+
+function api.requestShuffleToggle(station)
+  rednet.broadcast(api.makeMessage(config.message_types.shuffle_request, station, nil), stationProtocolFor(station))
+end
+
 return api

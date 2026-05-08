@@ -9,6 +9,18 @@ local MIN_REMIND_LATER_MINUTES = 5
 local MAX_REMIND_LATER_MINUTES = 180
 local REMIND_LATER_STEP_MINUTES = 5
 
+-- CC:Tweaked color number constants for default palette
+local DEFAULT_PALETTE = {
+  bg     = 2048,  -- colors.blue
+  panel  = 8,     -- colors.lightBlue
+  header = 2,     -- colors.orange
+  accent = 16384, -- colors.red
+  text   = 1,     -- colors.white
+  dim    = 256,   -- colors.lightGray
+  good   = 32,    -- colors.lime
+  warn   = 16,    -- colors.yellow
+}
+
 local defaults = {
   show_never_option = false,
   remind_at_ms = 0,
@@ -136,6 +148,62 @@ function settings.shouldPromptForVersion(latestVersion)
   end
 
   return true
+end
+
+-- ── Palette ──────────────────────────────────────────────────────────────
+
+function settings.getPalette()
+  local s = settings.get()
+  if type(s.palette) ~= "table" then
+    s.palette = util.copyTable(DEFAULT_PALETTE)
+  end
+  -- Fill any missing roles with defaults
+  for k, v in pairs(DEFAULT_PALETTE) do
+    if s.palette[k] == nil then
+      s.palette[k] = v
+    end
+  end
+  return s.palette
+end
+
+function settings.setPaletteColor(role, colorValue)
+  local s = settings.get()
+  if type(s.palette) ~= "table" then
+    s.palette = util.copyTable(DEFAULT_PALETTE)
+  end
+  s.palette[role] = colorValue
+  return persist()
+end
+
+function settings.resetPalette()
+  local s = settings.get()
+  s.palette = util.copyTable(DEFAULT_PALETTE)
+  return persist()
+end
+
+-- Named colour presets
+local PALETTE_PRESETS = {
+  default = {
+    bg=2048, panel=8, header=2, accent=16384, text=1, dim=256, good=32, warn=16
+  },
+  light = {
+    bg=1,  panel=256, header=8, accent=2, text=32768, dim=128, good=8192, warn=16
+  },
+  dark = {
+    bg=32768, panel=128, header=1024, accent=512, text=1, dim=256, good=32, warn=16
+  },
+}
+
+function settings.applyPreset(name)
+  local preset = PALETTE_PRESETS[name]
+  if not preset then return nil, "Unknown preset: " .. tostring(name) end
+  local s = settings.get()
+  s.palette = util.copyTable(preset)
+  return persist()
+end
+
+function settings.getPresetNames()
+  return { "default", "light", "dark" }
 end
 
 return settings

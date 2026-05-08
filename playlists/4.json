@@ -1,0 +1,69 @@
+{
+  "name": "Mepple's Goon Station Playlist",
+  "version": "1",
+  "tracks": [
+    {
+      "id": "track_01",
+      "title": "LEXON LAUGH BNRAZILLIAN FUNK",
+      "artist": "mappa, LexonOfficial",
+      "duration": 40,
+      "source_url": "https://file.garden/ad_jTPVIV3ilAFpI/Project_3(1).dfpwm",
+      "playback_url": "https://file.garden/ad_jTPVIV3ilAFpI/Project_3(1).dfpwm",
+      "art_url": "-"
+    },
+    {
+      "id": "track_02",
+      "title": "ooh ooh wish i knew remix ft. stereo madness",
+      "artist": "LexonOfficial",
+      "duration": 8,
+      "source_url": "https://file.garden/ad_jTPVIV3ilAFpI/ohh%20ohh.dfpwm",
+      "playback_url": "https://file.garden/ad_jTPVIV3ilAFpI/ohh%20ohh.dfpwm",
+      "art_url": "-"
+    },
+    {
+      "id": "track_03",
+      "title": "TIKI TIKI ULTRA  SLOWED BASS FUNK",
+      "artist": "IDFK",
+      "duration": 18,
+      "source_url": "https://file.garden/ad_jTPVIV3ilAFpI/tiki%20tiki.dfpwm",
+      "playback_url": "https://file.garden/ad_jTPVIV3ilAFpI/tiki%20tiki.dfpwm",
+      "art_url": "-"
+    },
+    {
+      "id": "track_04",
+      "title": "its a smash hit",
+      "artist": "mappa, LexonOfficial",
+      "duration": 55,
+      "source_url": "https://file.garden/ad_jTPVIV3ilAFpI/Project-jebat.dfpwm",
+      "playback_url": "https://file.garden/ad_jTPVIV3ilAFpI/Project-jebat.dfpwm",
+      "art_url": "-"
+    },
+    {
+      "id": "track_05",
+      "title": "EM FAKING GAY BTAZILIAN FUNK",
+      "artist": "mappa",
+      "duration": 22,
+      "source_url": "https://file.garden/ad_jTPVIV3ilAFpI/audio2.dfpwm",
+      "playback_url": "https://file.garden/ad_jTPVIV3ilAFpI/audio2.dfpwm",
+      "art_url": "-"
+    },
+    {
+      "id": "track_06",
+      "title": "A Cruel Angel's PHONK",
+      "artist": "ZANYE VEZT",
+      "duration": 84,
+      "source_url": "https://file.garden/ad_jTPVIV3ilAFpI/A%20Cruel%20Angel's%20PHONK%20-%20ZANYE%20VEZT.dfpwm",
+      "playback_url": "https://file.garden/ad_jTPVIV3ilAFpI/A%20Cruel%20Angel's%20PHONK%20-%20ZANYE%20VEZT.dfpwm",
+      "art_url": "-"
+    },
+    {
+      "id": "track_07",
+      "title": "Want a break fom the ADs?",
+      "artist": "Spotify",
+      "duration": 28,
+      "source_url": "https://file.garden/ad_jTPVIV3ilAFpI/Want%20a%20break%20from%20the%20ads%EF%BC%9F%20(prod.%20Spotify).dfpwm",
+      "playback_url": "https://file.garden/ad_jTPVIV3ilAFpI/Want%20a%20break%20from%20the%20ads%EF%BC%9F%20(prod.%20Spotify).dfpwm",
+      "art_url": "-"
+    }
+  ]
+}

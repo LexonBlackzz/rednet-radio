@@ -218,8 +218,6 @@ local function renderTunedScreen()
     print(("Remind me later delay: %d minutes"):format(settings.getRemindLaterMinutes()))
     print(("Updates: %s"):format(updateStatus))
     print("Keys: b = back, t = toggle NEVER, - / = = delay, u = update, q = quit")
-    print("")
-    print("Use the monitor to open the Colour Palette editor.")
 
     monitor.renderClientSettings(audio.getStatusSummary(), currentSettings)
     return
@@ -243,7 +241,7 @@ local function renderTunedScreen()
 
   if currentSnapshot and currentSnapshot.track then
     local elapsedSeconds = math.floor(util.trackElapsedMilliseconds(currentSnapshot) / 1000)
-    local shownElapsed = math.min(elapsedSeconds, currentSnapshot.duration)
+    local shownElapsed = math.max(0, math.min(elapsedSeconds, currentSnapshot.duration))
     print(("Now Playing: %s - %s"):format(
       currentSnapshot.track.artist,
       currentSnapshot.track.title
@@ -252,9 +250,10 @@ local function renderTunedScreen()
       shownElapsed,
       currentSnapshot.duration
     ))
-    print(("Track: %d / %d"):format(
+    print(("Track: %d / %d%s"):format(
       currentSnapshot.track_index or 0,
-      currentSnapshot.track_count or 0
+      currentSnapshot.track_count or 0,
+      currentSnapshot.shuffle_mode and "  [Shuffle ON]" or ""
     ))
     print(("Source URL: %s"):format(currentSnapshot.track.source_url))
 
@@ -277,6 +276,7 @@ local function renderTunedScreen()
   print(("Updates: %s"):format(updateStatus))
   print(("Last sync: %s"):format(lastUpdateMs and util.formatAge(lastUpdateMs) or "never"))
   print("Keys: q = back, p = ping, r = reload, s = settings, [ / ] = volume")
+  print("      n = skip track, x = toggle shuffle")
 
   if updatePrompt.visible then
     local promptLine = "Update prompt: o = OK, l = remind me later"
@@ -293,7 +293,8 @@ local function renderTunedScreen()
     audio.getVolumePercent(),
     audio.getMaxVolumePercent(),
     updateStatus,
-    updatePrompt
+    updatePrompt,
+    audio.getAmplitude()
   )
 end
 
@@ -316,6 +317,7 @@ local function tuneStation(station)
 
   schedule("render", 1)
   schedule("ping", config.client_ping_interval_seconds)
+  schedule("visualizer", 0.15)
 
   while true do
     renderTunedScreen()
@@ -331,6 +333,8 @@ local function tuneStation(station)
       elseif timerName == "ping" then
         rednet_api.sendPing(station)
         schedule("ping", config.client_ping_interval_seconds)
+      elseif timerName == "visualizer" then
+        schedule("visualizer", 0.15)
       end
     elseif event == "rednet_message" then
       local message = p2
@@ -397,6 +401,10 @@ local function tuneStation(station)
             rednet_api.listenToStation(currentStation)
           end
         end
+      elseif key == "n" then
+        rednet_api.requestSkip(currentStation)
+      elseif key == "x" then
+        rednet_api.requestShuffleToggle(currentStation)
       elseif key == "s" then
         screenMode = "settings"
         paletteState.selectedRole = 1
@@ -435,6 +443,10 @@ local function tuneStation(station)
         installAvailableUpdate()
       elseif action == "update_later" then
         remindAboutUpdateLater()
+      elseif action == "skip_track" then
+        rednet_api.requestSkip(currentStation)
+      elseif action == "toggle_shuffle" then
+        rednet_api.requestShuffleToggle(currentStation)
       elseif action == "open_palette" then
         screenMode = "palette"
         paletteState.selectedRole = 1
@@ -457,7 +469,7 @@ local function tuneStation(station)
           settings.setPaletteColor(role, COLOR_LIST_MON[idx])
           monitor.setPalette(settings.getPalette())
         end
-        -- Palette editor touch actions
+        -- pallete touch actions
         local selRole = action and action:match("^palette_select_(.+)$")
         if selRole then
           for i, r in ipairs(PALETTE_ROLES) do

@@ -272,7 +272,7 @@ function monitor.getDefaultPalette()
   }
 end
 
-function monitor.renderClient(station, snapshot, playbackStatus, volumePercent, maxVolumePercent, updateStatus, prompt)
+function monitor.renderClient(station, snapshot, playbackStatus, volumePercent, maxVolumePercent, updateStatus, prompt, amplitude)
   local device = getMonitor()
   if not device then
     return
@@ -287,7 +287,7 @@ function monitor.renderClient(station, snapshot, playbackStatus, volumePercent, 
 
   if snapshot and snapshot.track then
     local elapsed = math.floor(util.trackElapsedMilliseconds(snapshot) / 1000)
-    local shownElapsed = math.min(elapsed, snapshot.duration or 0)
+    local shownElapsed = math.max(0, math.min(elapsed, snapshot.duration or 0))
     local barWidth = math.max(8, width - 8)
     local ratio = (snapshot.duration or 0) > 0 and (shownElapsed / snapshot.duration) or 0
     writeAt(device, 3, 9, fit(snapshot.track.artist or "Unknown Artist", width - 6), colors.white, palette.panel)
@@ -305,6 +305,11 @@ function monitor.renderClient(station, snapshot, playbackStatus, volumePercent, 
     writeAt(device, 3, 10, "Waiting for station...", colors.white, palette.panel)
   end
 
+  -- Audio visualizer
+  local visRatio = math.max(0, math.min(amplitude or 0, 1))
+  writeAt(device, 3, volumeRow - 2, "AUDIO", colors.lightGray, palette.panel)
+  drawProgressBar(device, 9, volumeRow - 2, width - 11, visRatio, palette.accent, colors.gray)
+
   writeAt(
     device,
     3,
@@ -318,7 +323,15 @@ function monitor.renderClient(station, snapshot, playbackStatus, volumePercent, 
   )
   writeAt(device, controls.minusX, controls.row, controls.minusLabel, colors.black, colors.lightGray)
   writeAt(device, controls.plusX, controls.row, controls.plusLabel, colors.black, colors.lightGray)
-  writeAt(device, 3, height - 2, fit(updateStatus or playbackStatus or "idle", settingsButton.x - 5), colors.white, palette.panel)
+  local skipX = settingsButton.x - 7
+  local shuffleX = skipX - 7
+
+  writeAt(device, 3, height - 2, fit(updateStatus or playbackStatus or "idle", shuffleX - 5), colors.white, palette.panel)
+  
+  if width >= 28 then
+    writeAt(device, shuffleX, settingsButton.row, "[SHUF]", colors.black, snapshot and snapshot.shuffle_mode and colors.lime or colors.lightGray)
+    writeAt(device, skipX, settingsButton.row, "[SKIP]", colors.black, colors.lightGray)
+  end
   writeAt(device, settingsButton.x, settingsButton.row, settingsButton.label, colors.black, colors.lightGray)
   drawUpdatePrompt(device, width, height, prompt)
 end
@@ -474,6 +487,18 @@ function monitor.getClientTouchAction(side, x, y, screenMode, prompt, settingsSt
     return nil
   end
 
+  if screenMode == "main" and y == height - 2 and width >= 28 then
+    local settingsX = width - 9
+    local skipX = settingsX - 7
+    local shuffleX = skipX - 7
+    if x >= skipX and x < skipX + 6 then
+      return "skip_track"
+    end
+    if x >= shuffleX and x < shuffleX + 6 then
+      return "toggle_shuffle"
+    end
+  end
+
   -- Palette editor screen
   if screenMode == "palette" then
     local btnW    = 4
@@ -598,7 +623,7 @@ function monitor.renderHost(station, snapshot, playlistSource)
 
   if snapshot and snapshot.track then
     local elapsed = math.floor(util.trackElapsedMilliseconds(snapshot) / 1000)
-    local shownElapsed = math.min(elapsed, snapshot.duration or 0)
+    local shownElapsed = math.max(0, math.min(elapsed, snapshot.duration or 0))
     local ratio = (snapshot.duration or 0) > 0 and (shownElapsed / snapshot.duration) or 0
     drawProgressBar(device, 3, 10, math.max(8, width - 8), ratio, snapshot.in_gap and palette.warn or palette.good, colors.gray)
     writeAt(device, 3, 12, fit(snapshot.track.artist or "Unknown Artist", width - 6), colors.white, palette.panel)
@@ -608,9 +633,10 @@ function monitor.renderHost(station, snapshot, playlistSource)
       shownElapsed,
       snapshot.duration or 0
     ), colors.white, palette.panel)
-    writeAt(device, 3, 15, ("Queue %d / %d"):format(
+    writeAt(device, 3, 15, ("Queue %d / %d%s"):format(
       snapshot.track_index or 0,
-      snapshot.track_count or 0
+      snapshot.track_count or 0,
+      snapshot.shuffle_mode and "  [Shuffle ON]" or ""
     ), colors.yellow, palette.panel)
     if snapshot.in_gap then
       writeAt(device, 3, 16, "Holding before next track", colors.yellow, palette.panel)

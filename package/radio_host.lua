@@ -171,6 +171,14 @@ local function main(args)
         elseif message.message_type == config.message_types.tune_request then
           rednet_api.sendStationInfo(senderId, stationDefinition, stationRuntime:getSnapshot())
           rednet_api.sendNowPlaying(senderId, stationDefinition, stationRuntime:getSnapshot())
+        elseif message.message_type == config.message_types.skip_request then
+          stationRuntime:advanceTrack(util.nowMilliseconds())
+          rednet_api.broadcastNowPlaying(stationDefinition, stationRuntime:getSnapshot())
+          monitor.renderHost(stationDefinition, stationRuntime:getSnapshot(), playlistSourceOrErr)
+        elseif message.message_type == config.message_types.shuffle_request then
+          stationRuntime:toggleShuffle()
+          rednet_api.broadcastNowPlaying(stationDefinition, stationRuntime:getSnapshot())
+          monitor.renderHost(stationDefinition, stationRuntime:getSnapshot(), playlistSourceOrErr)
         end
       end
     end

@@ -121,12 +121,7 @@ function util.trackElapsedMilliseconds(snapshot)
     return 0
   end
 
-  local elapsed = util.nowMilliseconds() - snapshot.started_at_ms
-  if elapsed < 0 then
-    return 0
-  end
-
-  return elapsed
+  return util.nowMilliseconds() - snapshot.started_at_ms
 end
 
 function util.formatAge(timestampMs)

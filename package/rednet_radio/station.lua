@@ -25,6 +25,7 @@ function Station.new(stationDefinition, playlistDoc)
   self.definition = stationDefinition
   self.tracks = {}
   self.current_index = 0
+  self.shuffle_mode = false
   self:setPlaylist(playlistDoc, true)
   return self
 end
@@ -75,12 +76,22 @@ function Station:advanceTrack(nowMs)
     return false
   end
 
-  self.current_index = self.current_index + 1
-  if self.current_index > #self.tracks then
-    self.current_index = 1
+  if self.shuffle_mode then
+    self.current_index = math.random(1, #self.tracks)
+  else
+    self.current_index = self.current_index + 1
+    if self.current_index > #self.tracks then
+      self.current_index = 1
+    end
   end
-  self.started_at_ms = nowMs or util.nowMilliseconds()
+  local startBufferMs = (config.track_start_buffer_seconds or 0) * 1000
+  self.started_at_ms = (nowMs or util.nowMilliseconds()) + startBufferMs
   return true
+end
+
+function Station:toggleShuffle()
+  self.shuffle_mode = not self.shuffle_mode
+  return self.shuffle_mode
 end
 
 function Station:update(nowMs)
@@ -106,10 +117,10 @@ end
 
 function Station:getSnapshot()
   local track = self:getCurrentTrack()
-  local elapsed_ms = track and math.max(0, util.nowMilliseconds() - (self.started_at_ms or util.nowMilliseconds())) or 0
+  local elapsed_ms = track and (util.nowMilliseconds() - (self.started_at_ms or util.nowMilliseconds())) or 0
   local duration_ms = track and (track.duration * 1000) or 0
   local gap_ms = (config.track_gap_seconds or 0) * 1000
-  local in_gap = track and elapsed_ms >= duration_ms and elapsed_ms < (duration_ms + gap_ms) or false
+  local in_gap = track and elapsed_ms >= duration_ms or false
   return {
     playlist_version = self.playlist_version,
     started_at_ms = self.started_at_ms,
@@ -118,6 +129,7 @@ function Station:getSnapshot()
     duration = track and track.duration or 0,
     gap_seconds = config.track_gap_seconds or 0,
     in_gap = in_gap,
+    shuffle_mode = self.shuffle_mode,
     track = track,
   }
 end

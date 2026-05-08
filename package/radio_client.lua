@@ -293,7 +293,8 @@ local function renderTunedScreen()
     audio.getVolumePercent(),
     audio.getMaxVolumePercent(),
     updateStatus,
-    updatePrompt
+    updatePrompt,
+    audio.getAmplitude()
   )
 end
 
@@ -316,6 +317,7 @@ local function tuneStation(station)
 
   schedule("render", 1)
   schedule("ping", config.client_ping_interval_seconds)
+  schedule("visualizer", 0.15)
 
   while true do
     renderTunedScreen()
@@ -331,6 +333,8 @@ local function tuneStation(station)
       elseif timerName == "ping" then
         rednet_api.sendPing(station)
         schedule("ping", config.client_ping_interval_seconds)
+      elseif timerName == "visualizer" then
+        schedule("visualizer", 0.15)
       end
     elseif event == "rednet_message" then
       local message = p2

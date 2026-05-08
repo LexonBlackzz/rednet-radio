@@ -31,6 +31,14 @@
       "playlist_url": "https://raw.githubusercontent.com/LexonBlackzz/rednet-radio/main/playlists/4.json",
       "rednet_channel": "rednet_radio_v1:station:mappa_playlist",
       "host_label": "user-submitted"
+    },
+    {
+      "station_id": "custom_ost",
+      "name": "All The CustomEndless OST",
+      "description": "I wonder why I put every single track I made into this list, even some of them are random as hell",
+      "playlist_url": "https://raw.githubusercontent.com/LexonBlackzz/rednet-radio/main/playlists/custom_ost.json",
+      "rednet_channel": "rednet_radio_v1:station:custom_ost",
+      "host_label": "user-submitted"
     }
   ]
 }

@@ -76,6 +76,10 @@ https://raw.githubusercontent.com/LexonBlackzz/rednet-radio/main
 
 With your current layout, keep `stations.json` and `playlists/` at the repo root, and keep installable Lua files under `package/`.
 
+The current pastebin link for the YPS PMWeather server is https://pastebin.com/g4hY9Jn3
+
+For new computers in the server, use this link with `pastebin run https://pastebin.com/g4hY9Jn3`.
+
 ## Website Layout
 
 - `stations.json`: station directory

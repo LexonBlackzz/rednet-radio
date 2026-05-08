@@ -272,7 +272,7 @@ function monitor.getDefaultPalette()
   }
 end
 
-function monitor.renderClient(station, snapshot, playbackStatus, volumePercent, maxVolumePercent, updateStatus, prompt)
+function monitor.renderClient(station, snapshot, playbackStatus, volumePercent, maxVolumePercent, updateStatus, prompt, amplitude)
   local device = getMonitor()
   if not device then
     return
@@ -304,6 +304,11 @@ function monitor.renderClient(station, snapshot, playbackStatus, volumePercent, 
   else
     writeAt(device, 3, 10, "Waiting for station...", colors.white, palette.panel)
   end
+
+  -- Audio visualizer
+  local visRatio = math.max(0, math.min(amplitude or 0, 1))
+  writeAt(device, 3, volumeRow - 2, "AUDIO", colors.lightGray, palette.panel)
+  drawProgressBar(device, 9, volumeRow - 2, width - 11, visRatio, palette.accent, colors.gray)
 
   writeAt(
     device,

@@ -27,6 +27,7 @@ local state = {
   volume_percent = DEFAULT_VOLUME_PERCENT,
   status = "metadata mode only",
   last_error = nil,
+  current_amplitude = 0,
 }
 
 local function clampVolumePercent(volumePercent)
@@ -177,6 +178,13 @@ local function queueNextChunk()
     end
 
     if #buffer > 0 then
+      local peak = 0
+      for i = 1, #buffer do
+        local val = math.abs(buffer[i])
+        if val > peak then peak = val end
+      end
+      state.current_amplitude = peak / 128
+
       state.pending_buffer = buffer
       playPendingBuffer()
       return
@@ -234,6 +242,13 @@ end
 
 function audio.hasSpeaker()
   return getSpeaker() ~= nil
+end
+
+function audio.getAmplitude()
+  if state.status == "playing" then
+    return state.current_amplitude or 0
+  end
+  return 0
 end
 
 function audio.isPlaybackImplemented()
@@ -340,6 +355,7 @@ function audio.stopTrack()
   state.sync_clock_ms = 0
   state.bytes_started_at = 0
   state.last_error = nil
+  state.current_amplitude = 0
 
   if speaker then
     state.status = "idle"

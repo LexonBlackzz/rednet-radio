@@ -88,7 +88,7 @@ refreshUpdateState = function(statusOverride)
       installAvailableUpdate(true)
       return
     end
-    updateStatus = statusOverride or ("update available: %s -> %s"):format(
+    updateStatus = ("update available: %s -> %s"):format(
       result.current_version,
       result.latest_version
     )
@@ -96,7 +96,7 @@ refreshUpdateState = function(statusOverride)
     updatePrompt.latest_version = result.latest_version
     updatePrompt.show_never_option = settings.shouldShowNeverOption()
   else
-    updateStatus = statusOverride or ("up to date (%s)"):format(result.current_version)
+    updateStatus = ("up to date (%s)"):format(result.current_version)
     updatePrompt.visible = false
     updatePrompt.latest_version = nil
     updatePrompt.show_never_option = settings.shouldShowNeverOption()
@@ -479,6 +479,10 @@ local function tuneStation(station)
         adjustRemindLaterMinutes(settings.getRemindLaterStepMinutes())
       elseif action == "update_now" then
         installAvailableUpdate()
+      elseif action == "check_updates" then
+        updateStatus = "Checking for updates..."
+        renderTunedScreen()
+        refreshUpdateState()
       elseif action == "update_ok" then
         installAvailableUpdate()
       elseif action == "update_auto" then

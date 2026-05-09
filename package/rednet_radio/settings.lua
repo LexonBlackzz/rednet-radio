@@ -30,6 +30,10 @@ local defaults = {
   ignored_version = nil,
   remind_later_minutes = DEFAULT_REMIND_LATER_MINUTES,
   settings_version = version.version,
+  allow_remote_skip = true,
+  allow_remote_shuffle = true,
+  enable_redstone_announcement = false,
+  announcement_redstone_side = "back",
 }
 
 local state = nil
@@ -197,6 +201,75 @@ function settings.shouldPromptForVersion(latestVersion)
   end
 
   return true
+end
+
+function settings.getAllowRemoteSkip()
+  return settings.get().allow_remote_skip == true
+end
+
+function settings.setAllowRemoteSkip(enable)
+  settings.get().allow_remote_skip = enable == true
+  return persist()
+end
+
+function settings.toggleAllowRemoteSkip()
+  local current = settings.getAllowRemoteSkip()
+  settings.setAllowRemoteSkip(not current)
+  return not current
+end
+
+function settings.getAllowRemoteShuffle()
+  return settings.get().allow_remote_shuffle == true
+end
+
+function settings.setAllowRemoteShuffle(enable)
+  settings.get().allow_remote_shuffle = enable == true
+  return persist()
+end
+
+function settings.toggleAllowRemoteShuffle()
+  local current = settings.getAllowRemoteShuffle()
+  settings.setAllowRemoteShuffle(not current)
+  return not current
+end
+
+function settings.getEnableRedstoneAnnouncement()
+  return settings.get().enable_redstone_announcement == true
+end
+
+function settings.setEnableRedstoneAnnouncement(enable)
+  settings.get().enable_redstone_announcement = enable == true
+  return persist()
+end
+
+function settings.toggleEnableRedstoneAnnouncement()
+  local current = settings.getEnableRedstoneAnnouncement()
+  settings.setEnableRedstoneAnnouncement(not current)
+  return not current
+end
+
+function settings.getAnnouncementRedstoneSide()
+  local side = settings.get().announcement_redstone_side
+  local valid = { bottom = true, top = true, back = true, front = true, left = true, right = true }
+  if not valid[side] then return "back" end
+  return side
+end
+
+function settings.setAnnouncementRedstoneSide(side)
+  settings.get().announcement_redstone_side = side
+  return persist()
+end
+
+function settings.cycleAnnouncementRedstoneSide()
+  local sides = { "bottom", "top", "back", "front", "left", "right" }
+  local current = settings.getAnnouncementRedstoneSide()
+  local idx = 1
+  for i, s in ipairs(sides) do
+    if s == current then idx = i; break end
+  end
+  idx = idx + 1; if idx > #sides then idx = 1 end
+  settings.setAnnouncementRedstoneSide(sides[idx])
+  return sides[idx]
 end
 
 -- ── Palette ──────────────────────────────────────────────────────────────

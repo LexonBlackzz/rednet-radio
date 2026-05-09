@@ -88,7 +88,7 @@ refreshUpdateState = function(statusOverride)
       installAvailableUpdate(true)
       return
     end
-    updateStatus = statusOverride or ("update available: %s -> %s"):format(
+    updateStatus = ("update available: %s -> %s"):format(
       result.current_version,
       result.latest_version
     )
@@ -96,7 +96,7 @@ refreshUpdateState = function(statusOverride)
     updatePrompt.latest_version = result.latest_version
     updatePrompt.show_never_option = settings.shouldShowNeverOption()
   else
-    updateStatus = statusOverride or ("up to date (%s)"):format(result.current_version)
+    updateStatus = ("up to date (%s)"):format(result.current_version)
     updatePrompt.visible = false
     updatePrompt.latest_version = nil
     updatePrompt.show_never_option = settings.shouldShowNeverOption()
@@ -381,6 +381,39 @@ local function tuneStation(station)
             lastUpdateMs = util.nowMilliseconds()
             audio.syncToSnapshot(currentSnapshot)
             needsRender = true
+          elseif message.message_type == config.message_types.eas_start then
+            currentSnapshot.message_prompt = {
+              visible = true,
+              title = "IMPORTANT ANNOUNCEMENT",
+              message = "PLEASE STAND BY..",
+              hide_ok = true
+            }
+            renderTunedScreen()
+            audio.stopTrack()
+            
+            local speaker = peripheral.find("speaker")
+            if speaker then
+                for i=1, 25 do -- ~5 seconds
+                    speaker.playSound("minecraft:block.bell.use", 3, 0.5)
+                    os.sleep(0.1)
+                    speaker.playSound("minecraft:block.bell.use", 3, 0.8)
+                    os.sleep(0.1)
+                end
+            end
+            
+            local h = http.get(message.url)
+            if h then
+                local data = h.readAll()
+                h.close()
+                audio.playLocalBuffer(data, message.volume or 3)
+            end
+          elseif message.message_type == config.message_types.eas_end then
+            currentSnapshot.message_prompt = {
+              visible = true,
+              title = "NOTICE",
+              message = "IMPORTANT ANNOUNCEMENT EXPIRED"
+            }
+            renderTunedScreen()
           end
         end
       end
@@ -479,6 +512,10 @@ local function tuneStation(station)
         adjustRemindLaterMinutes(settings.getRemindLaterStepMinutes())
       elseif action == "update_now" then
         installAvailableUpdate()
+      elseif action == "check_updates" then
+        updateStatus = "Checking for updates..."
+        renderTunedScreen()
+        refreshUpdateState()
       elseif action == "update_ok" then
         installAvailableUpdate()
       elseif action == "update_auto" then
@@ -487,9 +524,29 @@ local function tuneStation(station)
       elseif action == "update_later" then
         remindAboutUpdateLater()
       elseif action == "skip_track" then
-        rednet_api.requestSkip(currentStation)
+        if currentSnapshot and currentSnapshot.allow_remote_skip == false then
+          currentSnapshot.message_prompt = {
+            visible = true,
+            title = "Skip not allowed",
+            message = "Contact host to enable skipping."
+          }
+        else
+          rednet_api.requestSkip(currentStation)
+        end
       elseif action == "toggle_shuffle" then
-        rednet_api.requestShuffleToggle(currentStation)
+        if currentSnapshot and currentSnapshot.allow_remote_shuffle == false then
+          currentSnapshot.message_prompt = {
+            visible = true,
+            title = "Shuffle not allowed",
+            message = "Contact host to enable shuffling."
+          }
+        else
+          rednet_api.requestShuffleToggle(currentStation)
+        end
+      elseif action == "message_ok" then
+        if currentSnapshot and currentSnapshot.message_prompt then
+          currentSnapshot.message_prompt.visible = false
+        end
       elseif action == "open_palette" then
         screenMode = "palette"
         paletteState.selectedRole = 1
@@ -593,6 +650,8 @@ local ok, err = xpcall(main, function(message)
   if message == "RESTART" then return "RESTART" end
   return debug and debug.traceback and debug.traceback(message, 2) or tostring(message)
 end)
+
+audio.stopTrack()
 
 if not ok and err ~= "RESTART" then
   print("radio_client failed:")

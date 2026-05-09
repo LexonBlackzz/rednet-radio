@@ -22,5 +22,7 @@ return {
     tune_request = "tune_request",
     skip_request = "skip_request",
     shuffle_request = "shuffle_request",
+    eas_start = "eas_start",
+    eas_end = "eas_end",
   },
 }

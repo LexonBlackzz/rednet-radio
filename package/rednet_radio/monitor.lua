@@ -87,7 +87,7 @@ local function getClientVolumeButtonLayout(width, height)
   local plusX = math.max(3, width - #plusLabel - 2)
   local minusX = math.max(3, plusX - #minusLabel - 1)
   return {
-    row = row,
+    y = row,
     minusX = minusX,
     minusWidth = #minusLabel,
     plusX = plusX,
@@ -100,8 +100,29 @@ end
 local function getClientSettingsButtonLayout(width, height)
   local label = "[SET]"
   return {
-    row = height - 2,
+    y = height - 2,
     x = math.max(3, width - #label - 2),
+    width = #label,
+    label = label,
+  }
+end
+
+local function getHostSettingsButtonLayout(width, height)
+  local label = "[SET]"
+  return {
+    y = 3,
+    x = math.max(3, width - #label - 2),
+    width = #label,
+    label = label,
+  }
+end
+
+local function getClientUpdateCheckButtonLayout(width, height)
+  local label = "[CHECK FOR UPDATES]"
+  local settingsButton = getClientSettingsButtonLayout(width, height)
+  return {
+    y = height,
+    x = math.max(3, settingsButton.x - #label - 1),
     width = #label,
     label = label,
   }
@@ -143,13 +164,44 @@ local function getSettingsScreenLayout(width, height, showNeverOption, remindLat
     reminderValueLabel = reminderValueLabel,
     reminderUpX = math.max(12, width - #reminderUpLabel - 3),
     reminderUpLabel = reminderUpLabel,
-    updateRow = updateRow,
-    updateX = math.max(3, width - #updateNowLabel - 3),
-    updateLabel = updateNowLabel,
     colorsRow = colorsRow,
     colorsX = math.max(3, width - #colorsLabel - 3),
     colorsLabel = colorsLabel,
     backRow = math.max(colorsRow + 2, height - 2),
+    backX = math.max(3, width - #backLabel - 2),
+    backWidth = #backLabel,
+    backLabel = backLabel,
+  }
+end
+
+local function getHostSettingsScreenLayout(width, height, allowRemoteSkip, allowRemoteShuffle, enableEAS, easSide)
+  local skipLabel = allowRemoteSkip and "[ON]" or "[OFF]"
+  local shuffleLabel = allowRemoteShuffle and "[ON]" or "[OFF]"
+  local easLabel = enableEAS and "[ON]" or "[OFF]"
+  local sideLabel = "[" .. string.upper(easSide or "back") .. "]"
+  local skipRow = 6
+  local shuffleRow = 8
+  local easRow = 10
+  local sideRow = 12
+  local backLabel = "[BACK]"
+  return {
+    skipY = skipRow,
+    skipX = math.max(3, width - #skipLabel - 3),
+    skipWidth = #skipLabel,
+    skipLabel = skipLabel,
+    shuffleY = shuffleRow,
+    shuffleX = math.max(3, width - #shuffleLabel - 3),
+    shuffleWidth = #shuffleLabel,
+    shuffleLabel = shuffleLabel,
+    easY = easRow,
+    easX = math.max(3, width - #easLabel - 3),
+    easWidth = #easLabel,
+    easLabel = easLabel,
+    sideY = sideRow,
+    sideX = math.max(3, width - #sideLabel - 3),
+    sideWidth = #sideLabel,
+    sideLabel = sideLabel,
+    backY = height - 2,
     backX = math.max(3, width - #backLabel - 2),
     backWidth = #backLabel,
     backLabel = backLabel,
@@ -213,9 +265,28 @@ local function getUpdatePromptLayout(width, height, showNeverOption)
   }
 end
 
+local function getMessagePromptLayout(width, height)
+  local boxWidth = math.max(24, math.min(width - 6, 30))
+  local boxHeight = 6
+  local x = math.max(3, math.floor((width - boxWidth) / 2) + 1)
+  local y = math.max(5, math.floor((height - boxHeight) / 2) + 1)
+  return {
+    x = x,
+    y = y,
+    width = boxWidth,
+    height = boxHeight,
+    ok = {
+      x = x + math.floor((boxWidth - 4) / 2),
+      y = y + boxHeight - 2,
+      label = "[OK]",
+    },
+  }
+end
+
 local function hitButton(x, y, button)
+  local buttonY = button.y or button.row -- handle both for safety
   return button
-    and y == button.y
+    and y == buttonY
     and x >= button.x
     and x < (button.x + #button.label)
 end
@@ -250,6 +321,21 @@ local function drawUpdatePrompt(target, width, height, prompt)
   writeAt(target, layout.later.x, layout.later.y, layout.later.label, colors.black, colors.lightGray)
   if layout.never then
     writeAt(target, layout.never.x, layout.never.y, layout.never.label, colors.black, colors.lightGray)
+  end
+end
+
+function monitor.drawMessagePrompt(target, width, height, prompt)
+  if not prompt or not prompt.visible then
+    return
+  end
+
+  local layout = getMessagePromptLayout(width, height)
+  fill(target, layout.x, layout.y, layout.width, layout.height, colors.gray, colors.white)
+  fill(target, layout.x + 1, layout.y + 1, layout.width - 2, layout.height - 2, colors.white, colors.black)
+  writeAt(target, layout.x + 2, layout.y + 1, fit(prompt.title or "Notice", layout.width - 4), colors.black, colors.white)
+  writeAt(target, layout.x + 2, layout.y + 3, fit(prompt.message or "", layout.width - 4), colors.black, colors.white)
+  if not prompt.hide_ok then
+    writeAt(target, layout.ok.x, layout.ok.y, layout.ok.label, colors.black, colors.lightGray)
   end
 end
 
@@ -341,19 +427,29 @@ function monitor.renderClient(station, snapshot, playbackStatus, volumePercent, 
     colors.white,
     palette.panel
   )
-  writeAt(device, controls.minusX, controls.row, controls.minusLabel, colors.black, colors.lightGray)
-  writeAt(device, controls.plusX, controls.row, controls.plusLabel, colors.black, colors.lightGray)
+  writeAt(device, controls.minusX, controls.y, controls.minusLabel, colors.black, colors.lightGray)
+  writeAt(device, controls.plusX, controls.y, controls.plusLabel, colors.black, colors.lightGray)
+  
+  local updateBtn = getClientUpdateCheckButtonLayout(width, height)
   local skipX = settingsButton.x - 7
   local shuffleX = skipX - 7
-
-  writeAt(device, 3, height - 2, fit(updateStatus or playbackStatus or "idle", shuffleX - 5), colors.white, palette.panel)
+ 
+  -- update status text just above the check updates button
+  writeAt(device, updateBtn.x, updateBtn.y - 1, fit(updateStatus or playbackStatus or "idle", width - updateBtn.x - 2), colors.white, palette.panel)
   
-  if width >= 28 then
-    writeAt(device, shuffleX, settingsButton.row, "[SHUF]", colors.black, snapshot and snapshot.shuffle_mode and colors.lime or colors.lightGray)
-    writeAt(device, skipX, settingsButton.row, "[SKIP]", colors.black, colors.lightGray)
+  if width >= 25 then
+    writeAt(device, shuffleX, settingsButton.y, "[SHUF]", colors.black, snapshot and snapshot.shuffle_mode and colors.lime or colors.lightGray)
+    writeAt(device, skipX, settingsButton.y, "[SKIP]", colors.black, colors.lightGray)
   end
-  writeAt(device, settingsButton.x, settingsButton.row, settingsButton.label, colors.black, colors.lightGray)
+  if width >= #updateBtn.label + 5 then
+    writeAt(device, updateBtn.x, updateBtn.y, updateBtn.label, colors.black, colors.lightGray)
+  end
+  writeAt(device, settingsButton.x, settingsButton.y, settingsButton.label, colors.black, colors.lightGray)
   drawUpdatePrompt(device, width, height, prompt)
+  -- Support for generic message prompt (e.g. "Skip not allowed")
+  if snapshot and snapshot.message_prompt and snapshot.message_prompt.visible then
+    monitor.drawMessagePrompt(device, width, height, snapshot.message_prompt)
+  end
 end
 
 -- Color name lookup table (CC:T color value -> name string)
@@ -483,8 +579,6 @@ function monitor.renderClientSettings(playbackStatus, settingsState)
   writeAt(device, layout.reminderDownX, layout.reminderRow, layout.reminderDownLabel, colors.black, colors.lightGray)
   writeAt(device, layout.reminderValueX, layout.reminderRow, layout.reminderValueLabel, colors.black, palette.panel)
   writeAt(device, layout.reminderUpX, layout.reminderRow, layout.reminderUpLabel, colors.black, colors.lightGray)
-  writeAt(device, 3, layout.updateRow, fit("Manual update", width - 6), colors.white, palette.panel)
-  writeAt(device, layout.updateX, layout.updateRow, layout.updateLabel, colors.black, colors.lightGray)
   -- Colour palette shortcut button
   if layout.colorsRow <= height - 3 then
     writeAt(device, 3, layout.colorsRow, fit("Colour palette", layout.colorsX - 4), colors.white, palette.panel)
@@ -492,6 +586,30 @@ function monitor.renderClientSettings(playbackStatus, settingsState)
   end
   writeAt(device, layout.backX, layout.backRow, layout.backLabel, colors.black, colors.lightGray)
   writeAt(device, 3, height - 2, fit(playbackStatus or "idle", width - 6), colors.white, palette.panel)
+end
+
+function monitor.renderHostSettings(stationName, allowRemoteSkip, allowRemoteShuffle, enableEAS, easSide)
+  local device = getMonitor()
+  if not device then return end
+
+  local width, height = drawFrame(device, "Host Settings")
+  local layout = getHostSettingsScreenLayout(width, height, allowRemoteSkip, allowRemoteShuffle, enableEAS, easSide)
+  
+  writeAt(device, 3, 4, fit(stationName or "Station", width - 6), colors.white, palette.panel)
+  
+  writeAt(device, 3, layout.skipY, fit("Allow Remote Skip", width - 6), colors.white, palette.panel)
+  writeAt(device, layout.skipX, layout.skipY, layout.skipLabel, colors.black, colors.lightGray)
+
+  writeAt(device, 3, layout.shuffleY, fit("Allow Remote Shuffle", width - 6), colors.white, palette.panel)
+  writeAt(device, layout.shuffleX, layout.shuffleY, layout.shuffleLabel, colors.black, colors.lightGray)
+
+  writeAt(device, 3, layout.easY, fit("Redstone Announce", width - 6), colors.white, palette.panel)
+  writeAt(device, layout.easX, layout.easY, layout.easLabel, colors.black, colors.lightGray)
+
+  writeAt(device, 3, layout.sideY, fit("Signal Side", width - 6), colors.white, palette.panel)
+  writeAt(device, layout.sideX, layout.sideY, layout.sideLabel, colors.black, colors.lightGray)
+  
+  writeAt(device, layout.backX, layout.backY, layout.backLabel, colors.black, colors.lightGray)
 end
 
 function monitor.getClientTouchAction(side, x, y, screenMode, prompt, settingsState)
@@ -635,14 +753,30 @@ function monitor.getClientTouchAction(side, x, y, screenMode, prompt, settingsSt
   end
 
   local controls = getClientVolumeButtonLayout(width, height)
-  if y ~= controls.row then
-    local settingsButton = getClientSettingsButtonLayout(width, height)
+  local settingsButton = getClientSettingsButtonLayout(width, height)
+  if y ~= controls.y then
     if hitButton(x, y, {
       x = settingsButton.x,
-      y = settingsButton.row,
+      y = settingsButton.y,
       label = settingsButton.label,
     }) then
       return "open_settings"
+    end
+    local updateBtn = getClientUpdateCheckButtonLayout(width, height)
+    if hitButton(x, y, {
+      x = updateBtn.x,
+      y = updateBtn.y,
+      label = updateBtn.label,
+    }) then
+      return "check_updates"
+    end
+    return nil
+  end
+
+  if snapshot and snapshot.message_prompt and snapshot.message_prompt.visible then
+    local layout = getMessagePromptLayout(width, height)
+    if hitButton(x, y, layout.ok) then
+      return "message_ok"
     end
     return nil
   end
@@ -658,13 +792,58 @@ function monitor.getClientTouchAction(side, x, y, screenMode, prompt, settingsSt
   return nil
 end
 
-function monitor.renderHost(station, snapshot, playlistSource)
+function monitor.getHostTouchAction(x, y, mode, allowRemoteSkip, allowRemoteShuffle, enableEAS, easSide)
+  local device = getMonitor()
+  if not device then return nil end
+  local width, height = device.getSize()
+
+  if mode == "settings" then
+    local layout = getHostSettingsScreenLayout(width, height, allowRemoteSkip, allowRemoteShuffle, enableEAS, easSide)
+    if hitButton(x, y, { x = layout.skipX, y = layout.skipY, label = layout.skipLabel }) then
+      return "toggle_remote_skip"
+    end
+    if hitButton(x, y, { x = layout.shuffleX, y = layout.shuffleY, label = layout.shuffleLabel }) then
+      return "toggle_remote_shuffle"
+    end
+    if hitButton(x, y, { x = layout.easX, y = layout.easY, label = layout.easLabel }) then
+      return "toggle_eas"
+    end
+    if hitButton(x, y, { x = layout.sideX, y = layout.sideY, label = layout.sideLabel }) then
+      return "cycle_eas_side"
+    end
+    if hitButton(x, y, { x = layout.backX, y = layout.backY, label = layout.backLabel }) then
+      return "settings_back"
+    end
+    return nil
+  end
+
+  local settingsBtn = getHostSettingsButtonLayout(width, height)
+  if hitButton(x, y, settingsBtn) then
+    return "open_settings"
+  end
+
+  local updateBtn = getClientUpdateCheckButtonLayout(width, height)
+  if hitButton(x, y, {
+    x = updateBtn.x,
+    y = updateBtn.y,
+    label = updateBtn.label,
+  }) then
+    return "check_updates"
+  end
+
+  return nil
+end
+
+function monitor.renderHost(station, snapshot, playlistSource, updateStatus)
   local device = getMonitor()
   if not device then
     return
   end
 
   local width, height = drawFrame(device, "Station Uplink")
+  local settingsBtn = getHostSettingsButtonLayout(width, height)
+  writeAt(device, settingsBtn.x, settingsBtn.y, settingsBtn.label, colors.black, colors.lightGray)
+  
   writeAt(device, 3, 6, fit(station and station.name or "Unknown station", width - 6), colors.white, palette.panel)
   writeAt(device, 3, 7, fit(station and station.station_id or "", width - 6), colors.yellow, palette.panel)
 
@@ -694,6 +873,16 @@ function monitor.renderHost(station, snapshot, playlistSource)
 
   if playlistSource then
     writeAt(device, 3, height - 2, fit("Playlist: " .. tostring(playlistSource), width - 6), colors.white, palette.panel)
+  end
+
+  local updateBtn = getClientUpdateCheckButtonLayout(width, height)
+  local status = updateStatus or "up to date"
+  
+  -- Display status just above the button
+  writeAt(device, updateBtn.x, updateBtn.y - 1, fit(status, width - updateBtn.x - 2), colors.white, palette.panel)
+
+  if width >= #updateBtn.label + 5 then
+    writeAt(device, updateBtn.x, updateBtn.y, updateBtn.label, colors.black, colors.lightGray)
   end
 end
 

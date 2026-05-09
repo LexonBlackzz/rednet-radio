@@ -115,6 +115,10 @@ function Station:update(nowMs)
   return changed
 end
 
+function Station:offsetStartTime(offsetMs)
+  self.started_at_ms = (self.started_at_ms or util.nowMilliseconds()) + offsetMs
+end
+
 function Station:getSnapshot()
   local track = self:getCurrentTrack()
   local elapsed_ms = track and (util.nowMilliseconds() - (self.started_at_ms or util.nowMilliseconds())) or 0

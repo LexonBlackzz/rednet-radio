@@ -81,6 +81,10 @@ local function refreshUpdateState(statusOverride)
 
   updateInfo = result
   if result.update_available then
+    if settings.getAutoUpdate() then
+      installAvailableUpdate(true)
+      return
+    end
     updateStatus = statusOverride or ("update available: %s -> %s"):format(
       result.current_version,
       result.latest_version
@@ -112,7 +116,7 @@ local function neverShowThisUpdate()
   end
 end
 
-local function installAvailableUpdate()
+local function installAvailableUpdate(isAuto)
   local result, err = updater.applyLocalUpdate()
   if not result then
     updateStatus = ("local update failed (%s)"):format(err or "unknown error")
@@ -127,6 +131,17 @@ local function installAvailableUpdate()
   if result.updated then
     updateInfo = nil
     updatePrompt.latest_version = nil
+    if isAuto or settings.getAutoUpdate() then
+      -- Hot reload
+      print("Update installed. Hot-reloading...")
+      for k, v in pairs(package.loaded) do
+        if k:match("^rednet_radio%.") then
+          package.loaded[k] = nil
+        end
+      end
+      shell.run(shell.getRunningProgram())
+      error("RESTART", 0) -- terminate current execution
+    end
     return
   end
 
@@ -294,7 +309,7 @@ local function renderTunedScreen()
     audio.getMaxVolumePercent(),
     updateStatus,
     updatePrompt,
-    audio.getAmplitude()
+    settings.getEnableVisualizer() and audio.getAmplitude() or nil
   )
 end
 
@@ -308,6 +323,7 @@ local function tuneStation(station)
   rednet_api.listenToStation(station)
   rednet_api.requestTune(station)
   rednet_api.sendPing(station)
+  settings.setLastStationId(station.station_id)
 
   local timers = {}
 
@@ -379,6 +395,12 @@ local function tuneStation(station)
         elseif key == "t" then
           settings.toggleShowNeverOption()
           refreshUpdateState()
+        elseif key == "v" then
+          settings.toggleEnableVisualizer()
+          needsRender = true
+        elseif key == "a" then
+          settings.toggleAutoUpdate()
+          needsRender = true
         elseif key == "-" then
           adjustRemindLaterMinutes(-settings.getRemindLaterStepMinutes())
         elseif key == "=" then
@@ -444,6 +466,10 @@ local function tuneStation(station)
       elseif action == "toggle_never_option" then
         settings.toggleShowNeverOption()
         refreshUpdateState()
+      elseif action == "toggle_visualizer" then
+        settings.toggleEnableVisualizer()
+      elseif action == "toggle_auto_update" then
+        settings.toggleAutoUpdate()
       elseif action == "remind_delay_down" then
         adjustRemindLaterMinutes(-settings.getRemindLaterStepMinutes())
       elseif action == "remind_delay_up" then
@@ -452,6 +478,9 @@ local function tuneStation(station)
         installAvailableUpdate()
       elseif action == "update_ok" then
         installAvailableUpdate()
+      elseif action == "update_auto" then
+        settings.setAutoUpdate(true)
+        installAvailableUpdate(true)
       elseif action == "update_later" then
         remindAboutUpdateLater()
       elseif action == "skip_track" then
@@ -534,6 +563,17 @@ local function main()
   monitor.setPalette(settings.getPalette())
   refreshUpdateState()
 
+  local lastStationId = settings.getLastStationId()
+  if lastStationId then
+    local loadedStations = loadStations()
+    if loadedStations then
+      local station = directory.findStation(loadedStations, lastStationId)
+      if station then
+        tuneStation(station)
+      end
+    end
+  end
+
   while true do
     local station = chooseStation()
     if not station then
@@ -547,10 +587,11 @@ local function main()
 end
 
 local ok, err = xpcall(main, function(message)
+  if message == "RESTART" then return "RESTART" end
   return debug and debug.traceback and debug.traceback(message, 2) or tostring(message)
 end)
 
-if not ok then
+if not ok and err ~= "RESTART" then
   print("radio_client failed:")
   print(err)
   print("")

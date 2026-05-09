@@ -93,7 +93,7 @@ local function main(args)
   local function schedule(name, seconds)
     timers[os.startTimer(seconds)] = name
   end
-
+  --NOTE: this is used for a simple EAS announcement for PMWeather, you can change this URL for any other announcement audio.
   local easActive = false
   local easPlaying = false
   local easUrl = "https://file.garden/ad_jTPVIV3ilAFpI/easfix.dfpwm"
@@ -101,7 +101,7 @@ local function main(args)
   local easStartTime = nil
 
   local function startAnnouncement()
-    log("EAS Triggered! Sending alerts...")
+    log("Announcement Triggered, sending alerts")
     easStartTime = util.nowMilliseconds()
     rednet_api.broadcastMessage(stationDefinition, {
       message_type = config.message_types.eas_start,
@@ -126,7 +126,7 @@ local function main(args)
   end
 
   local function stopAnnouncement()
-    log("EAS Signal removed. Sending expiration...")
+    log("announcement signal removed. sending expiration...")
     rednet_api.broadcastMessage(stationDefinition, {
       message_type = config.message_types.eas_end
     })
@@ -174,7 +174,7 @@ local function main(args)
           end
         end
         
-        -- Always broadcast if EAS is playing to keep clients updated on host status
+        -- always broadcast if an announcement is playing to keep clients updated on host status
         if changed or easPlaying then
           rednet_api.broadcastNowPlaying(stationDefinition, getHostSnapshot())
         end

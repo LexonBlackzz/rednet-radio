@@ -103,6 +103,7 @@ local function main(...)
   local updateStatus = "Checking for updates..."
 
   local function startAnnouncement()
+    if easPlaying then return end
     log("Announcement Triggered, sending alerts")
     easStartTime = util.nowMilliseconds()
     rednet_api.broadcastMessage(stationDefinition, {
@@ -113,17 +114,14 @@ local function main(...)
     })
     easPlaying = true
     
-    -- Estimate duration if not known
-    if not easDuration then
-        local h = http.get(easUrl, nil, true) -- head request if supported? no, http.get
-        if h then
-            local data = h.readAll()
-            h.close()
-            easDuration = #data / 6000
-        end
+    -- Use hardcoded duration for known URL to avoid blocking network check
+    if easUrl == "https://file.garden/ad_jTPVIV3ilAFpI/easfix.dfpwm" then
+      easDuration = 11.5
+    elseif not easDuration then
+      easDuration = 10
     end
     
-    local waitTime = 5 + (easDuration or 10)
+    local waitTime = 5 + easDuration
     schedule("eas_finish", waitTime)
   end
 
@@ -169,6 +167,15 @@ local function main(...)
   schedule("check_updates", 1) -- Initial check
   if (config.directory_refresh_seconds or 0) > 0 then
     schedule("refresh_directory", config.directory_refresh_seconds)
+  end
+
+  -- Initial Redstone Check
+  if settings.getEnableRedstoneAnnouncement() then
+    local side = settings.getAnnouncementRedstoneSide()
+    if rs.getInput(side) then
+      easActive = true
+      startAnnouncement()
+    end
   end
   if (config.playlist_refresh_seconds or 0) > 0 then
     schedule("refresh_playlist", config.playlist_refresh_seconds)
@@ -311,6 +318,7 @@ local function main(...)
         settings.toggleEnableRedstoneAnnouncement()
       elseif action == "cycle_eas_side" then
         settings.cycleAnnouncementRedstoneSide()
+        log("Redstone side changed to: " .. settings.getAnnouncementRedstoneSide())
       elseif action == "check_updates" then
         updateStatus = "Checking for updates..."
         monitor.renderHost(stationDefinition, getHostSnapshot(), playlistSourceOrErr, updateStatus)
@@ -336,13 +344,25 @@ local function main(...)
         )
       end
     elseif event == "redstone" then
+      local currentSide = settings.getAnnouncementRedstoneSide()
+      local signal = rs.getInput(currentSide)
+      
+      -- Debug: log all active signals
+      local activeSides = {}
+      for _, s in ipairs({"bottom","top","back","front","left","right"}) do
+        if rs.getInput(s) then table.insert(activeSides, s) end
+      end
+      if #activeSides > 0 then
+        log("Redstone active on: " .. table.concat(activeSides, ", "))
+      end
+
       if settings.getEnableRedstoneAnnouncement() then
-        local side = settings.getAnnouncementRedstoneSide()
-        local signal = rs.getInput(side)
         if signal and not easActive then
+          log("Announcement triggered via " .. currentSide)
           easActive = true
           startAnnouncement()
         elseif not signal and easActive then
+          log("Announcement signal LOST on " .. currentSide)
           easActive = false
           stopAnnouncement()
         end

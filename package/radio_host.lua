@@ -13,7 +13,8 @@ local function log(message)
   print(("[%s] %s"):format(textutils.formatTime(os.time(), true), message))
 end
 
-local function main(args)
+local function main(...)
+  local args = { ... }
   local stationId = args[1]
 
   if not stationId or stationId == "" then
@@ -99,6 +100,7 @@ local function main(args)
   local easUrl = "https://file.garden/ad_jTPVIV3ilAFpI/easfix.dfpwm"
   local easDuration = nil
   local easStartTime = nil
+  local updateStatus = "Checking for updates..."
 
   local function startAnnouncement()
     log("Announcement Triggered, sending alerts")
@@ -125,6 +127,27 @@ local function main(args)
     schedule("eas_finish", waitTime)
   end
 
+  local function installAvailableUpdate()
+    local result, err = updater.applyLocalUpdate()
+    if not result then
+      updateStatus = ("local update failed (%s)"):format(err or "unknown error")
+      return
+    end
+
+    updateStatus = result.message
+    if result.updated then
+        -- Hot reload
+        log("Update installed. Hot-reloading...")
+        for k, v in pairs(package.loaded) do
+          if k:match("^rednet_radio%.") then
+            package.loaded[k] = nil
+          end
+        end
+        shell.run(shell.getRunningProgram(), table.unpack(args))
+        error("RESTART", 0)
+    end
+  end
+
   local function stopAnnouncement()
     log("announcement signal removed. sending expiration...")
     rednet_api.broadcastMessage(stationDefinition, {
@@ -143,6 +166,7 @@ local function main(args)
   schedule("tick", 1)
   schedule("sync", config.sync_interval_seconds)
   schedule("announce", config.announce_interval_seconds)
+  schedule("check_updates", 1) -- Initial check
   if (config.directory_refresh_seconds or 0) > 0 then
     schedule("refresh_directory", config.directory_refresh_seconds)
   end
@@ -180,7 +204,7 @@ local function main(args)
         end
         
         if screenMode == "main" then
-          monitor.renderHost(stationDefinition, getHostSnapshot(), playlistSourceOrErr, updater.getStatusSummary())
+          monitor.renderHost(stationDefinition, getHostSnapshot(), playlistSourceOrErr, updateStatus)
         else
           monitor.renderHostSettings(
             stationDefinition.name, 
@@ -205,6 +229,9 @@ local function main(args)
       elseif timerName == "announce" then
         rednet_api.broadcastAnnounce(stationDefinition, getHostSnapshot())
         schedule("announce", config.announce_interval_seconds)
+      elseif timerName == "check_updates" then
+        updateStatus = updater.getStatusSummary()
+        schedule("check_updates", 3600) -- check every hour
       elseif timerName == "refresh_directory" then
         local freshDefinition, source, err = loadStationDefinition()
         if freshDefinition then
@@ -285,11 +312,20 @@ local function main(args)
       elseif action == "cycle_eas_side" then
         settings.cycleAnnouncementRedstoneSide()
       elseif action == "check_updates" then
-        updater.refresh()
+        updateStatus = "Checking for updates..."
+        monitor.renderHost(stationDefinition, getHostSnapshot(), playlistSourceOrErr, updateStatus)
+        local result = updater.check()
+        if result and result.update_available then
+          updateStatus = "Update available! Installing..."
+          monitor.renderHost(stationDefinition, getHostSnapshot(), playlistSourceOrErr, updateStatus)
+          installAvailableUpdate()
+        else
+          updateStatus = updater.getStatusSummary()
+        end
       end
 
       if screenMode == "main" then
-        monitor.renderHost(stationDefinition, getHostSnapshot(), playlistSourceOrErr, updater.getStatusSummary())
+        monitor.renderHost(stationDefinition, getHostSnapshot(), playlistSourceOrErr, updateStatus)
       else
         monitor.renderHostSettings(
           stationDefinition.name, 
@@ -315,11 +351,9 @@ local function main(args)
   end
 end
 
-local ok, err = xpcall(function()
-  main(launchArgs)
-end, function(message)
+local ok, err = xpcall(main, function(message)
   return debug and debug.traceback and debug.traceback(message, 2) or tostring(message)
-end)
+end, ...)
 
 if not ok then
   print("radio_host failed:")

@@ -165,13 +165,18 @@ function updater.saveInstallManifest(manifest)
   return util.writeAll(INSTALL_MANIFEST_PATH, encoded)
 end
 
+function updater.refresh()
+  -- Placeholder for clearing cache if we had one
+  return true
+end
+
 function updater.check(packageUrl)
   local normalizedPackageUrl = normalizePackageUrl(packageUrl)
   if normalizedPackageUrl == "" then
     return nil, "Package URL is not configured"
   end
 
-  local versionUrl = normalizedPackageUrl .. "/rednet_radio/version.lua"
+  local versionUrl = normalizedPackageUrl .. "/rednet_radio/version.lua?cb=" .. os.epoch("utc")
   local contents, err = fetch(versionUrl)
   if not contents then
     return nil, err

@@ -107,6 +107,17 @@ local function getClientSettingsButtonLayout(width, height)
   }
 end
 
+local function getClientUpdateCheckButtonLayout(width, height)
+  local label = "[CHECK FOR UPDATES]"
+  local settingsButton = getClientSettingsButtonLayout(width, height)
+  return {
+    row = height,
+    x = math.max(3, settingsButton.x - #label - 1),
+    width = #label,
+    label = label,
+  }
+end
+
 local function getSettingsScreenLayout(width, height, showNeverOption, remindLaterMinutes, enableVisualizer, autoUpdate)
   local toggleLabel = showNeverOption and "[ON]" or "[OFF]"
   local visToggleLabel = enableVisualizer and "[ON]" or "[OFF]"
@@ -143,9 +154,6 @@ local function getSettingsScreenLayout(width, height, showNeverOption, remindLat
     reminderValueLabel = reminderValueLabel,
     reminderUpX = math.max(12, width - #reminderUpLabel - 3),
     reminderUpLabel = reminderUpLabel,
-    updateRow = updateRow,
-    updateX = math.max(3, width - #updateNowLabel - 3),
-    updateLabel = updateNowLabel,
     colorsRow = colorsRow,
     colorsX = math.max(3, width - #colorsLabel - 3),
     colorsLabel = colorsLabel,
@@ -343,14 +351,20 @@ function monitor.renderClient(station, snapshot, playbackStatus, volumePercent, 
   )
   writeAt(device, controls.minusX, controls.row, controls.minusLabel, colors.black, colors.lightGray)
   writeAt(device, controls.plusX, controls.row, controls.plusLabel, colors.black, colors.lightGray)
+  
+  local updateBtn = getClientUpdateCheckButtonLayout(width, height)
   local skipX = settingsButton.x - 7
   local shuffleX = skipX - 7
 
-  writeAt(device, 3, height - 2, fit(updateStatus or playbackStatus or "idle", shuffleX - 5), colors.white, palette.panel)
+  -- update status text just above the check updates button
+  writeAt(device, updateBtn.x, updateBtn.row - 1, fit(updateStatus or playbackStatus or "idle", width - updateBtn.x - 2), colors.white, palette.panel)
   
-  if width >= 28 then
+  if width >= 25 then
     writeAt(device, shuffleX, settingsButton.row, "[SHUF]", colors.black, snapshot and snapshot.shuffle_mode and colors.lime or colors.lightGray)
     writeAt(device, skipX, settingsButton.row, "[SKIP]", colors.black, colors.lightGray)
+  end
+  if width >= #updateBtn.label + 5 then
+    writeAt(device, updateBtn.x, updateBtn.row, updateBtn.label, colors.black, colors.lightGray)
   end
   writeAt(device, settingsButton.x, settingsButton.row, settingsButton.label, colors.black, colors.lightGray)
   drawUpdatePrompt(device, width, height, prompt)
@@ -483,8 +497,6 @@ function monitor.renderClientSettings(playbackStatus, settingsState)
   writeAt(device, layout.reminderDownX, layout.reminderRow, layout.reminderDownLabel, colors.black, colors.lightGray)
   writeAt(device, layout.reminderValueX, layout.reminderRow, layout.reminderValueLabel, colors.black, palette.panel)
   writeAt(device, layout.reminderUpX, layout.reminderRow, layout.reminderUpLabel, colors.black, colors.lightGray)
-  writeAt(device, 3, layout.updateRow, fit("Manual update", width - 6), colors.white, palette.panel)
-  writeAt(device, layout.updateX, layout.updateRow, layout.updateLabel, colors.black, colors.lightGray)
   -- Colour palette shortcut button
   if layout.colorsRow <= height - 3 then
     writeAt(device, 3, layout.colorsRow, fit("Colour palette", layout.colorsX - 4), colors.white, palette.panel)
@@ -635,14 +647,22 @@ function monitor.getClientTouchAction(side, x, y, screenMode, prompt, settingsSt
   end
 
   local controls = getClientVolumeButtonLayout(width, height)
+  local settingsButton = getClientSettingsButtonLayout(width, height)
   if y ~= controls.row then
-    local settingsButton = getClientSettingsButtonLayout(width, height)
     if hitButton(x, y, {
       x = settingsButton.x,
       y = settingsButton.row,
       label = settingsButton.label,
     }) then
       return "open_settings"
+    end
+    local updateBtn = getClientUpdateCheckButtonLayout(width, height)
+    if hitButton(x, y, {
+      x = updateBtn.x,
+      y = updateBtn.row,
+      label = updateBtn.label,
+    }) then
+      return "check_updates"
     end
     return nil
   end

@@ -6,6 +6,7 @@ local rednet_api = require("rednet_radio.rednet_api")
 local util = require("rednet_radio.util")
 local monitor = require("rednet_radio.monitor")
 local updater = require("rednet_radio.updater")
+local settings = require("rednet_radio.settings")
 local launchArgs = { ... }
 
 local function log(message)
@@ -82,6 +83,7 @@ local function main(args)
   ))
   log(("Updates: %s"):format(updater.getStatusSummary()))
   monitor.renderHost(stationDefinition, stationRuntime:getSnapshot(), playlistSourceOrErr)
+  local screenMode = "main"
 
   rednet_api.broadcastAnnounce(stationDefinition, stationRuntime:getSnapshot())
   rednet_api.broadcastNowPlaying(stationDefinition, stationRuntime:getSnapshot())
@@ -90,6 +92,52 @@ local function main(args)
 
   local function schedule(name, seconds)
     timers[os.startTimer(seconds)] = name
+  end
+
+  local easActive = false
+  local easPlaying = false
+  local easUrl = "https://file.garden/ad_jTPVIV3ilAFpI/easfix.dfpwm"
+  local easDuration = nil
+  local easStartTime = nil
+
+  local function startAnnouncement()
+    log("EAS Triggered! Sending alerts...")
+    easStartTime = util.nowMilliseconds()
+    rednet_api.broadcastMessage(stationDefinition, {
+      message_type = config.message_types.eas_start,
+      url = easUrl,
+      alarm_seconds = 5,
+      volume = 3
+    })
+    easPlaying = true
+    
+    -- Estimate duration if not known
+    if not easDuration then
+        local h = http.get(easUrl, nil, true) -- head request if supported? no, http.get
+        if h then
+            local data = h.readAll()
+            h.close()
+            easDuration = #data / 6000
+        end
+    end
+    
+    local waitTime = 5 + (easDuration or 10)
+    schedule("eas_finish", waitTime)
+  end
+
+  local function stopAnnouncement()
+    log("EAS Signal removed. Sending expiration...")
+    rednet_api.broadcastMessage(stationDefinition, {
+      message_type = config.message_types.eas_end
+    })
+  end
+
+  local function getHostSnapshot()
+    local snapshot = stationRuntime:getSnapshot()
+    snapshot.allow_remote_skip = settings.getAllowRemoteSkip()
+    snapshot.allow_remote_shuffle = settings.getAllowRemoteShuffle()
+    snapshot.eas_active = easPlaying
+    return snapshot
   end
 
   schedule("tick", 1)
@@ -110,9 +158,12 @@ local function main(args)
       timers[p1] = nil
 
       if timerName == "tick" then
-        local changed = stationRuntime:update(util.nowMilliseconds())
+        local changed = false
+        if not easPlaying then
+           changed = stationRuntime:update(util.nowMilliseconds())
+        end
         if changed then
-          local snapshot = stationRuntime:getSnapshot()
+          local snapshot = getHostSnapshot()
           local track = snapshot.track
           if track then
             log(("Advanced to track %d: %s - %s"):format(
@@ -121,15 +172,38 @@ local function main(args)
               track.title or "Unknown Track"
             ))
           end
-          rednet_api.broadcastNowPlaying(stationDefinition, stationRuntime:getSnapshot())
         end
-        monitor.renderHost(stationDefinition, stationRuntime:getSnapshot(), playlistSourceOrErr)
+        
+        -- Always broadcast if EAS is playing to keep clients updated on host status
+        if changed or easPlaying then
+          rednet_api.broadcastNowPlaying(stationDefinition, getHostSnapshot())
+        end
+        
+        if screenMode == "main" then
+          monitor.renderHost(stationDefinition, getHostSnapshot(), playlistSourceOrErr, updater.getStatusSummary())
+        else
+          monitor.renderHostSettings(
+            stationDefinition.name, 
+            settings.getAllowRemoteSkip(), 
+            settings.getAllowRemoteShuffle(),
+            settings.getEnableRedstoneAnnouncement(),
+            settings.getAnnouncementRedstoneSide()
+          )
+        end
         schedule("tick", 1)
+      elseif timerName == "eas_finish" then
+        log("EAS audio finished. Resuming music.")
+        if easStartTime then
+          local duration = util.nowMilliseconds() - easStartTime
+          stationRuntime:offsetStartTime(duration)
+        end
+        easPlaying = false
+        rednet_api.broadcastNowPlaying(stationDefinition, getHostSnapshot())
       elseif timerName == "sync" then
-        rednet_api.broadcastSync(stationDefinition, stationRuntime:getSnapshot())
+        rednet_api.broadcastSync(stationDefinition, getHostSnapshot())
         schedule("sync", config.sync_interval_seconds)
       elseif timerName == "announce" then
-        rednet_api.broadcastAnnounce(stationDefinition, stationRuntime:getSnapshot())
+        rednet_api.broadcastAnnounce(stationDefinition, getHostSnapshot())
         schedule("announce", config.announce_interval_seconds)
       elseif timerName == "refresh_directory" then
         local freshDefinition, source, err = loadStationDefinition()
@@ -152,7 +226,9 @@ local function main(args)
             rednet_api.broadcastNowPlaying(stationDefinition, stationRuntime:getSnapshot())
           end
           playlistSourceOrErr = source
-          monitor.renderHost(stationDefinition, stationRuntime:getSnapshot(), playlistSourceOrErr)
+          if screenMode == "main" then
+            monitor.renderHost(stationDefinition, stationRuntime:getSnapshot(), playlistSourceOrErr)
+          end
         else
           log(("Playlist refresh failed: %s"):format(err or "unknown error"))
         end
@@ -172,13 +248,67 @@ local function main(args)
           rednet_api.sendStationInfo(senderId, stationDefinition, stationRuntime:getSnapshot())
           rednet_api.sendNowPlaying(senderId, stationDefinition, stationRuntime:getSnapshot())
         elseif message.message_type == config.message_types.skip_request then
-          stationRuntime:advanceTrack(util.nowMilliseconds())
-          rednet_api.broadcastNowPlaying(stationDefinition, stationRuntime:getSnapshot())
-          monitor.renderHost(stationDefinition, stationRuntime:getSnapshot(), playlistSourceOrErr)
+          if settings.getAllowRemoteSkip() then
+            stationRuntime:advanceTrack(util.nowMilliseconds())
+            rednet_api.broadcastNowPlaying(stationDefinition, getHostSnapshot())
+            if screenMode == "main" then
+              monitor.renderHost(stationDefinition, getHostSnapshot(), playlistSourceOrErr)
+            end
+          else
+            log(("Ignored skip request from %d (remote skip disabled)"):format(senderId))
+          end
         elseif message.message_type == config.message_types.shuffle_request then
-          stationRuntime:toggleShuffle()
-          rednet_api.broadcastNowPlaying(stationDefinition, stationRuntime:getSnapshot())
-          monitor.renderHost(stationDefinition, stationRuntime:getSnapshot(), playlistSourceOrErr)
+          if settings.getAllowRemoteShuffle() then
+            stationRuntime:toggleShuffle()
+            rednet_api.broadcastNowPlaying(stationDefinition, getHostSnapshot())
+            if screenMode == "main" then
+              monitor.renderHost(stationDefinition, getHostSnapshot(), playlistSourceOrErr)
+            end
+          else
+            log(("Ignored shuffle request from %d (remote shuffle disabled)"):format(senderId))
+          end
+        end
+      end
+    elseif event == "monitor_touch" then
+      local side, x, y = p1, p2, p3
+      local action = monitor.getHostTouchAction(x, y, screenMode, settings.getAllowRemoteSkip(), settings.getAllowRemoteShuffle())
+      if action == "open_settings" then
+        screenMode = "settings"
+      elseif action == "settings_back" then
+        screenMode = "main"
+      elseif action == "toggle_remote_skip" then
+        settings.toggleAllowRemoteSkip()
+      elseif action == "toggle_remote_shuffle" then
+        settings.toggleAllowRemoteShuffle()
+      elseif action == "toggle_eas" then
+        settings.toggleEnableRedstoneAnnouncement()
+      elseif action == "cycle_eas_side" then
+        settings.cycleAnnouncementRedstoneSide()
+      elseif action == "check_updates" then
+        updater.refresh()
+      end
+
+      if screenMode == "main" then
+        monitor.renderHost(stationDefinition, getHostSnapshot(), playlistSourceOrErr, updater.getStatusSummary())
+      else
+        monitor.renderHostSettings(
+          stationDefinition.name, 
+          settings.getAllowRemoteSkip(), 
+          settings.getAllowRemoteShuffle(),
+          settings.getEnableRedstoneAnnouncement(),
+          settings.getAnnouncementRedstoneSide()
+        )
+      end
+    elseif event == "redstone" then
+      if settings.getEnableRedstoneAnnouncement() then
+        local side = settings.getAnnouncementRedstoneSide()
+        local signal = rs.getInput(side)
+        if signal and not easActive then
+          easActive = true
+          startAnnouncement()
+        elseif not signal and easActive then
+          easActive = false
+          stopAnnouncement()
         end
       end
     end

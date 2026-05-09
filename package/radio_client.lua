@@ -337,281 +337,277 @@ local function tuneStation(station)
   schedule("render", 1)
   schedule("ping", config.client_ping_interval_seconds)
   schedule("visualizer", 0.15)
+  schedule("check_updates", 120)
 
   local needsRender = true
 
-  while true do
-    if needsRender then
-      renderTunedScreen()
-      needsRender = false
-    end
-
-    local event, p1, p2, p3 = os.pullEvent()
-
-    if event == "timer" then
-      local timerName = timers[p1]
-      timers[p1] = nil
-
-      if timerName == "render" then
-        needsRender = true
-        schedule("render", 1)
-      elseif timerName == "ping" then
-        rednet_api.sendPing(station)
-        schedule("ping", config.client_ping_interval_seconds)
-      elseif timerName == "visualizer" then
-        needsRender = true
-        schedule("visualizer", 0.15)
+  local function uiThread()
+    while true do
+      if needsRender then
+        renderTunedScreen()
+        needsRender = false
       end
-    elseif event == "rednet_message" then
-      local message = p2
-      local protocol = p3
 
-      if rednet_api.matchesStationProtocol(station, protocol) and rednet_api.isRadioMessage(message) then
-        if message.station_id == station.station_id then
-          if message.message_type == config.message_types.station_info then
-            currentStation = util.mergeTables(currentStation, message.station)
-            currentSnapshot = message.snapshot or currentSnapshot
-            lastUpdateMs = util.nowMilliseconds()
-            audio.syncToSnapshot(currentSnapshot)
-            needsRender = true
-          elseif message.message_type == config.message_types.now_playing
-            or message.message_type == config.message_types.sync
-            or message.message_type == config.message_types.announce then
-            currentSnapshot = message.snapshot or currentSnapshot
-            lastUpdateMs = util.nowMilliseconds()
-            audio.syncToSnapshot(currentSnapshot)
-            needsRender = true
-          elseif message.message_type == config.message_types.eas_start then
-            currentSnapshot.message_prompt = {
-              visible = true,
-              title = "IMPORTANT ANNOUNCEMENT",
-              message = "PLEASE STAND BY..",
-              hide_ok = true
-            }
-            renderTunedScreen()
-            audio.stopTrack()
-            
-            local speaker = peripheral.find("speaker")
-            if speaker then
-                for i=1, 25 do -- ~5 seconds
-                    speaker.playSound("minecraft:block.bell.use", 3, 0.5)
-                    os.sleep(0.1)
-                    speaker.playSound("minecraft:block.bell.use", 3, 0.8)
-                    os.sleep(0.1)
-                end
+      local event, p1, p2, p3 = os.pullEvent()
+
+      if event == "timer" then
+        local timerName = timers[p1]
+        timers[p1] = nil
+
+        if timerName == "render" then
+          needsRender = true
+          schedule("render", 1)
+        elseif timerName == "ping" then
+          rednet_api.sendPing(station)
+          schedule("ping", config.client_ping_interval_seconds)
+        elseif timerName == "visualizer" then
+          needsRender = true
+          schedule("visualizer", 0.15)
+        elseif timerName == "check_updates" then
+          refreshUpdateState()
+          schedule("check_updates", 60)
+        end
+      elseif event == "rednet_message" then
+        local message = p2
+        local protocol = p3
+
+        if rednet_api.matchesStationProtocol(station, protocol) and rednet_api.isRadioMessage(message) then
+          if message.station_id == station.station_id then
+            if message.message_type == config.message_types.station_info then
+              currentStation = util.mergeTables(currentStation, message.station)
+              currentSnapshot = message.snapshot or currentSnapshot
+              lastUpdateMs = util.nowMilliseconds()
+              os.queueEvent("audio_sync", currentSnapshot)
+              needsRender = true
+            elseif message.message_type == config.message_types.now_playing
+              or message.message_type == config.message_types.sync
+              or message.message_type == config.message_types.announce then
+              currentSnapshot = message.snapshot or currentSnapshot
+              lastUpdateMs = util.nowMilliseconds()
+              os.queueEvent("audio_sync", currentSnapshot)
+              needsRender = true
+            elseif message.message_type == config.message_types.eas_start then
+              currentSnapshot.message_prompt = {
+                visible = true,
+                title = "IMPORTANT ANNOUNCEMENT",
+                message = "PLEASE STAND BY..",
+                hide_ok = true
+              }
+              needsRender = true
+              os.queueEvent("audio_eas_start", message)
+            elseif message.message_type == config.message_types.eas_end then
+              currentSnapshot.message_prompt = {
+                visible = true,
+                title = "NOTICE",
+                message = "IMPORTANT ANNOUNCEMENT EXPIRED"
+              }
+              needsRender = true
             end
-            
-            local h = http.get(message.url)
-            if h then
-                local data = h.readAll()
-                h.close()
-                audio.playLocalBuffer(data, message.volume or 3)
-            end
-          elseif message.message_type == config.message_types.eas_end then
-            currentSnapshot.message_prompt = {
-              visible = true,
-              title = "NOTICE",
-              message = "IMPORTANT ANNOUNCEMENT EXPIRED"
-            }
-            renderTunedScreen()
           end
         end
-      end
-    elseif event == "speaker_audio_empty" then
-      audio.handleEvent(event)
-    elseif event == "char" then
-      needsRender = true
-      local key = p1
-      if key == "q" then
-        audio.stopTrack()
-        return
-      elseif screenMode == "settings" then
-        if key == "b" then
-          screenMode = "main"
-        elseif key == "t" then
-          settings.toggleShowNeverOption()
-          refreshUpdateState()
-        elseif key == "v" then
-          settings.toggleEnableVisualizer()
-          needsRender = true
-        elseif key == "a" then
-          settings.toggleAutoUpdate()
-          needsRender = true
-        elseif key == "-" then
-          adjustRemindLaterMinutes(-settings.getRemindLaterStepMinutes())
-        elseif key == "=" then
-          adjustRemindLaterMinutes(settings.getRemindLaterStepMinutes())
-        elseif key == "u" then
-          installAvailableUpdate()
-        end
-      elseif updatePrompt.visible then
-        if key == "o" then
-          installAvailableUpdate()
-        elseif key == "l" then
-          remindAboutUpdateLater()
+      elseif event == "char" then
+        needsRender = true
+        local key = p1
+        if key == "q" then
+          return "QUIT"
+        elseif screenMode == "settings" then
+          if key == "b" then
+            screenMode = "main"
+          elseif key == "t" then
+            settings.toggleShowNeverOption()
+            refreshUpdateState()
+          elseif key == "v" then
+            settings.toggleEnableVisualizer()
+          elseif key == "a" then
+            settings.toggleAutoUpdate()
+          elseif key == "-" then
+            adjustRemindLaterMinutes(-settings.getRemindLaterStepMinutes())
+          elseif key == "=" then
+            adjustRemindLaterMinutes(settings.getRemindLaterStepMinutes())
+          elseif key == "u" then
+            installAvailableUpdate()
+          end
+        elseif updatePrompt.visible then
+          if key == "o" then
+            installAvailableUpdate()
+          elseif key == "l" then
+            remindAboutUpdateLater()
+          elseif key == "n" then
+            neverShowThisUpdate()
+          elseif key == "s" then
+            screenMode = "settings"
+          elseif key == "[" then
+            adjustVolume(-audio.getVolumeStepPercent())
+          elseif key == "]" then
+            adjustVolume(audio.getVolumeStepPercent())
+          end
+        elseif key == "p" then
+          rednet_api.sendPing(station)
+        elseif key == "r" then
+          local loadedStations = directory.loadStations(config.directory_url)
+          if loadedStations then
+            local refreshed = directory.findStation(loadedStations, station.station_id)
+            if refreshed then
+              currentStation = refreshed
+              rednet_api.listenToStation(currentStation)
+            end
+          end
         elseif key == "n" then
-          neverShowThisUpdate()
+          rednet_api.requestSkip(currentStation)
+        elseif key == "x" then
+          rednet_api.requestShuffleToggle(currentStation)
         elseif key == "s" then
           screenMode = "settings"
+          paletteState.selectedRole = 1
         elseif key == "[" then
           adjustVolume(-audio.getVolumeStepPercent())
         elseif key == "]" then
           adjustVolume(audio.getVolumeStepPercent())
         end
-      elseif key == "p" then
-        rednet_api.sendPing(station)
-      elseif key == "r" then
-        local loadedStations = directory.loadStations(config.directory_url)
-        if loadedStations then
-          local refreshed = directory.findStation(loadedStations, station.station_id)
-          if refreshed then
-            currentStation = refreshed
-            rednet_api.listenToStation(currentStation)
-          end
-        end
-      elseif key == "n" then
-        rednet_api.requestSkip(currentStation)
-      elseif key == "x" then
-        rednet_api.requestShuffleToggle(currentStation)
-      elseif key == "s" then
-        screenMode = "settings"
-        paletteState.selectedRole = 1
-      elseif key == "[" then
-        adjustVolume(-audio.getVolumeStepPercent())
-      elseif key == "]" then
-        adjustVolume(audio.getVolumeStepPercent())
-      end
-    elseif event == "monitor_touch" then
-      needsRender = true
-      local action = monitor.getClientTouchAction(
-        p1,
-        p2,
-        p3,
-        screenMode,
-        updatePrompt,
-        util.mergeTables(settings.get(), { palette = settings.getPalette() })
-      )
-      if action == "volume_down" then
-        adjustVolume(-audio.getVolumeStepPercent())
-      elseif action == "volume_up" then
-        adjustVolume(audio.getVolumeStepPercent())
-      elseif action == "open_settings" then
-        screenMode = "settings"
-      elseif action == "settings_back" then
-        screenMode = "main"
-      elseif action == "toggle_never_option" then
-        settings.toggleShowNeverOption()
-        refreshUpdateState()
-      elseif action == "toggle_visualizer" then
-        settings.toggleEnableVisualizer()
-      elseif action == "toggle_auto_update" then
-        settings.toggleAutoUpdate()
-      elseif action == "remind_delay_down" then
-        adjustRemindLaterMinutes(-settings.getRemindLaterStepMinutes())
-      elseif action == "remind_delay_up" then
-        adjustRemindLaterMinutes(settings.getRemindLaterStepMinutes())
-      elseif action == "update_now" then
-        installAvailableUpdate()
-      elseif action == "check_updates" then
-        updateStatus = "Checking for updates..."
-        renderTunedScreen()
-        refreshUpdateState()
-      elseif action == "update_ok" then
-        installAvailableUpdate()
-      elseif action == "update_auto" then
-        settings.setAutoUpdate(true)
-        installAvailableUpdate(true)
-      elseif action == "update_later" then
-        remindAboutUpdateLater()
-      elseif action == "skip_track" then
-        if currentSnapshot and currentSnapshot.allow_remote_skip == false then
-          currentSnapshot.message_prompt = {
-            visible = true,
-            title = "Skip not allowed",
-            message = "Contact host to enable skipping."
-          }
-        else
-          rednet_api.requestSkip(currentStation)
-        end
-      elseif action == "toggle_shuffle" then
-        if currentSnapshot and currentSnapshot.allow_remote_shuffle == false then
-          currentSnapshot.message_prompt = {
-            visible = true,
-            title = "Shuffle not allowed",
-            message = "Contact host to enable shuffling."
-          }
-        else
-          rednet_api.requestShuffleToggle(currentStation)
-        end
-      elseif action == "message_ok" then
-        if currentSnapshot and currentSnapshot.message_prompt then
-          currentSnapshot.message_prompt.visible = false
-        end
-      elseif action == "open_palette" then
-        screenMode = "palette"
-        paletteState.selectedRole = 1
-      elseif action == "update_never" then
-        neverShowThisUpdate()
-      else
-        -- action = "palette_cycle_<role>"
-        local role = action and action:match("^palette_cycle_(.+)$")
-        if role then
-          local cp  = settings.getPalette()
-          local cv  = cp[role] or 1
-          local COLOR_LIST_MON = {
-            1,2,4,8,16,32,64,128,256,512,1024,2048,4096,8192,16384,32768
-          }
-          local idx = 1
-          for ci, v in ipairs(COLOR_LIST_MON) do
-            if v == cv then idx = ci; break end
-          end
-          idx = idx + 1; if idx > #COLOR_LIST_MON then idx = 1 end
-          settings.setPaletteColor(role, COLOR_LIST_MON[idx])
-          monitor.setPalette(settings.getPalette())
-        end
-        -- pallete touch actions
-        local selRole = action and action:match("^palette_select_(.+)$")
-        if selRole then
-          for i, r in ipairs(PALETTE_ROLES) do
-            if r == selRole then paletteState.selectedRole = i; break end
-          end
-        end
-        if action == "palette_prev" or action == "palette_next" then
-          local role = PALETTE_ROLES[paletteState.selectedRole] or "bg"
-          local cp   = settings.getPalette()
-          local cv   = cp[role] or 1
-          local vals = {1,2,4,8,16,32,64,128,256,512,1024,2048,4096,8192,16384,32768}
-          local idx  = 1
-          for ci, v in ipairs(vals) do if v == cv then idx = ci; break end end
-          if action == "palette_prev" then
-            idx = idx - 1; if idx < 1 then idx = #vals end
-          else
-            idx = idx + 1; if idx > #vals then idx = 1 end
-          end
-          settings.setPaletteColor(role, vals[idx])
-          monitor.setPalette(settings.getPalette())
-        end
-        if action == "preset_default" then
-          settings.applyPreset("default")
-          monitor.setPalette(settings.getPalette())
-        elseif action == "preset_light" then
-          settings.applyPreset("light")
-          monitor.setPalette(settings.getPalette())
-        elseif action == "preset_dark" then
-          settings.applyPreset("dark")
-          monitor.setPalette(settings.getPalette())
-        end
-        if action == "palette_back" then
+      elseif event == "monitor_touch" then
+        needsRender = true
+        local action = monitor.getClientTouchAction(
+          p1,
+          p2,
+          p3,
+          screenMode,
+          updatePrompt,
+          util.mergeTables(settings.get(), { palette = settings.getPalette() })
+        )
+        if action == "volume_down" then
+          adjustVolume(-audio.getVolumeStepPercent())
+        elseif action == "volume_up" then
+          adjustVolume(audio.getVolumeStepPercent())
+        elseif action == "open_settings" then
           screenMode = "settings"
+        elseif action == "settings_back" then
+          screenMode = "main"
+        elseif action == "toggle_never_option" then
+          settings.toggleShowNeverOption()
+          refreshUpdateState()
+        elseif action == "toggle_visualizer" then
+          settings.toggleEnableVisualizer()
+        elseif action == "toggle_auto_update" then
+          settings.toggleAutoUpdate()
+        elseif action == "remind_delay_down" then
+          adjustRemindLaterMinutes(-settings.getRemindLaterStepMinutes())
+        elseif action == "remind_delay_up" then
+          adjustRemindLaterMinutes(settings.getRemindLaterStepMinutes())
+        elseif action == "update_now" then
+          installAvailableUpdate()
+        elseif action == "check_updates" then
+          updateStatus = "Checking for updates..."
+          refreshUpdateState()
+        elseif action == "update_ok" then
+          installAvailableUpdate()
+        elseif action == "update_auto" then
+          settings.setAutoUpdate(true)
+          installAvailableUpdate(true)
+        elseif action == "update_later" then
+          remindAboutUpdateLater()
+        elseif action == "skip_track" then
+          if currentSnapshot and currentSnapshot.allow_remote_skip == false then
+            currentSnapshot.message_prompt = {
+              visible = true,
+              title = "Skip not allowed",
+              message = "Contact host to enable skipping."
+            }
+          else
+            rednet_api.requestSkip(currentStation)
+          end
+        elseif action == "toggle_shuffle" then
+          if currentSnapshot and currentSnapshot.allow_remote_shuffle == false then
+            currentSnapshot.message_prompt = {
+              visible = true,
+              title = "Shuffle not allowed",
+              message = "Contact host to enable shuffling."
+            }
+          else
+            rednet_api.requestShuffleToggle(currentStation)
+          end
+        elseif action == "message_ok" then
+          if currentSnapshot and currentSnapshot.message_prompt then
+            currentSnapshot.message_prompt.visible = false
+          end
+        elseif action == "open_palette" then
+          screenMode = "palette"
+          paletteState.selectedRole = 1
+        elseif action == "update_never" then
+          neverShowThisUpdate()
+        else
+          -- Palette cycling / presets / back...
+          local role = action and action:match("^palette_cycle_(.+)$")
+          if role then
+            local cp  = settings.getPalette()
+            local cv  = cp[role] or 1
+            local COLOR_LIST_MON = {1,2,4,8,16,32,64,128,256,512,1024,2048,4096,8192,16384,32768}
+            local idx = 1
+            for ci, v in ipairs(COLOR_LIST_MON) do if v == cv then idx = ci; break end end
+            idx = idx + 1; if idx > #COLOR_LIST_MON then idx = 1 end
+            settings.setPaletteColor(role, COLOR_LIST_MON[idx])
+            monitor.setPalette(settings.getPalette())
+          end
+          local selRole = action and action:match("^palette_select_(.+)$")
+          if selRole then
+            for i, r in ipairs(PALETTE_ROLES) do if r == selRole then paletteState.selectedRole = i; break end end
+          end
+          if action == "palette_prev" or action == "palette_next" then
+            local role = PALETTE_ROLES[paletteState.selectedRole] or "bg"
+            local cp   = settings.getPalette()
+            local cv   = cp[role] or 1
+            local vals = {1,2,4,8,16,32,64,128,256,512,1024,2048,4096,8192,16384,32768}
+            local idx  = 1
+            for ci, v in ipairs(vals) do if v == cv then idx = ci; break end end
+            if action == "palette_prev" then idx = idx - 1; if idx < 1 then idx = #vals end else idx = idx + 1; if idx > #vals then idx = 1 end end
+            settings.setPaletteColor(role, vals[idx])
+            monitor.setPalette(settings.getPalette())
+          end
+          if action == "preset_default" then settings.applyPreset("default"); monitor.setPalette(settings.getPalette())
+          elseif action == "preset_light" then settings.applyPreset("light"); monitor.setPalette(settings.getPalette())
+          elseif action == "preset_dark" then settings.applyPreset("dark"); monitor.setPalette(settings.getPalette())
+          elseif action == "palette_back" then screenMode = "settings" end
         end
-      end
-    elseif event == "key" then
-      if p1 == keys.backspace then
-        audio.stopTrack()
-        return
+      elseif event == "key" then
+        if p1 == keys.backspace then
+          return "QUIT"
+        end
       end
     end
   end
+
+  local function audioThread()
+    while true do
+      local event, p1, p2, p3 = os.pullEvent()
+      if event == "speaker_audio_empty" then
+        audio.handleEvent(event)
+      elseif event == "audio_sync" then
+        audio.syncToSnapshot(p1)
+      elseif event == "audio_eas_start" then
+        local message = p1
+        audio.stopTrack()
+        
+        local speaker = peripheral.find("speaker")
+        if speaker then
+            for i=1, 25 do -- ~5 seconds
+                speaker.playSound("minecraft:block.bell.use", 3, 0.5)
+                os.sleep(0.1)
+                speaker.playSound("minecraft:block.bell.use", 3, 0.8)
+                os.sleep(0.1)
+            end
+        end
+        
+        local h = http.get(message.url)
+        if h then
+            local data = h.readAll()
+            h.close()
+            audio.playLocalBuffer(data, message.volume or 3)
+        end
+      end
+    end
+  end
+
+  parallel.waitForAny(uiThread, audioThread)
+  audio.stopTrack()
 end
 
 local function main()

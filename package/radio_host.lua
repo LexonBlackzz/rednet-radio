@@ -146,6 +146,11 @@ local function main(...)
     end
   end
 
+  local function refreshUpdateState()
+    updater.check()
+    updateStatus = updater.getStatusSummary()
+  end
+
   local function stopAnnouncement()
     log("announcement signal removed. sending expiration...")
     rednet_api.broadcastMessage(stationDefinition, {
@@ -188,8 +193,8 @@ local function main(...)
       if event == "timer" then
         local timerName = timers[p1]
         if timerName then
-          timers[p1] = nil
           if timerName == "tick" then
+            timers[p1] = nil
             local changed = false
             if not easPlaying then
               changed = stationRuntime:update(util.nowMilliseconds())
@@ -212,6 +217,7 @@ local function main(...)
             end
             schedule("tick", 1)
           elseif timerName == "eas_finish" then
+            timers[p1] = nil
             log("EAS audio finished. Resuming music.")
             if easStartTime then
               local duration = util.nowMilliseconds() - easStartTime
@@ -301,15 +307,19 @@ local function main(...)
       if timerName then
         timers[p1] = nil
         if timerName == "sync" then
+          timers[p1] = nil
           rednet_api.broadcastSync(stationDefinition, getHostSnapshot())
           schedule("sync", config.sync_interval_seconds)
         elseif timerName == "announce" then
+          timers[p1] = nil
           rednet_api.broadcastAnnounce(stationDefinition, getHostSnapshot())
           schedule("announce", config.announce_interval_seconds)
         elseif timerName == "check_updates" then
-          updateStatus = updater.getStatusSummary()
-          schedule("check_updates", 60)
+          timers[p1] = nil
+          refreshUpdateState()
+          schedule("check_updates", 120)
         elseif timerName == "refresh_directory" then
+          timers[p1] = nil
           local freshDefinition, source, err = loadStationDefinition()
           if freshDefinition then
             stationDefinition = util.mergeTables(stationDefinition, freshDefinition)
@@ -317,6 +327,7 @@ local function main(...)
           end
           schedule("refresh_directory", config.directory_refresh_seconds or 300)
         elseif timerName == "refresh_playlist" then
+          timers[p1] = nil
           local freshPlaylist, source, err = loadPlaylist(stationDefinition)
           if freshPlaylist then
             if stationRuntime:setPlaylist(freshPlaylist) then

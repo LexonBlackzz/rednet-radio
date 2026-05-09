@@ -4,7 +4,7 @@ local audio = {}
 
 local SAMPLE_RATE = 48000
 local BYTES_PER_SECOND = SAMPLE_RATE / 8
-local CHUNK_BYTES = 16 * 1024
+local CHUNK_BYTES = 4 * 1024
 local PRE_ROLL_SECONDS = 1
 local RESYNC_THRESHOLD_SECONDS = 2
 local MIN_VOLUME_PERCENT = 0
@@ -158,11 +158,18 @@ local function openStream(playbackUrl, startByte)
 end
 
 local function queueNextChunk()
-  if not state.stream or state.pending_buffer then
+  if not state.stream then
     return
   end
 
   while true do
+    if state.pending_buffer then
+      if not playPendingBuffer() then
+        -- speaker is full, wait for speaker_audio_empty
+        return
+      end
+    end
+
     local chunk = state.stream.read(CHUNK_BYTES)
     if not chunk or #chunk == 0 then
       closeStream()
@@ -184,10 +191,7 @@ local function queueNextChunk()
         if val > peak then peak = val end
       end
       state.current_amplitude = peak / 128
-
       state.pending_buffer = buffer
-      playPendingBuffer()
-      return
     end
   end
 end
@@ -323,13 +327,7 @@ end
 
 function audio.handleEvent(event)
   if event == "speaker_audio_empty" then
-    if state.pending_buffer then
-      playPendingBuffer()
-    end
-
-    if not state.pending_buffer then
-      queueNextChunk()
-    end
+    queueNextChunk()
   end
 end
 

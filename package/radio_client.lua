@@ -319,8 +319,13 @@ local function tuneStation(station)
   schedule("ping", config.client_ping_interval_seconds)
   schedule("visualizer", 0.15)
 
+  local needsRender = true
+
   while true do
-    renderTunedScreen()
+    if needsRender then
+      renderTunedScreen()
+      needsRender = false
+    end
 
     local event, p1, p2, p3 = os.pullEvent()
 
@@ -329,11 +334,13 @@ local function tuneStation(station)
       timers[p1] = nil
 
       if timerName == "render" then
+        needsRender = true
         schedule("render", 1)
       elseif timerName == "ping" then
         rednet_api.sendPing(station)
         schedule("ping", config.client_ping_interval_seconds)
       elseif timerName == "visualizer" then
+        needsRender = true
         schedule("visualizer", 0.15)
       end
     elseif event == "rednet_message" then
@@ -347,18 +354,21 @@ local function tuneStation(station)
             currentSnapshot = message.snapshot or currentSnapshot
             lastUpdateMs = util.nowMilliseconds()
             audio.syncToSnapshot(currentSnapshot)
+            needsRender = true
           elseif message.message_type == config.message_types.now_playing
             or message.message_type == config.message_types.sync
             or message.message_type == config.message_types.announce then
             currentSnapshot = message.snapshot or currentSnapshot
             lastUpdateMs = util.nowMilliseconds()
             audio.syncToSnapshot(currentSnapshot)
+            needsRender = true
           end
         end
       end
     elseif event == "speaker_audio_empty" then
       audio.handleEvent(event)
     elseif event == "char" then
+      needsRender = true
       local key = p1
       if key == "q" then
         audio.stopTrack()
@@ -414,6 +424,7 @@ local function tuneStation(station)
         adjustVolume(audio.getVolumeStepPercent())
       end
     elseif event == "monitor_touch" then
+      needsRender = true
       local action = monitor.getClientTouchAction(
         p1,
         p2,

@@ -164,7 +164,7 @@ local function main(...)
   schedule("tick", 1)
   schedule("sync", config.sync_interval_seconds)
   schedule("announce", config.announce_interval_seconds)
-  schedule("check_updates", 1) -- Initial check
+  schedule("check_updates", 1)
   if (config.directory_refresh_seconds or 0) > 0 then
     schedule("refresh_directory", config.directory_refresh_seconds)
   end
@@ -238,7 +238,7 @@ local function main(...)
         schedule("announce", config.announce_interval_seconds)
       elseif timerName == "check_updates" then
         updateStatus = updater.getStatusSummary()
-        schedule("check_updates", 3600) -- check every hour
+        schedule("check_updates", 60) -- check every minute
       elseif timerName == "refresh_directory" then
         local freshDefinition, source, err = loadStationDefinition()
         if freshDefinition then

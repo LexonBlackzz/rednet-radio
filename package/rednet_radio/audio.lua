@@ -244,6 +244,33 @@ local function restartPlayback(track, targetOffsetSeconds)
   return true
 end
 
+function audio.playLocalBuffer(data, volume)
+  audio.stopTrack()
+  local speaker = getSpeaker()
+  if not speaker then return end
+  local dfpwm = getDecoderFactory()
+  if not dfpwm then return end
+  
+  volume = volume or 1
+  local decoder = dfpwm.make_decoder()
+  for i = 1, #data, CHUNK_BYTES do
+    local chunk = data:sub(i, i + CHUNK_BYTES - 1)
+    local samples = decoder(chunk)
+    
+    if volume ~= 1 then
+        for j=1, #samples do
+            local s = samples[j] * volume
+            if s > 127 then s = 127 elseif s < -128 then s = -128 end
+            samples[j] = s
+        end
+    end
+
+    while not speaker.playAudio(samples) do
+      os.pullEvent("speaker_audio_empty")
+    end
+  end
+end
+
 function audio.hasSpeaker()
   return getSpeaker() ~= nil
 end

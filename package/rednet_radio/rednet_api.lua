@@ -124,4 +124,8 @@ function api.requestShuffleToggle(station)
   rednet.broadcast(api.makeMessage(config.message_types.shuffle_request, station, nil), stationProtocolFor(station))
 end
 
+function api.broadcastMessage(station, extra)
+  rednet.broadcast(api.makeMessage(extra.message_type, station, nil, extra), stationProtocolFor(station))
+end
+
 return api

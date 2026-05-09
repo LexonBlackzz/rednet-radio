@@ -107,23 +107,35 @@ local function getClientSettingsButtonLayout(width, height)
   }
 end
 
-local function getSettingsScreenLayout(width, height, showNeverOption, remindLaterMinutes)
+local function getSettingsScreenLayout(width, height, showNeverOption, remindLaterMinutes, enableVisualizer, autoUpdate)
   local toggleLabel = showNeverOption and "[ON]" or "[OFF]"
+  local visToggleLabel = enableVisualizer and "[ON]" or "[OFF]"
+  local autoToggleLabel = autoUpdate and "[ON]" or "[OFF]"
   local reminderDownLabel = "[-]"
   local reminderUpLabel = "[+]"
   local reminderValueLabel = ("%dm"):format(remindLaterMinutes or 60)
   local updateNowLabel = "[UPDATE NOW]"
   local colorsLabel = "[COLORS]"
   local toggleRow = 10
-  local reminderRow = 14
-  local updateRow = 17
-  local colorsRow = 19
+  local visToggleRow = 12
+  local autoToggleRow = 14
+  local reminderRow = 16
+  local updateRow = 19
+  local colorsRow = 21
   local backLabel = "[BACK]"
   return {
     toggleRow = toggleRow,
     toggleX = math.max(3, width - #toggleLabel - 3),
     toggleWidth = #toggleLabel,
     toggleLabel = toggleLabel,
+    visToggleRow = visToggleRow,
+    visToggleX = math.max(3, width - #visToggleLabel - 3),
+    visToggleWidth = #visToggleLabel,
+    visToggleLabel = visToggleLabel,
+    autoToggleRow = autoToggleRow,
+    autoToggleX = math.max(3, width - #autoToggleLabel - 3),
+    autoToggleWidth = #autoToggleLabel,
+    autoToggleLabel = autoToggleLabel,
     reminderRow = reminderRow,
     reminderDownX = math.max(3, width - (#reminderUpLabel + #reminderValueLabel + #reminderDownLabel + 6)),
     reminderDownLabel = reminderDownLabel,
@@ -183,8 +195,13 @@ local function getUpdatePromptLayout(width, height, showNeverOption)
       y = y + boxHeight - 2,
       label = "[OK]",
     },
-    later = {
+    auto = {
       x = x + 8,
+      y = y + boxHeight - 2,
+      label = "[AUTO]",
+    },
+    later = {
+      x = x + 16,
       y = y + boxHeight - 2,
       label = "[LATER]",
     },
@@ -229,6 +246,7 @@ local function drawUpdatePrompt(target, width, height, prompt)
     colors.white
   )
   writeAt(target, layout.ok.x, layout.ok.y, layout.ok.label, colors.black, colors.lightGray)
+  writeAt(target, layout.auto.x, layout.auto.y, layout.auto.label, colors.black, colors.lightGray)
   writeAt(target, layout.later.x, layout.later.y, layout.later.label, colors.black, colors.lightGray)
   if layout.never then
     writeAt(target, layout.never.x, layout.never.y, layout.never.label, colors.black, colors.lightGray)
@@ -306,9 +324,11 @@ function monitor.renderClient(station, snapshot, playbackStatus, volumePercent, 
   end
 
   -- Audio visualizer
-  local visRatio = math.max(0, math.min(amplitude or 0, 1))
-  writeAt(device, 3, volumeRow - 2, "AUDIO", colors.lightGray, palette.panel)
-  drawProgressBar(device, 9, volumeRow - 2, width - 11, visRatio, palette.accent, colors.gray)
+  if amplitude ~= nil then
+    local visRatio = math.max(0, math.min(amplitude or 0, 1))
+    writeAt(device, 3, volumeRow - 2, "AUDIO", colors.lightGray, palette.panel)
+    drawProgressBar(device, 9, volumeRow - 2, width - 11, visRatio, palette.accent, colors.gray)
+  end
 
   writeAt(
     device,
@@ -445,12 +465,20 @@ function monitor.renderClientSettings(playbackStatus, settingsState)
     width,
     height,
     settingsState and settingsState.show_never_option,
-    settingsState and settingsState.remind_later_minutes
+    settingsState and settingsState.remind_later_minutes,
+    settingsState == nil or settingsState.enable_visualizer,
+    settingsState and settingsState.auto_update
   )
   writeAt(device, 3, 6, fit("Update prompt style", width - 6), colors.white, palette.panel)
   writeAt(device, 3, 8, fit("Show optional NEVER button", width - 6), colors.white, palette.panel)
   writeAt(device, layout.toggleX, layout.toggleRow, layout.toggleLabel, colors.black, colors.lightGray)
-  writeAt(device, 3, 12, fit("OFF keeps the prompt to OK and LATER only.", width - 6), colors.black, palette.panel)
+  
+  writeAt(device, 3, layout.visToggleRow, fit("Enable Audio Visualizer", width - 6), colors.white, palette.panel)
+  writeAt(device, layout.visToggleX, layout.visToggleRow, layout.visToggleLabel, colors.black, colors.lightGray)
+
+  writeAt(device, 3, layout.autoToggleRow, fit("Auto-Update (Hot Reload)", width - 6), colors.white, palette.panel)
+  writeAt(device, layout.autoToggleX, layout.autoToggleRow, layout.autoToggleLabel, colors.black, colors.lightGray)
+  
   writeAt(device, 3, layout.reminderRow, fit("Remind me later delay", width - 6), colors.white, palette.panel)
   writeAt(device, layout.reminderDownX, layout.reminderRow, layout.reminderDownLabel, colors.black, colors.lightGray)
   writeAt(device, layout.reminderValueX, layout.reminderRow, layout.reminderValueLabel, colors.black, palette.panel)
@@ -477,6 +505,9 @@ function monitor.getClientTouchAction(side, x, y, screenMode, prompt, settingsSt
     local layout = getUpdatePromptLayout(width, height, prompt.show_never_option)
     if hitButton(x, y, layout.ok) then
       return "update_ok"
+    end
+    if hitButton(x, y, layout.auto) then
+      return "update_auto"
     end
     if hitButton(x, y, layout.later) then
       return "update_later"
@@ -539,7 +570,9 @@ function monitor.getClientTouchAction(side, x, y, screenMode, prompt, settingsSt
       width,
       height,
       settingsState and settingsState.show_never_option,
-      settingsState and settingsState.remind_later_minutes
+      settingsState and settingsState.remind_later_minutes,
+      settingsState == nil or settingsState.enable_visualizer,
+      settingsState and settingsState.auto_update
     )
     if hitButton(x, y, {
       x = layout.toggleX,
@@ -547,6 +580,20 @@ function monitor.getClientTouchAction(side, x, y, screenMode, prompt, settingsSt
       label = layout.toggleLabel,
     }) then
       return "toggle_never_option"
+    end
+    if hitButton(x, y, {
+      x = layout.visToggleX,
+      y = layout.visToggleRow,
+      label = layout.visToggleLabel,
+    }) then
+      return "toggle_visualizer"
+    end
+    if hitButton(x, y, {
+      x = layout.autoToggleX,
+      y = layout.autoToggleRow,
+      label = layout.autoToggleLabel,
+    }) then
+      return "toggle_auto_update"
     end
     if hitButton(x, y, {
       x = layout.reminderDownX,

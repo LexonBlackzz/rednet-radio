@@ -23,6 +23,9 @@ local DEFAULT_PALETTE = {
 
 local defaults = {
   show_never_option = false,
+  enable_visualizer = true,
+  auto_update = false,
+  last_station_id = nil,
   remind_at_ms = 0,
   ignored_version = nil,
   remind_later_minutes = DEFAULT_REMIND_LATER_MINUTES,
@@ -83,6 +86,52 @@ function settings.toggleShowNeverOption()
   local current = settings.shouldShowNeverOption()
   settings.setShowNeverOption(not current)
   return not current
+end
+
+function settings.getEnableVisualizer()
+  local s = settings.get()
+  if s.enable_visualizer == nil then return true end
+  return s.enable_visualizer
+end
+
+function settings.setEnableVisualizer(enable)
+  settings.get().enable_visualizer = enable
+  return persist()
+end
+
+function settings.toggleEnableVisualizer()
+  local current = settings.getEnableVisualizer()
+  settings.setEnableVisualizer(not current)
+  return not current
+end
+
+function settings.getAutoUpdate()
+  return settings.get().auto_update == true
+end
+
+function settings.setAutoUpdate(enable)
+  settings.get().auto_update = enable
+  return persist()
+end
+
+function settings.toggleAutoUpdate()
+  local current = settings.getAutoUpdate()
+  settings.setAutoUpdate(not current)
+  return not current
+end
+
+function settings.getLastStationId()
+  return settings.get().last_station_id
+end
+
+function settings.setLastStationId(id)
+  settings.get().last_station_id = id
+  return persist()
+end
+
+function settings.clearLastStationId()
+  settings.get().last_station_id = nil
+  return persist()
 end
 
 function settings.getRemindLaterMinutes()

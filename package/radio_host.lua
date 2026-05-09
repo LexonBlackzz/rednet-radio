@@ -181,195 +181,158 @@ local function main(...)
     schedule("refresh_playlist", config.playlist_refresh_seconds)
   end
 
-  while true do
-    local event, p1, p2, p3 = os.pullEvent()
+  local function uiThread()
+    while true do
+      local event, p1, p2, p3 = os.pullEvent()
 
-    if event == "timer" then
-      local timerName = timers[p1]
-      timers[p1] = nil
-
-      if timerName == "tick" then
-        local changed = false
-        if not easPlaying then
-           changed = stationRuntime:update(util.nowMilliseconds())
-        end
-        if changed then
-          local snapshot = getHostSnapshot()
-          local track = snapshot.track
-          if track then
-            log(("Advanced to track %d: %s - %s"):format(
-              snapshot.track_index or 0,
-              track.artist or "Unknown Artist",
-              track.title or "Unknown Track"
-            ))
+      if event == "timer" then
+        local timerName = timers[p1]
+        if timerName then
+          timers[p1] = nil
+          if timerName == "tick" then
+            local changed = false
+            if not easPlaying then
+              changed = stationRuntime:update(util.nowMilliseconds())
+            end
+            if changed then
+              local snapshot = getHostSnapshot()
+              local track = snapshot.track
+              if track then
+                log(("Advanced to track %d: %s - %s"):format(snapshot.track_index or 0, track.artist or "Unknown Artist", track.title or "Unknown Track"))
+              end
+              rednet_api.broadcastNowPlaying(stationDefinition, getHostSnapshot())
+            elseif easPlaying then
+              rednet_api.broadcastNowPlaying(stationDefinition, getHostSnapshot())
+            end
+            
+            if screenMode == "main" then
+              monitor.renderHost(stationDefinition, getHostSnapshot(), playlistSourceOrErr, updateStatus)
+            else
+              monitor.renderHostSettings(stationDefinition.name, settings.getAllowRemoteSkip(), settings.getAllowRemoteShuffle(), settings.getEnableRedstoneAnnouncement(), settings.getAnnouncementRedstoneSide())
+            end
+            schedule("tick", 1)
+          elseif timerName == "eas_finish" then
+            log("EAS audio finished. Resuming music.")
+            if easStartTime then
+              local duration = util.nowMilliseconds() - easStartTime
+              stationRuntime:offsetStartTime(duration)
+            end
+            easPlaying = false
+            rednet_api.broadcastNowPlaying(stationDefinition, getHostSnapshot())
           end
         end
-        
-        -- always broadcast if an announcement is playing to keep clients updated on host status
-        if changed or easPlaying then
-          rednet_api.broadcastNowPlaying(stationDefinition, getHostSnapshot())
+      elseif event == "monitor_touch" then
+        local x, y = p2, p3
+        local action = monitor.getHostTouchAction(x, y, screenMode, settings.getAllowRemoteSkip(), settings.getAllowRemoteShuffle())
+        if action == "open_settings" then
+          screenMode = "settings"
+        elseif action == "settings_back" then
+          screenMode = "main"
+        elseif action == "toggle_remote_skip" then
+          settings.toggleAllowRemoteSkip()
+        elseif action == "toggle_remote_shuffle" then
+          settings.toggleAllowRemoteShuffle()
+        elseif action == "toggle_eas" then
+          settings.toggleEnableRedstoneAnnouncement()
+        elseif action == "cycle_eas_side" then
+          settings.cycleAnnouncementRedstoneSide()
+          log("Redstone side changed to: " .. settings.getAnnouncementRedstoneSide())
+        elseif action == "check_updates" then
+          updateStatus = "Checking for updates..."
+          monitor.renderHost(stationDefinition, getHostSnapshot(), playlistSourceOrErr, updateStatus)
+          local result = updater.check()
+          if result and result.update_available then
+            updateStatus = "Update available! Installing..."
+            monitor.renderHost(stationDefinition, getHostSnapshot(), playlistSourceOrErr, updateStatus)
+            installAvailableUpdate()
+          else
+            updateStatus = updater.getStatusSummary()
+          end
         end
-        
         if screenMode == "main" then
           monitor.renderHost(stationDefinition, getHostSnapshot(), playlistSourceOrErr, updateStatus)
         else
-          monitor.renderHostSettings(
-            stationDefinition.name, 
-            settings.getAllowRemoteSkip(), 
-            settings.getAllowRemoteShuffle(),
-            settings.getEnableRedstoneAnnouncement(),
-            settings.getAnnouncementRedstoneSide()
-          )
+          monitor.renderHostSettings(stationDefinition.name, settings.getAllowRemoteSkip(), settings.getAllowRemoteShuffle(), settings.getEnableRedstoneAnnouncement(), settings.getAnnouncementRedstoneSide())
         end
-        schedule("tick", 1)
-      elseif timerName == "eas_finish" then
-        log("EAS audio finished. Resuming music.")
-        if easStartTime then
-          local duration = util.nowMilliseconds() - easStartTime
-          stationRuntime:offsetStartTime(duration)
-        end
-        easPlaying = false
-        rednet_api.broadcastNowPlaying(stationDefinition, getHostSnapshot())
-      elseif timerName == "sync" then
-        rednet_api.broadcastSync(stationDefinition, getHostSnapshot())
-        schedule("sync", config.sync_interval_seconds)
-      elseif timerName == "announce" then
-        rednet_api.broadcastAnnounce(stationDefinition, getHostSnapshot())
-        schedule("announce", config.announce_interval_seconds)
-      elseif timerName == "check_updates" then
-        updateStatus = updater.getStatusSummary()
-        schedule("check_updates", 60) -- check every minute
-      elseif timerName == "refresh_directory" then
-        local freshDefinition, source, err = loadStationDefinition()
-        if freshDefinition then
-          stationDefinition = util.mergeTables(stationDefinition, freshDefinition)
-          rednet_api.hostStation(stationDefinition)
-          log(("Reloaded station definition from %s."):format(source))
-        else
-          log(("Directory refresh failed: %s"):format(err or "unknown error"))
-        end
-        if (config.directory_refresh_seconds or 0) > 0 then
-          schedule("refresh_directory", config.directory_refresh_seconds)
-        end
-      elseif timerName == "refresh_playlist" then
-        local freshPlaylist, source, err = loadPlaylist(stationDefinition)
-        if freshPlaylist then
-          local changed = stationRuntime:setPlaylist(freshPlaylist)
-          log(("Reloaded playlist from %s."):format(source))
-          if changed then
-            rednet_api.broadcastNowPlaying(stationDefinition, stationRuntime:getSnapshot())
+      elseif event == "redstone" then
+        local currentSide = settings.getAnnouncementRedstoneSide()
+        if settings.getEnableRedstoneAnnouncement() then
+          local signal = rs.getInput(currentSide)
+          if signal and not easActive then
+            log("Announcement triggered via " .. currentSide)
+            easActive = true
+            startAnnouncement()
+          elseif not signal and easActive then
+            log("Announcement signal LOST on " .. currentSide)
+            easActive = false
+            stopAnnouncement()
           end
-          playlistSourceOrErr = source
-          if screenMode == "main" then
-            monitor.renderHost(stationDefinition, stationRuntime:getSnapshot(), playlistSourceOrErr)
-          end
-        else
-          log(("Playlist refresh failed: %s"):format(err or "unknown error"))
         end
-        if (config.playlist_refresh_seconds or 0) > 0 then
-          schedule("refresh_playlist", config.playlist_refresh_seconds)
-        end
-      end
-    elseif event == "rednet_message" then
-      local senderId = p1
-      local message = p2
-      local protocol = p3
-
-      if rednet_api.acceptsProtocol(stationDefinition, protocol) and rednet_api.isRadioMessage(message) then
-        if message.message_type == config.message_types.ping then
-          rednet_api.sendStationInfo(senderId, stationDefinition, stationRuntime:getSnapshot())
-        elseif message.message_type == config.message_types.tune_request then
-          rednet_api.sendStationInfo(senderId, stationDefinition, stationRuntime:getSnapshot())
-          rednet_api.sendNowPlaying(senderId, stationDefinition, stationRuntime:getSnapshot())
-        elseif message.message_type == config.message_types.skip_request then
-          if settings.getAllowRemoteSkip() then
-            stationRuntime:advanceTrack(util.nowMilliseconds())
-            rednet_api.broadcastNowPlaying(stationDefinition, getHostSnapshot())
-            if screenMode == "main" then
-              monitor.renderHost(stationDefinition, getHostSnapshot(), playlistSourceOrErr)
+      elseif event == "rednet_message" then
+        local senderId, message, protocol = p1, p2, p3
+        if rednet_api.acceptsProtocol(stationDefinition, protocol) and rednet_api.isRadioMessage(message) then
+          if message.message_type == config.message_types.ping then
+            rednet_api.sendStationInfo(senderId, stationDefinition, stationRuntime:getSnapshot())
+          elseif message.message_type == config.message_types.tune_request then
+            rednet_api.sendStationInfo(senderId, stationDefinition, stationRuntime:getSnapshot())
+            rednet_api.sendNowPlaying(senderId, stationDefinition, stationRuntime:getSnapshot())
+          elseif message.message_type == config.message_types.skip_request then
+            if settings.getAllowRemoteSkip() then
+              stationRuntime:advanceTrack(util.nowMilliseconds())
+              rednet_api.broadcastNowPlaying(stationDefinition, getHostSnapshot())
+              if screenMode == "main" then monitor.renderHost(stationDefinition, getHostSnapshot(), playlistSourceOrErr) end
             end
-          else
-            log(("Ignored skip request from %d (remote skip disabled)"):format(senderId))
-          end
-        elseif message.message_type == config.message_types.shuffle_request then
-          if settings.getAllowRemoteShuffle() then
-            stationRuntime:toggleShuffle()
-            rednet_api.broadcastNowPlaying(stationDefinition, getHostSnapshot())
-            if screenMode == "main" then
-              monitor.renderHost(stationDefinition, getHostSnapshot(), playlistSourceOrErr)
+          elseif message.message_type == config.message_types.shuffle_request then
+            if settings.getAllowRemoteShuffle() then
+              stationRuntime:toggleShuffle()
+              rednet_api.broadcastNowPlaying(stationDefinition, getHostSnapshot())
+              if screenMode == "main" then monitor.renderHost(stationDefinition, getHostSnapshot(), playlistSourceOrErr) end
             end
-          else
-            log(("Ignored shuffle request from %d (remote shuffle disabled)"):format(senderId))
           end
-        end
-      end
-    elseif event == "monitor_touch" then
-      local side, x, y = p1, p2, p3
-      local action = monitor.getHostTouchAction(x, y, screenMode, settings.getAllowRemoteSkip(), settings.getAllowRemoteShuffle())
-      if action == "open_settings" then
-        screenMode = "settings"
-      elseif action == "settings_back" then
-        screenMode = "main"
-      elseif action == "toggle_remote_skip" then
-        settings.toggleAllowRemoteSkip()
-      elseif action == "toggle_remote_shuffle" then
-        settings.toggleAllowRemoteShuffle()
-      elseif action == "toggle_eas" then
-        settings.toggleEnableRedstoneAnnouncement()
-      elseif action == "cycle_eas_side" then
-        settings.cycleAnnouncementRedstoneSide()
-        log("Redstone side changed to: " .. settings.getAnnouncementRedstoneSide())
-      elseif action == "check_updates" then
-        updateStatus = "Checking for updates..."
-        monitor.renderHost(stationDefinition, getHostSnapshot(), playlistSourceOrErr, updateStatus)
-        local result = updater.check()
-        if result and result.update_available then
-          updateStatus = "Update available! Installing..."
-          monitor.renderHost(stationDefinition, getHostSnapshot(), playlistSourceOrErr, updateStatus)
-          installAvailableUpdate()
-        else
-          updateStatus = updater.getStatusSummary()
-        end
-      end
-
-      if screenMode == "main" then
-        monitor.renderHost(stationDefinition, getHostSnapshot(), playlistSourceOrErr, updateStatus)
-      else
-        monitor.renderHostSettings(
-          stationDefinition.name, 
-          settings.getAllowRemoteSkip(), 
-          settings.getAllowRemoteShuffle(),
-          settings.getEnableRedstoneAnnouncement(),
-          settings.getAnnouncementRedstoneSide()
-        )
-      end
-    elseif event == "redstone" then
-      local currentSide = settings.getAnnouncementRedstoneSide()
-      local signal = rs.getInput(currentSide)
-      
-      -- Debug: log all active signals
-      local activeSides = {}
-      for _, s in ipairs({"bottom","top","back","front","left","right"}) do
-        if rs.getInput(s) then table.insert(activeSides, s) end
-      end
-      if #activeSides > 0 then
-        log("Redstone active on: " .. table.concat(activeSides, ", "))
-      end
-
-      if settings.getEnableRedstoneAnnouncement() then
-        if signal and not easActive then
-          log("Announcement triggered via " .. currentSide)
-          easActive = true
-          startAnnouncement()
-        elseif not signal and easActive then
-          log("Announcement signal LOST on " .. currentSide)
-          easActive = false
-          stopAnnouncement()
         end
       end
     end
   end
+
+  local function networkThread()
+    while true do
+      local event, p1 = os.pullEvent("timer")
+      local timerName = timers[p1]
+      if timerName then
+        timers[p1] = nil
+        if timerName == "sync" then
+          rednet_api.broadcastSync(stationDefinition, getHostSnapshot())
+          schedule("sync", config.sync_interval_seconds)
+        elseif timerName == "announce" then
+          rednet_api.broadcastAnnounce(stationDefinition, getHostSnapshot())
+          schedule("announce", config.announce_interval_seconds)
+        elseif timerName == "check_updates" then
+          updateStatus = updater.getStatusSummary()
+          schedule("check_updates", 60)
+        elseif timerName == "refresh_directory" then
+          local freshDefinition, source, err = loadStationDefinition()
+          if freshDefinition then
+            stationDefinition = util.mergeTables(stationDefinition, freshDefinition)
+            rednet_api.hostStation(stationDefinition)
+          end
+          schedule("refresh_directory", config.directory_refresh_seconds or 300)
+        elseif timerName == "refresh_playlist" then
+          local freshPlaylist, source, err = loadPlaylist(stationDefinition)
+          if freshPlaylist then
+            if stationRuntime:setPlaylist(freshPlaylist) then
+              rednet_api.broadcastNowPlaying(stationDefinition, stationRuntime:getSnapshot())
+            end
+            playlistSourceOrErr = source
+          end
+          schedule("refresh_playlist", config.playlist_refresh_seconds or 300)
+        end
+      end
+    end
+  end
+
+  parallel.waitForAny(uiThread, networkThread)
 end
+
 
 local ok, err = xpcall(main, function(message)
   return debug and debug.traceback and debug.traceback(message, 2) or tostring(message)

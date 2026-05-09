@@ -54,6 +54,9 @@ local COLOR_LIST = {
 }
 local paletteState = { selectedRole = 1 }
 
+local refreshUpdateState
+local installAvailableUpdate
+
 local function clear()
   term.clear()
   term.setCursorPos(1, 1)
@@ -67,7 +70,7 @@ local function adjustRemindLaterMinutes(deltaMinutes)
   settings.adjustRemindLaterMinutes(deltaMinutes)
 end
 
-local function refreshUpdateState(statusOverride)
+refreshUpdateState = function(statusOverride)
   updateInfo = nil
 
   local result, err = updater.check()
@@ -116,7 +119,7 @@ local function neverShowThisUpdate()
   end
 end
 
-local function installAvailableUpdate(isAuto)
+installAvailableUpdate = function(isAuto)
   local result, err = updater.applyLocalUpdate()
   if not result then
     updateStatus = ("local update failed (%s)"):format(err or "unknown error")

@@ -249,7 +249,7 @@ function audio.hasSpeaker()
 end
 
 function audio.getAmplitude()
-  if state.status == "playing" then
+  if state.status == "playing" or state.status == "buffering speaker" then
     return state.current_amplitude or 0
   end
   return 0
@@ -362,6 +362,13 @@ function audio.stopTrack()
   end
 
   return true
+end
+
+function audio.getAmplitude()
+  if state.status == "playing" or state.status == "buffering speaker" then
+    return state.current_amplitude
+  end
+  return nil
 end
 
 return audio

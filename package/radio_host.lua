@@ -75,6 +75,8 @@ local function main(...)
   end
 
   local stationRuntime = station_module.new(stationDefinition, playlistDoc)
+  settings.load()
+  monitor.setPalette(settings.getPalette())
   rednet_api.hostStation(stationDefinition)
 
   log(("Hosting station '%s' using %s directory data and %s playlist data."):format(
@@ -94,11 +96,10 @@ local function main(...)
   local function schedule(name, seconds)
     timers[os.startTimer(seconds)] = name
   end
-  --NOTE: this is used for a simple EAS announcement for PMWeather, you can change this URL for any other announcement audio.
+  
+  -- EAS tracking variables
   local easActive = false
   local easPlaying = false
-  local easUrl = "https://file.garden/ad_jTPVIV3ilAFpI/easfix.dfpwm"
-  local easDuration = nil
   local easStartTime = nil
   local updateStatus = "Checking for updates..."
 
@@ -106,22 +107,17 @@ local function main(...)
     if easPlaying then return end
     log("Announcement Triggered, sending alerts")
     easStartTime = util.nowMilliseconds()
+    
     rednet_api.broadcastMessage(stationDefinition, {
       message_type = config.message_types.eas_start,
-      url = easUrl,
       alarm_seconds = 5,
       volume = 3
     })
+    
     easPlaying = true
     
-    -- Use hardcoded duration for known URL to avoid blocking network check
-    if easUrl == "https://file.garden/ad_jTPVIV3ilAFpI/easfix.dfpwm" then
-      easDuration = 11.5
-    elseif not easDuration then
-      easDuration = 10
-    end
-    
-    local waitTime = 5 + easDuration
+    -- Wait exactly 5 seconds to match the client's generated siren duration
+    local waitTime = 5 
     schedule("eas_finish", waitTime)
   end
 
@@ -151,19 +147,20 @@ local function main(...)
     updateStatus = updater.getStatusSummary()
   end
 
-  local function stopAnnouncement()
-    log("announcement signal removed. sending expiration...")
-    rednet_api.broadcastMessage(stationDefinition, {
-      message_type = config.message_types.eas_end
-    })
-  end
-
   local function getHostSnapshot()
     local snapshot = stationRuntime:getSnapshot()
     snapshot.allow_remote_skip = settings.getAllowRemoteSkip()
     snapshot.allow_remote_shuffle = settings.getAllowRemoteShuffle()
     snapshot.eas_active = easPlaying
     return snapshot
+  end
+
+  local function stopAnnouncement()
+    log("announcement signal removed. sending expiration...")
+    rednet_api.broadcastMessage(stationDefinition, {
+      message_type = config.message_types.eas_end
+    })
+    rednet_api.broadcastNowPlaying(stationDefinition, getHostSnapshot())
   end
 
   schedule("tick", 1)
@@ -218,7 +215,7 @@ local function main(...)
             schedule("tick", 1)
           elseif timerName == "eas_finish" then
             timers[p1] = nil
-            log("EAS audio finished. Resuming music.")
+            log("EAS alarm finished. Resuming music.")
             if easStartTime then
               local duration = util.nowMilliseconds() - easStartTime
               stationRuntime:offsetStartTime(duration)
@@ -277,6 +274,10 @@ local function main(...)
       elseif event == "rednet_message" then
         local senderId, message, protocol = p1, p2, p3
         if rednet_api.acceptsProtocol(stationDefinition, protocol) and rednet_api.isRadioMessage(message) then
+          if message.palette then
+            settings.setPalette(message.palette)
+            monitor.setPalette(message.palette)
+          end
           if message.message_type == config.message_types.ping then
             rednet_api.sendStationInfo(senderId, stationDefinition, stationRuntime:getSnapshot())
           elseif message.message_type == config.message_types.tune_request then

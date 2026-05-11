@@ -108,12 +108,12 @@ function api.sendNowPlaying(targetId, station, snapshot)
   rednet.send(targetId, api.makeMessage(config.message_types.now_playing, station, snapshot), stationProtocolFor(station))
 end
 
-function api.sendPing(station)
-  rednet.broadcast(api.makeMessage(config.message_types.ping, station, nil), stationProtocolFor(station))
+function api.sendPing(station, extra)
+  rednet.broadcast(api.makeMessage(config.message_types.ping, station, nil, extra), stationProtocolFor(station))
 end
 
-function api.requestTune(station)
-  rednet.broadcast(api.makeMessage(config.message_types.tune_request, station, nil), stationProtocolFor(station))
+function api.requestTune(station, extra)
+  rednet.broadcast(api.makeMessage(config.message_types.tune_request, station, nil, extra), stationProtocolFor(station))
 end
 
 function api.requestSkip(station)

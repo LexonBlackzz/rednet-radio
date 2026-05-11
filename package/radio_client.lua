@@ -7,6 +7,18 @@ local monitor = require("rednet_radio.monitor")
 local settings = require("rednet_radio.settings")
 local updater = require("rednet_radio.updater")
 local version = require("rednet_radio.version")
+ 
+-- helper for generating sine wave PCM buffers
+local function generateSine(freq, duration, volume)
+  local samples = {}
+  local numSamples = math.floor(48000 * duration)
+  local step = (2 * math.pi * freq) / 48000
+  for i = 1, numSamples do
+    -- Using 126 as max amplitude to avoid clipping issues on some emulators
+    samples[i] = math.floor(math.sin(i * step) * 126 * volume + 0.5)
+  end
+  return samples
+end
 
 local stations = {}
 local currentStation
@@ -323,52 +335,41 @@ local function tuneStation(station)
   screenMode = "main"
   audio.stopTrack()
 
+  local extra = { palette = settings.getPalette() }
   rednet_api.listenToStation(station)
-  rednet_api.requestTune(station)
-  rednet_api.sendPing(station)
+  rednet_api.requestTune(station, extra)
+  rednet_api.sendPing(station, extra)
   settings.setLastStationId(station.station_id)
-
-  local timers = {}
-
-  local function schedule(name, seconds)
-    timers[os.startTimer(seconds)] = name
+	
+-- update screen every 1s, seperate from other threads
+  local function renderThread()
+    renderTunedScreen()
+    while true do
+      os.sleep(1)
+      renderTunedScreen()
+    end
   end
 
-  schedule("render", 1)
-  schedule("ping", config.client_ping_interval_seconds)
-  schedule("visualizer", 0.15)
-  schedule("check_updates", 120)
+-- handle all touch screen events immediately
+  local function eventThread()
+    local pingTimer        = os.startTimer(config.client_ping_interval_seconds)
+    local checkUpdateTimer = os.startTimer(120)
 
-  local needsRender = true
-
-  local function uiThread()
     while true do
-      if needsRender then
-        renderTunedScreen()
-        needsRender = false
-      end
-
       local event, p1, p2, p3 = os.pullEvent()
 
       if event == "timer" then
-        local timerName = timers[p1]
-        timers[p1] = nil
-
-        if timerName == "render" then
-          needsRender = true
-          schedule("render", 1)
-        elseif timerName == "ping" then
-          rednet_api.sendPing(station)
-          schedule("ping", config.client_ping_interval_seconds)
-        elseif timerName == "visualizer" then
-          needsRender = true
-          schedule("visualizer", 0.15)
-        elseif timerName == "check_updates" then
+        if p1 == pingTimer then
+          rednet_api.sendPing(station, { palette = settings.getPalette() })
+          pingTimer = os.startTimer(config.client_ping_interval_seconds)
+        elseif p1 == checkUpdateTimer then
           refreshUpdateState()
-          schedule("check_updates", 60)
+          checkUpdateTimer = os.startTimer(60)
+          renderTunedScreen()
         end
+
       elseif event == "rednet_message" then
-        local message = p2
+        local message  = p2
         local protocol = p3
 
         if rednet_api.matchesStationProtocol(station, protocol) and rednet_api.isRadioMessage(message) then
@@ -377,36 +378,32 @@ local function tuneStation(station)
               currentStation = util.mergeTables(currentStation, message.station)
               currentSnapshot = message.snapshot or currentSnapshot
               lastUpdateMs = util.nowMilliseconds()
-              os.queueEvent("audio_sync", currentSnapshot)
-              needsRender = true
+              if not currentSnapshot or not currentSnapshot.eas_active then
+                os.queueEvent("audio_sync", currentSnapshot)
+              end
+              renderTunedScreen()
             elseif message.message_type == config.message_types.now_playing
               or message.message_type == config.message_types.sync
               or message.message_type == config.message_types.announce then
               currentSnapshot = message.snapshot or currentSnapshot
               lastUpdateMs = util.nowMilliseconds()
               os.queueEvent("audio_sync", currentSnapshot)
-              needsRender = true
+              renderTunedScreen()
             elseif message.message_type == config.message_types.eas_start then
-              currentSnapshot.message_prompt = {
-                visible = true,
-                title = "IMPORTANT ANNOUNCEMENT",
-                message = "PLEASE STAND BY..",
-                hide_ok = true
-              }
-              needsRender = true
+              if currentSnapshot then currentSnapshot.eas_active = true end
               os.queueEvent("audio_eas_start", message)
+              renderTunedScreen()
             elseif message.message_type == config.message_types.eas_end then
-              currentSnapshot.message_prompt = {
-                visible = true,
-                title = "NOTICE",
-                message = "IMPORTANT ANNOUNCEMENT EXPIRED"
-              }
-              needsRender = true
+              if currentSnapshot then 
+                currentSnapshot.eas_active = false 
+                os.queueEvent("audio_sync", currentSnapshot)
+              end
+              renderTunedScreen()
             end
           end
         end
+
       elseif event == "char" then
-        needsRender = true
         local key = p1
         if key == "q" then
           return "QUIT"
@@ -427,6 +424,7 @@ local function tuneStation(station)
           elseif key == "u" then
             installAvailableUpdate()
           end
+          renderTunedScreen()
         elseif updatePrompt.visible then
           if key == "o" then
             installAvailableUpdate()
@@ -441,31 +439,35 @@ local function tuneStation(station)
           elseif key == "]" then
             adjustVolume(audio.getVolumeStepPercent())
           end
-        elseif key == "p" then
-          rednet_api.sendPing(station)
-        elseif key == "r" then
-          local loadedStations = directory.loadStations(config.directory_url)
-          if loadedStations then
-            local refreshed = directory.findStation(loadedStations, station.station_id)
-            if refreshed then
-              currentStation = refreshed
-              rednet_api.listenToStation(currentStation)
+          renderTunedScreen()
+        else
+          if key == "p" then
+            rednet_api.sendPing(station, { palette = settings.getPalette() })
+          elseif key == "r" then
+            local loadedStations = directory.loadStations(config.directory_url)
+            if loadedStations then
+              local refreshed = directory.findStation(loadedStations, station.station_id)
+              if refreshed then
+                currentStation = refreshed
+                rednet_api.listenToStation(currentStation)
+              end
             end
+          elseif key == "n" then
+            rednet_api.requestSkip(currentStation)
+          elseif key == "x" then
+            rednet_api.requestShuffleToggle(currentStation)
+          elseif key == "s" then
+            screenMode = "settings"
+            paletteState.selectedRole = 1
+          elseif key == "[" then
+            adjustVolume(-audio.getVolumeStepPercent())
+          elseif key == "]" then
+            adjustVolume(audio.getVolumeStepPercent())
           end
-        elseif key == "n" then
-          rednet_api.requestSkip(currentStation)
-        elseif key == "x" then
-          rednet_api.requestShuffleToggle(currentStation)
-        elseif key == "s" then
-          screenMode = "settings"
-          paletteState.selectedRole = 1
-        elseif key == "[" then
-          adjustVolume(-audio.getVolumeStepPercent())
-        elseif key == "]" then
-          adjustVolume(audio.getVolumeStepPercent())
+          renderTunedScreen()
         end
+
       elseif event == "monitor_touch" then
-        needsRender = true
         local action = monitor.getClientTouchAction(
           p1,
           p2,
@@ -546,6 +548,7 @@ local function tuneStation(station)
             idx = idx + 1; if idx > #COLOR_LIST_MON then idx = 1 end
             settings.setPaletteColor(role, COLOR_LIST_MON[idx])
             monitor.setPalette(settings.getPalette())
+            if currentStation then rednet_api.sendPing(currentStation, { palette = settings.getPalette() }) end
           end
           local selRole = action and action:match("^palette_select_(.+)$")
           if selRole then
@@ -561,12 +564,21 @@ local function tuneStation(station)
             if action == "palette_prev" then idx = idx - 1; if idx < 1 then idx = #vals end else idx = idx + 1; if idx > #vals then idx = 1 end end
             settings.setPaletteColor(role, vals[idx])
             monitor.setPalette(settings.getPalette())
+            if currentStation then rednet_api.sendPing(currentStation, { palette = settings.getPalette() }) end
           end
-          if action == "preset_default" then settings.applyPreset("default"); monitor.setPalette(settings.getPalette())
-          elseif action == "preset_light" then settings.applyPreset("light"); monitor.setPalette(settings.getPalette())
-          elseif action == "preset_dark" then settings.applyPreset("dark"); monitor.setPalette(settings.getPalette())
+          if action == "preset_default" then 
+            settings.applyPreset("default"); monitor.setPalette(settings.getPalette())
+            if currentStation then rednet_api.sendPing(currentStation, { palette = settings.getPalette() }) end
+          elseif action == "preset_light" then 
+            settings.applyPreset("light"); monitor.setPalette(settings.getPalette())
+            if currentStation then rednet_api.sendPing(currentStation, { palette = settings.getPalette() }) end
+          elseif action == "preset_dark" then 
+            settings.applyPreset("dark"); monitor.setPalette(settings.getPalette())
+            if currentStation then rednet_api.sendPing(currentStation, { palette = settings.getPalette() }) end
           elseif action == "palette_back" then screenMode = "settings" end
         end
+        renderTunedScreen()
+
       elseif event == "key" then
         if p1 == keys.backspace then
           return "QUIT"
@@ -576,37 +588,86 @@ local function tuneStation(station)
   end
 
   local function audioThread()
+    local easTimer = nil
+    local easChunksPlayed = 0
+    local combinedChunk = nil
+    local isEasPlaying = false
+    
     while true do
       local event, p1, p2, p3 = os.pullEvent()
+      
       if event == "speaker_audio_empty" then
-        audio.handleEvent(event)
-      elseif event == "audio_sync" then
-        audio.syncToSnapshot(p1)
-      elseif event == "audio_eas_start" then
-        local message = p1
-        audio.stopTrack()
+        audio.handleEvent(event, p1, p2, p3)
         
-        local speaker = peripheral.find("speaker")
-        if speaker then
-            for i=1, 25 do -- ~5 seconds
-                speaker.playSound("minecraft:block.bell.use", 3, 0.5)
-                os.sleep(0.1)
-                speaker.playSound("minecraft:block.bell.use", 3, 0.8)
-                os.sleep(0.1)
+      elseif event == "timer" and p1 == easTimer then
+        if isEasPlaying then
+          local speaker = peripheral.find("speaker")
+          if speaker then
+            speaker.playAudio(combinedChunk)
+            easChunksPlayed = easChunksPlayed + 1
+            if easChunksPlayed < 10 then
+              -- set timer slightly faster than 0.5s to prevent audio gaps
+              easTimer = os.startTimer(0.45)
+            else
+              -- unlock the alarm and resume music
+              isEasPlaying = false
+              easTimer = nil
+              if currentSnapshot then
+                os.queueEvent("audio_sync", currentSnapshot)
+              end
             end
+          else
+            isEasPlaying = false
+            easTimer = nil
+          end
         end
         
-        local h = http.get(message.url)
-        if h then
-            local data = h.readAll()
-            h.close()
-            audio.playLocalBuffer(data, message.volume or 3)
+      elseif event == "audio_sync" then
+        local snapshot = p1
+        -- if alarm is playing, completely lock out the music syncs
+        if isEasPlaying then
+        else
+           -- resume  radio playback
+           audio.syncToSnapshot(snapshot)
+        end
+        
+      elseif event == "audio_eas_start" then
+        local message = p1
+        
+        -- stop the background music
+        audio.stopTrack()
+        local speaker = peripheral.find("speaker")
+        
+        if speaker then
+          if speaker.stop then speaker.stop() end 
+          
+          print("EAS Alert Triggered: Starting Siren")
+          local vol = math.min(1, (message.volume or 3) / 3)
+          local volScaled = 126 * vol
+          
+          -- alternate 880hz and 440hz to 0.5s chunks
+          combinedChunk = {}
+          local step1 = (2 * math.pi * 880) / 48000
+          local step2 = (2 * math.pi * 440) / 48000
+          
+		  -- 12000 sample chunks
+          for i = 1, 12000 do
+            combinedChunk[i] = math.floor(math.sin(i * step1) * volScaled + 0.5)
+          end
+          for i = 1, 12000 do
+            combinedChunk[i + 12000] = math.floor(math.sin(i * step2) * volScaled + 0.5)
+          end
+          isEasPlaying = true
+          easChunksPlayed = 1
+          speaker.playAudio(combinedChunk)
+          easTimer = os.startTimer(0.45)
+        else
+          print("EAS Alert Triggered: No speaker found!")
         end
       end
     end
   end
-
-  parallel.waitForAny(uiThread, audioThread)
+  parallel.waitForAny(renderThread, eventThread, audioThread)
   audio.stopTrack()
 end
 

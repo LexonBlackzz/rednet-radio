@@ -96,11 +96,10 @@ local function main(...)
   local function schedule(name, seconds)
     timers[os.startTimer(seconds)] = name
   end
-  --NOTE: this is used for a simple EAS announcement for PMWeather, you can change this URL for any other announcement audio.
+  
+  -- EAS tracking variables
   local easActive = false
   local easPlaying = false
-  local easUrl = "https://file.garden/ad_jTPVIV3ilAFpI/easfix.dfpwm"
-  local easDuration = nil
   local easStartTime = nil
   local updateStatus = "Checking for updates..."
 
@@ -108,22 +107,17 @@ local function main(...)
     if easPlaying then return end
     log("Announcement Triggered, sending alerts")
     easStartTime = util.nowMilliseconds()
+    
     rednet_api.broadcastMessage(stationDefinition, {
       message_type = config.message_types.eas_start,
-      url = easUrl,
       alarm_seconds = 5,
       volume = 3
     })
+    
     easPlaying = true
     
-    -- Use hardcoded duration for known URL to avoid blocking network check
-    if easUrl == "https://file.garden/ad_jTPVIV3ilAFpI/easfix.dfpwm" then
-      easDuration = 11.5
-    elseif not easDuration then
-      easDuration = 10
-    end
-    
-    local waitTime = 5 + easDuration
+    -- Wait exactly 5 seconds to match the client's generated siren duration
+    local waitTime = 5 
     schedule("eas_finish", waitTime)
   end
 
@@ -221,7 +215,7 @@ local function main(...)
             schedule("tick", 1)
           elseif timerName == "eas_finish" then
             timers[p1] = nil
-            log("EAS audio finished. Resuming music.")
+            log("EAS alarm finished. Resuming music.")
             if easStartTime then
               local duration = util.nowMilliseconds() - easStartTime
               stationRuntime:offsetStartTime(duration)

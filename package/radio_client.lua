@@ -588,34 +588,85 @@ local function tuneStation(station)
   end
 
   local function audioThread()
+    local easTimer = nil
+    local easChunksPlayed = 0
+    local combinedChunk = nil
+    local isEasPlaying = false
+    
     while true do
       local event, p1, p2, p3 = os.pullEvent()
+      
       if event == "speaker_audio_empty" then
-        audio.handleEvent(event)
+        audio.handleEvent(event, p1, p2, p3)
+        
+      elseif event == "timer" and p1 == easTimer then
+        if isEasPlaying then
+          local speaker = peripheral.find("speaker")
+          if speaker then
+            speaker.playAudio(combinedChunk)
+            easChunksPlayed = easChunksPlayed + 1
+            if easChunksPlayed < 10 then
+              -- set timer slightly faster than 0.5s to prevent audio gaps
+              easTimer = os.startTimer(0.45)
+            else
+              -- unlock the alarm and resume music
+              isEasPlaying = false
+              easTimer = nil
+              if currentSnapshot then
+                os.queueEvent("audio_sync", currentSnapshot)
+              end
+            end
+          else
+            isEasPlaying = false
+            easTimer = nil
+          end
+        end
+        
       elseif event == "audio_sync" then
-        audio.syncToSnapshot(p1)
+        local snapshot = p1
+        -- if alarm is playing, completely lock out the music syncs
+        if isEasPlaying then
+        else
+           -- resume  radio playback
+           audio.syncToSnapshot(snapshot)
+        end
+        
       elseif event == "audio_eas_start" then
         local message = p1
+        
+        -- stop the background music
         audio.stopTrack()
-
         local speaker = peripheral.find("speaker")
+        
         if speaker then
+          if speaker.stop then speaker.stop() end 
+          
           print("EAS Alert Triggered: Starting Siren")
           local vol = math.min(1, (message.volume or 3) / 3)
-          local s1 = generateSine(880, 0.25, vol)
-          local s2 = generateSine(440, 0.25, vol)
-          for i = 1, 10 do -- 10 pairs * 0.5s = 5s total
-            while not speaker.playAudio(s1) do os.pullEvent("speaker_audio_empty") end
-            while not speaker.playAudio(s2) do os.pullEvent("speaker_audio_empty") end
+          local volScaled = 126 * vol
+          
+          -- alternate 880hz and 440hz to 0.5s chunks
+          combinedChunk = {}
+          local step1 = (2 * math.pi * 880) / 48000
+          local step2 = (2 * math.pi * 440) / 48000
+          
+		  -- 12000 sample chunks
+          for i = 1, 12000 do
+            combinedChunk[i] = math.floor(math.sin(i * step1) * volScaled + 0.5)
           end
-          print("EAS Siren Queued")
+          for i = 1, 12000 do
+            combinedChunk[i + 12000] = math.floor(math.sin(i * step2) * volScaled + 0.5)
+          end
+          isEasPlaying = true
+          easChunksPlayed = 1
+          speaker.playAudio(combinedChunk)
+          easTimer = os.startTimer(0.45)
         else
           print("EAS Alert Triggered: No speaker found!")
         end
       end
     end
   end
-
   parallel.waitForAny(renderThread, eventThread, audioThread)
   audio.stopTrack()
 end

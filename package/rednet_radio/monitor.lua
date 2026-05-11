@@ -386,6 +386,17 @@ function monitor.renderClient(station, snapshot, playbackStatus, volumePercent, 
   local volumeRow = math.max(9, height - 3)
   local controls = getClientVolumeButtonLayout(width, height)
   local settingsButton = getClientSettingsButtonLayout(width, height)
+ 
+  -- EAS banner
+  if snapshot and snapshot.eas_active then
+    local line1 = "THE NATIONAL WEATHER"
+    local line2 = "SERVICE HAS ISSUED A TORNADO WARNING!"
+    local line3 = "SEEK SHELTER IMMEDIATELY!"
+    writeAt(device, width - #line1 - 2, 4, line1, colors.white, colors.red)
+    writeAt(device, width - #line2 - 2, 5, line2, colors.white, colors.red)
+    writeAt(device, width - #line3 - 2, 6, line3, colors.white, colors.red)
+  end
+ 
   writeAt(device, 3, 6, fit(station and station.name or "No station selected", width - 6), colors.white, palette.panel)
   writeAt(device, 3, 7, fit(station and station.station_id or "", width - 6), colors.yellow, palette.panel)
 

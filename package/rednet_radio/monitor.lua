@@ -397,11 +397,12 @@ function monitor.renderClient(station, snapshot, playbackStatus, volumePercent, 
     writeAt(device, 3, 9, fit(snapshot.track.artist or "Unknown Artist", width - 6), colors.white, palette.panel)
     writeAt(device, 3, 10, fit(snapshot.track.title or "Unknown Track", width - 6), colors.cyan, palette.panel)
     drawProgressBar(device, 3, 12, barWidth, ratio, snapshot.in_gap and palette.warn or palette.good, colors.gray)
-    writeAt(device, 3, 13, ("%02ds / %02ds"):format(shownElapsed, snapshot.duration or 0), colors.white, palette.panel)
-    writeAt(device, 3, 14, ("Track %d / %d"):format(
+    writeAt(device, 3, 13, ("Duration: %ds/%ds Track: %d/%d"):format(
+      shownElapsed,
+      snapshot.duration or 0,
       snapshot.track_index or 0,
       snapshot.track_count or 0
-    ), colors.yellow, palette.panel)
+    ), colors.white, palette.panel)
     if snapshot.in_gap then
       writeAt(device, 3, 16, "INTERMISSION", colors.yellow, palette.panel)
     end
@@ -411,9 +412,27 @@ function monitor.renderClient(station, snapshot, playbackStatus, volumePercent, 
 
   -- Audio visualizer
   if amplitude ~= nil then
+    local visRow = volumeRow - 1
     local visRatio = math.max(0, math.min(amplitude or 0, 1))
-    writeAt(device, 3, volumeRow - 2, "AUDIO", colors.lightGray, palette.panel)
-    drawProgressBar(device, 9, volumeRow - 2, width - 11, visRatio, palette.accent, colors.gray)
+    
+    -- calculate dB
+    local db = -99
+    if amplitude > 0 then
+      db = 20 * (math.log(amplitude) / math.log(10))
+    end
+    local dbText = ("%.1f dB"):format(db)
+
+    -- color coding based on loudness
+    local visColor = palette.good
+    if db > -3 then
+      visColor = palette.accent -- red
+    elseif db > -12 then
+      visColor = palette.warn   -- yellow
+    end
+
+    writeAt(device, 3, visRow, "AUDIO", colors.lightGray, palette.panel)
+    writeAt(device, width - #dbText - 2, visRow, dbText, visColor, palette.panel)
+    drawProgressBar(device, 9, visRow, width - 11 - #dbText - 2, visRatio, visColor, colors.gray)
   end
 
   writeAt(

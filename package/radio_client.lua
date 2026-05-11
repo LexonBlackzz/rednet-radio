@@ -340,10 +340,8 @@ local function tuneStation(station)
   rednet_api.requestTune(station, extra)
   rednet_api.sendPing(station, extra)
   settings.setLastStationId(station.station_id)
-
-  -- Renders on a 1-second heartbeat using os.sleep, which yields via its
-  -- own internal timer and is completely unaffected by speaker_audio_empty
-  -- event spam from DFPWM playback.
+	
+-- update screen every 1s, seperate from other threads
   local function renderThread()
     renderTunedScreen()
     while true do
@@ -352,9 +350,7 @@ local function tuneStation(station)
     end
   end
 
-  -- Handles all user input and network messages. Calls renderTunedScreen()
-  -- immediately after any state change so the display feels responsive.
-  -- Also owns the ping and update-check timers.
+-- handle all touch screen events immediately
   local function eventThread()
     local pingTimer        = os.startTimer(config.client_ping_interval_seconds)
     local checkUpdateTimer = os.startTimer(120)

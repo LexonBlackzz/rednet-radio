@@ -153,19 +153,20 @@ local function main(...)
     updateStatus = updater.getStatusSummary()
   end
 
-  local function stopAnnouncement()
-    log("announcement signal removed. sending expiration...")
-    rednet_api.broadcastMessage(stationDefinition, {
-      message_type = config.message_types.eas_end
-    })
-  end
-
   local function getHostSnapshot()
     local snapshot = stationRuntime:getSnapshot()
     snapshot.allow_remote_skip = settings.getAllowRemoteSkip()
     snapshot.allow_remote_shuffle = settings.getAllowRemoteShuffle()
     snapshot.eas_active = easPlaying
     return snapshot
+  end
+
+  local function stopAnnouncement()
+    log("announcement signal removed. sending expiration...")
+    rednet_api.broadcastMessage(stationDefinition, {
+      message_type = config.message_types.eas_end
+    })
+    rednet_api.broadcastNowPlaying(stationDefinition, getHostSnapshot())
   end
 
   schedule("tick", 1)

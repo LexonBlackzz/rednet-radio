@@ -7,6 +7,18 @@ local monitor = require("rednet_radio.monitor")
 local settings = require("rednet_radio.settings")
 local updater = require("rednet_radio.updater")
 local version = require("rednet_radio.version")
+ 
+-- helper for generating sine wave PCM buffers
+local function generateSine(freq, duration, volume)
+  local samples = {}
+  local numSamples = math.floor(48000 * duration)
+  local step = (2 * math.pi * freq) / 48000
+  for i = 1, numSamples do
+    -- Using 126 as max amplitude to avoid clipping issues on some emulators
+    samples[i] = math.floor(math.sin(i * step) * 126 * volume + 0.5)
+  end
+  return samples
+end
 
 local stations = {}
 local currentStation
@@ -329,7 +341,9 @@ local function tuneStation(station)
   rednet_api.sendPing(station, extra)
   settings.setLastStationId(station.station_id)
 
--- update screen every 1s, seperate from other threads
+  -- Renders on a 1-second heartbeat using os.sleep, which yields via its
+  -- own internal timer and is completely unaffected by speaker_audio_empty
+  -- event spam from DFPWM playback.
   local function renderThread()
     renderTunedScreen()
     while true do
@@ -338,7 +352,9 @@ local function tuneStation(station)
     end
   end
 
--- handle all touch screen events immediately
+  -- Handles all user input and network messages. Calls renderTunedScreen()
+  -- immediately after any state change so the display feels responsive.
+  -- Also owns the ping and update-check timers.
   local function eventThread()
     local pingTimer        = os.startTimer(config.client_ping_interval_seconds)
     local checkUpdateTimer = os.startTimer(120)
@@ -366,7 +382,9 @@ local function tuneStation(station)
               currentStation = util.mergeTables(currentStation, message.station)
               currentSnapshot = message.snapshot or currentSnapshot
               lastUpdateMs = util.nowMilliseconds()
-              os.queueEvent("audio_sync", currentSnapshot)
+              if not currentSnapshot or not currentSnapshot.eas_active then
+                os.queueEvent("audio_sync", currentSnapshot)
+              end
               renderTunedScreen()
             elseif message.message_type == config.message_types.now_playing
               or message.message_type == config.message_types.sync
@@ -376,20 +394,14 @@ local function tuneStation(station)
               os.queueEvent("audio_sync", currentSnapshot)
               renderTunedScreen()
             elseif message.message_type == config.message_types.eas_start then
-              currentSnapshot.message_prompt = {
-                visible = true,
-                title = "IMPORTANT ANNOUNCEMENT",
-                message = "PLEASE STAND BY..",
-                hide_ok = true
-              }
+              if currentSnapshot then currentSnapshot.eas_active = true end
               os.queueEvent("audio_eas_start", message)
               renderTunedScreen()
             elseif message.message_type == config.message_types.eas_end then
-              currentSnapshot.message_prompt = {
-                visible = true,
-                title = "NOTICE",
-                message = "IMPORTANT ANNOUNCEMENT EXPIRED"
-              }
+              if currentSnapshot then 
+                currentSnapshot.eas_active = false 
+                os.queueEvent("audio_sync", currentSnapshot)
+              end
               renderTunedScreen()
             end
           end
@@ -592,19 +604,17 @@ local function tuneStation(station)
 
         local speaker = peripheral.find("speaker")
         if speaker then
-          for i=1, 25 do -- ~5 seconds
-            speaker.playSound("minecraft:block.bell.use", 3, 0.5)
-            os.sleep(0.1)
-            speaker.playSound("minecraft:block.bell.use", 3, 0.8)
-            os.sleep(0.1)
+          print("EAS Alert Triggered: Starting Siren")
+          local vol = math.min(1, (message.volume or 3) / 3)
+          local s1 = generateSine(880, 0.25, vol)
+          local s2 = generateSine(440, 0.25, vol)
+          for i = 1, 10 do -- 10 pairs * 0.5s = 5s total
+            while not speaker.playAudio(s1) do os.pullEvent("speaker_audio_empty") end
+            while not speaker.playAudio(s2) do os.pullEvent("speaker_audio_empty") end
           end
-        end
-
-        local h = http.get(message.url)
-        if h then
-          local data = h.readAll()
-          h.close()
-          audio.playLocalBuffer(data, message.volume or 3)
+          print("EAS Siren Queued")
+        else
+          print("EAS Alert Triggered: No speaker found!")
         end
       end
     end

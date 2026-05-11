@@ -324,7 +324,8 @@ local function renderTunedScreen()
     audio.getMaxVolumePercent(),
     updateStatus,
     updatePrompt,
-    settings.getEnableVisualizer() and audio.getAmplitude() or nil
+    settings.getEnableVisualizer() and audio.getAmplitude() or nil,
+	settings.getEnableVisualizer() and audio.getBufferRatio() or nil
   )
 end
 
@@ -341,12 +342,22 @@ local function tuneStation(station)
   rednet_api.sendPing(station, extra)
   settings.setLastStationId(station.station_id)
 	
--- update screen every 1s, seperate from other threads
+-- update full screen every 1s (for track clock), but update visualizer every 1.36s
   local function renderThread()
-    renderTunedScreen()
+    local fastTicks = 0
     while true do
-      os.sleep(1)
-      renderTunedScreen()
+      if fastTicks % 6 == 0 then
+        -- perform a full screen redraw once a second to update the clock/progress bar
+        renderTunedScreen()
+      else
+        -- ONLY repaint the visualizer bar
+        if screenMode == "main" and settings.getEnableVisualizer() then
+          monitor.updateVisualizerOnly(audio.getAmplitude(), audio.getBufferRatio())
+        end
+      end
+      
+      fastTicks = fastTicks + 1
+      os.sleep(1.36)
     end
   end
 

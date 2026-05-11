@@ -303,6 +303,12 @@ function settings.resetPalette()
   return persist()
 end
 
+function settings.setPalette(pal)
+  local s = settings.get()
+  s.palette = util.copyTable(pal)
+  return persist()
+end
+
 -- Named colour presets
 local PALETTE_PRESETS = {
   default = {

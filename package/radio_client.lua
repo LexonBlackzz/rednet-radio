@@ -323,12 +323,13 @@ local function tuneStation(station)
   screenMode = "main"
   audio.stopTrack()
 
+  local extra = { palette = settings.getPalette() }
   rednet_api.listenToStation(station)
-  rednet_api.requestTune(station)
-  rednet_api.sendPing(station)
+  rednet_api.requestTune(station, extra)
+  rednet_api.sendPing(station, extra)
   settings.setLastStationId(station.station_id)
 
-  -- update screen every 1s, seperate from other threads
+-- update screen every 1s, seperate from other threads
   local function renderThread()
     renderTunedScreen()
     while true do
@@ -337,7 +338,7 @@ local function tuneStation(station)
     end
   end
 
-  -- handle all touch screen events immediately
+-- handle all touch screen events immediately
   local function eventThread()
     local pingTimer        = os.startTimer(config.client_ping_interval_seconds)
     local checkUpdateTimer = os.startTimer(120)
@@ -347,7 +348,7 @@ local function tuneStation(station)
 
       if event == "timer" then
         if p1 == pingTimer then
-          rednet_api.sendPing(station)
+          rednet_api.sendPing(station, { palette = settings.getPalette() })
           pingTimer = os.startTimer(config.client_ping_interval_seconds)
         elseif p1 == checkUpdateTimer then
           refreshUpdateState()
@@ -433,7 +434,7 @@ local function tuneStation(station)
           renderTunedScreen()
         else
           if key == "p" then
-            rednet_api.sendPing(station)
+            rednet_api.sendPing(station, { palette = settings.getPalette() })
           elseif key == "r" then
             local loadedStations = directory.loadStations(config.directory_url)
             if loadedStations then
@@ -539,6 +540,7 @@ local function tuneStation(station)
             idx = idx + 1; if idx > #COLOR_LIST_MON then idx = 1 end
             settings.setPaletteColor(role, COLOR_LIST_MON[idx])
             monitor.setPalette(settings.getPalette())
+            if currentStation then rednet_api.sendPing(currentStation, { palette = settings.getPalette() }) end
           end
           local selRole = action and action:match("^palette_select_(.+)$")
           if selRole then
@@ -554,10 +556,17 @@ local function tuneStation(station)
             if action == "palette_prev" then idx = idx - 1; if idx < 1 then idx = #vals end else idx = idx + 1; if idx > #vals then idx = 1 end end
             settings.setPaletteColor(role, vals[idx])
             monitor.setPalette(settings.getPalette())
+            if currentStation then rednet_api.sendPing(currentStation, { palette = settings.getPalette() }) end
           end
-          if action == "preset_default" then settings.applyPreset("default"); monitor.setPalette(settings.getPalette())
-          elseif action == "preset_light" then settings.applyPreset("light"); monitor.setPalette(settings.getPalette())
-          elseif action == "preset_dark" then settings.applyPreset("dark"); monitor.setPalette(settings.getPalette())
+          if action == "preset_default" then 
+            settings.applyPreset("default"); monitor.setPalette(settings.getPalette())
+            if currentStation then rednet_api.sendPing(currentStation, { palette = settings.getPalette() }) end
+          elseif action == "preset_light" then 
+            settings.applyPreset("light"); monitor.setPalette(settings.getPalette())
+            if currentStation then rednet_api.sendPing(currentStation, { palette = settings.getPalette() }) end
+          elseif action == "preset_dark" then 
+            settings.applyPreset("dark"); monitor.setPalette(settings.getPalette())
+            if currentStation then rednet_api.sendPing(currentStation, { palette = settings.getPalette() }) end
           elseif action == "palette_back" then screenMode = "settings" end
         end
         renderTunedScreen()

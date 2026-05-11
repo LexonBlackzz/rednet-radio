@@ -75,6 +75,8 @@ local function main(...)
   end
 
   local stationRuntime = station_module.new(stationDefinition, playlistDoc)
+  settings.load()
+  monitor.setPalette(settings.getPalette())
   rednet_api.hostStation(stationDefinition)
 
   log(("Hosting station '%s' using %s directory data and %s playlist data."):format(
@@ -277,6 +279,10 @@ local function main(...)
       elseif event == "rednet_message" then
         local senderId, message, protocol = p1, p2, p3
         if rednet_api.acceptsProtocol(stationDefinition, protocol) and rednet_api.isRadioMessage(message) then
+          if message.palette then
+            settings.setPalette(message.palette)
+            monitor.setPalette(message.palette)
+          end
           if message.message_type == config.message_types.ping then
             rednet_api.sendStationInfo(senderId, stationDefinition, stationRuntime:getSnapshot())
           elseif message.message_type == config.message_types.tune_request then

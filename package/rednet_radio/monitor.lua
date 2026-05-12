@@ -208,8 +208,6 @@ local function getHostSettingsScreenLayout(width, height, allowRemoteSkip, allow
   }
 end
 
--- Returns an array of {role, x, y, label, colorVal} for the 8 palette buttons.
--- Arranged as two rows of 4, each button 4 chars wide, starting at (startX, startRow).
 local PALETTE_ROLE_ORDER = { "bg", "panel", "header", "accent", "text", "dim", "good", "warn" }
 local PALETTE_ROLE_ABBR  = {
   bg="BG", panel="PN", header="HD", accent="AC",
@@ -217,7 +215,7 @@ local PALETTE_ROLE_ABBR  = {
 }
 local function getPaletteButtonLayout(startX, startRow, pal)
   local buttons = {}
-  local btnW = 4  -- each button: " AB "
+  local btnW = 4
   for i, role in ipairs(PALETTE_ROLE_ORDER) do
     local col = (i - 1) % 4
     local row = math.floor((i - 1) / 4)
@@ -284,7 +282,7 @@ local function getMessagePromptLayout(width, height)
 end
 
 local function hitButton(x, y, button)
-  local buttonY = button.y or button.row -- handle both for safety
+  local buttonY = button.y or button.row
   return button
     and y == buttonY
     and x >= button.x
@@ -343,7 +341,6 @@ function monitor.hasMonitor()
   return getMonitor() ~= nil
 end
 
--- apply pallete and ignore unknown roles, keep default values instead
 function monitor.setPalette(p)
   if type(p) ~= "table" then return end
   for k, v in pairs(p) do
@@ -353,7 +350,6 @@ function monitor.setPalette(p)
   end
 end
 
--- returns current palette
 function monitor.getPalette()
   local copy = {}
   for k, v in pairs(palette) do
@@ -362,7 +358,6 @@ function monitor.getPalette()
   return copy
 end
 
--- return default pallete
 function monitor.getDefaultPalette()
   return {
     bg     = colors.blue,
@@ -376,14 +371,14 @@ function monitor.getDefaultPalette()
   }
 end
 
-function monitor.renderClient(station, snapshot, playbackStatus, volumePercent, maxVolumePercent, updateStatus, prompt, amplitude)
+function monitor.renderClient(station, snapshot, playbackStatus, volumePercent, maxVolumePercent, updateStatus, prompt, amplitude, bufferRatio)
   local device = getMonitor()
   if not device then
     return
   end
 
   local width, height = drawFrame(device, "Current Broadcast")
-  local volumeRow = math.max(9, height - 3)
+  local volumeRow = math.max(10, height - 3)
   local controls = getClientVolumeButtonLayout(width, height)
   local settingsButton = getClientSettingsButtonLayout(width, height)
  
@@ -421,41 +416,37 @@ function monitor.renderClient(station, snapshot, playbackStatus, volumePercent, 
     writeAt(device, 3, 10, "Waiting for station...", colors.white, palette.panel)
   end
 
-  -- Audio visualizer
-  if amplitude ~= nil then
+  -- audio and buffer vis
+  if amplitude ~= nil and bufferRatio ~= nil then
+    local bufRow = volumeRow - 2
     local visRow = volumeRow - 1
-    local visRatio = math.max(0, math.min(amplitude or 0, 1))
     
-    -- calculate dB
+    -- BUFFER BAR
+    local bufFill = math.max(0, math.min(bufferRatio or 0, 1))
+    local bufText = ("%4s"):format(math.floor(bufFill * 100) .. "%")
+    writeAt(device, 3, bufRow, "BUFFER", colors.lightGray, palette.panel)
+    writeAt(device, width - #bufText - 2, bufRow, bufText, palette.dim, palette.panel)
+    drawProgressBar(device, 10, bufRow, width - 12 - #bufText - 2, bufFill, colors.lightBlue, colors.gray)
+
+    -- AUDIO DB BAR
+    local visRatio = math.max(0, math.min(amplitude or 0, 1))
     local db = -99
-    if amplitude > 0 then
-      db = 20 * (math.log(amplitude) / math.log(10))
-    end
-    local dbText = ("%.1f dB"):format(db)
-
-    -- color coding based on loudness
+    if amplitude > 0 then db = 20 * (math.log(amplitude) / math.log(10)) end
+    local dbText = ("%5.1f dB"):format(db)
+    
     local visColor = palette.good
-    if db > -3 then
-      visColor = palette.accent -- red
-    elseif db > -12 then
-      visColor = palette.warn   -- yellow
-    end
+    if db > -3 then visColor = palette.accent
+    elseif db > -12 then visColor = palette.warn end
 
-    writeAt(device, 3, visRow, "AUDIO", colors.lightGray, palette.panel)
+    writeAt(device, 4, visRow, "AUDIO", colors.lightGray, palette.panel)
     writeAt(device, width - #dbText - 2, visRow, dbText, visColor, palette.panel)
-    drawProgressBar(device, 9, visRow, width - 11 - #dbText - 2, visRatio, visColor, colors.gray)
+    drawProgressBar(device, 10, visRow, width - 12 - #dbText - 2, visRatio, visColor, colors.gray)
   end
 
   writeAt(
-    device,
-    3,
-    volumeRow,
-    fit(
-      ("Volume: %d%% / %d%%"):format(volumePercent or 100, maxVolumePercent or 300),
-      width - 6
-    ),
-    colors.white,
-    palette.panel
+    device, 3, volumeRow,
+    fit(("Volume: %d%% / %d%%"):format(volumePercent or 100, maxVolumePercent or 300), width - 6),
+    colors.white, palette.panel
   )
   writeAt(device, controls.minusX, controls.y, controls.minusLabel, colors.black, colors.lightGray)
   writeAt(device, controls.plusX, controls.y, controls.plusLabel, colors.black, colors.lightGray)
@@ -464,7 +455,6 @@ function monitor.renderClient(station, snapshot, playbackStatus, volumePercent, 
   local skipX = settingsButton.x - 7
   local shuffleX = skipX - 7
  
-  -- update status text just above the check updates button
   writeAt(device, updateBtn.x, updateBtn.y - 1, fit(updateStatus or playbackStatus or "idle", width - updateBtn.x - 2), colors.white, palette.panel)
   
   if width >= 25 then
@@ -476,13 +466,46 @@ function monitor.renderClient(station, snapshot, playbackStatus, volumePercent, 
   end
   writeAt(device, settingsButton.x, settingsButton.y, settingsButton.label, colors.black, colors.lightGray)
   drawUpdatePrompt(device, width, height, prompt)
-  -- Support for generic message prompt (e.g. "Skip not allowed")
+  
   if snapshot and snapshot.message_prompt and snapshot.message_prompt.visible then
     monitor.drawMessagePrompt(device, width, height, snapshot.message_prompt)
   end
 end
 
--- Color name lookup table (CC:T color value -> name string)
+-- function to only redraw visualizer
+function monitor.updateVisualizerOnly(amplitude, bufferRatio)
+  local device = getMonitor()
+  if not device then return end
+
+  local width, height = device.getSize()
+  local volumeRow = math.max(10, height - 3)
+  local bufRow = volumeRow - 2
+  local visRow = volumeRow - 1
+
+  if width < 20 then return end
+
+  -- Redraw Buffer
+  local bufFill = math.max(0, math.min(bufferRatio or 0, 1))
+  local bufText = ("%4s"):format(math.floor(bufFill * 100) .. "%")
+  writeAt(device, width - #bufText - 2, bufRow, bufText, palette.dim, palette.panel)
+  drawProgressBar(device, 10, bufRow, width - 12 - #bufText - 2, bufFill, colors.lightBlue, colors.gray)
+
+  -- Redraw Audio
+  local visRatio = math.max(0, math.min(amplitude or 0, 1))
+  local db = -99
+  if amplitude and amplitude > 0 then
+    db = 20 * (math.log(amplitude) / math.log(10))
+  end
+  local dbText = ("%5.1f dB"):format(db)
+  
+  local visColor = palette.good
+  if db > -3 then visColor = palette.accent
+  elseif db > -12 then visColor = palette.warn end
+
+  writeAt(device, width - #dbText - 2, visRow, dbText, visColor, palette.panel)
+  drawProgressBar(device, 10, visRow, width - 12 - #dbText - 2, visRatio, visColor, colors.gray)
+end
+
 local COLOR_NAMES = {
   [1]="white", [2]="orange", [4]="magenta", [8]="lightBlue",
   [16]="yellow", [32]="lime", [64]="pink", [128]="gray",
@@ -502,10 +525,9 @@ function monitor.renderPaletteEditor(pal, selectedRole)
   if not device then return end
 
   local width, height = drawFrame(device, "Palette Editor")
-  local p = pal or palette  -- use live palette as fallback
+  local p = pal or palette
 
-  -- Role selector buttons (2 rows of 4)
-  local btnW = 4  -- " AB "
+  local btnW = 4
   local roleRow1, roleRow2 = 5, 6
   writeAt(device, 3, 4, fit("Roles:", width - 4), colors.white, palette.panel)
   for i, role in ipairs(PALETTE_ROLE_ORDER) do
@@ -515,7 +537,6 @@ function monitor.renderPaletteEditor(pal, selectedRole)
     local cv  = p[role] or 1
     local tc  = (cv == 32768) and colors.white or colors.black
     local lbl = " " .. (PALETTE_ROLE_ABBR[role] or "??") .. " "
-    -- Highlight selected with a border marker
     if role == selectedRole then
       writeAt(device, bx - 1, row, ">" .. lbl, tc, cv)
     else
@@ -523,7 +544,6 @@ function monitor.renderPaletteEditor(pal, selectedRole)
     end
   end
 
-  -- Selected role name + color cycler
   local selCV   = p[selectedRole] or 1
   local selName = COLOR_NAMES[selCV] or "?"
   local roleLbl = ROLE_FULL_NAMES[selectedRole] or selectedRole
@@ -537,29 +557,22 @@ function monitor.renderPaletteEditor(pal, selectedRole)
   writeAt(device, swatchX, prevBtn.y, fit(" "..selName.." ", swatchW), stc, selCV)
   writeAt(device, nextBtn.x, nextBtn.y, nextBtn.label, colors.black, colors.lightGray)
 
-  -- Mini preview panel
   local pvX = 3
   local pvY = 11
   local pvW = math.min(width - 4, 20)
   local pvH = 5
   if pvY + pvH < height - 3 then
     writeAt(device, 3, pvY - 1, fit("Preview:", width - 4), colors.white, palette.panel)
-    -- Outer bg border
     fill(device, pvX, pvY, pvW, pvH, p.bg or palette.bg, p.text or palette.text)
-    -- Inner panel
     fill(device, pvX + 1, pvY + 1, pvW - 2, pvH - 2, p.panel or palette.panel, p.text or palette.text)
-    -- Header row
     fill(device, pvX + 1, pvY + 1, pvW - 2, 1, p.header or palette.header, colors.black)
     writeAt(device, pvX + 2, pvY + 1, fit("Radio", pvW - 4), colors.yellow, p.header or palette.header)
-    -- Artist / song row
     writeAt(device, pvX + 2, pvY + 2, fit("Artist - Title", pvW - 4), p.text or palette.text, p.panel or palette.panel)
-    -- Progress bar
     local barW = math.max(2, pvW - 4)
     fill(device, pvX + 2, pvY + 3, barW, 1, colors.gray, colors.gray)
     fill(device, pvX + 2, pvY + 3, math.floor(barW * 0.45), 1, p.good or palette.good, p.good or palette.good)
   end
 
-  -- Preset buttons
   local presetY = pvY + pvH + 1
   if presetY < height - 2 then
     local presets = {
@@ -574,7 +587,6 @@ function monitor.renderPaletteEditor(pal, selectedRole)
     end
   end
 
-  -- Back button
   local backLabel = "[BACK]"
   local backY     = math.min(presetY + 1, height - 2)
   writeAt(device, math.max(3, width - #backLabel - 2), backY, backLabel, colors.black, colors.lightGray)
@@ -609,7 +621,6 @@ function monitor.renderClientSettings(playbackStatus, settingsState)
   writeAt(device, layout.reminderDownX, layout.reminderRow, layout.reminderDownLabel, colors.black, colors.lightGray)
   writeAt(device, layout.reminderValueX, layout.reminderRow, layout.reminderValueLabel, colors.black, palette.panel)
   writeAt(device, layout.reminderUpX, layout.reminderRow, layout.reminderUpLabel, colors.black, colors.lightGray)
-  -- Colour palette shortcut button
   if layout.colorsRow <= height - 3 then
     writeAt(device, 3, layout.colorsRow, fit("Colour palette", layout.colorsX - 4), colors.white, palette.panel)
     writeAt(device, layout.colorsX, layout.colorsRow, layout.colorsLabel, colors.black, colors.cyan)
@@ -678,7 +689,6 @@ function monitor.getClientTouchAction(side, x, y, screenMode, prompt, settingsSt
     end
   end
 
-  -- Palette editor screen
   if screenMode == "palette" then
     local btnW    = 4
     local roleRow1, roleRow2 = 5, 6
@@ -686,24 +696,20 @@ function monitor.getClientTouchAction(side, x, y, screenMode, prompt, settingsSt
       local col = (i - 1) % 4
       local row = (i <= 4) and roleRow1 or roleRow2
       local bx  = 3 + col * (btnW + 1)
-      -- account for the ">" marker on the selected button
       if y == row and x >= bx - 1 and x < bx + btnW then
         return "palette_select_" .. role
       end
     end
-    -- [<] and [>] cycle buttons (row 9)
     if y == 9 then
       if x >= 3 and x < 6 then return "palette_prev" end
       if x >= width - 5 and x < width - 2 then return "palette_next" end
     end
-    -- Preset buttons (row pvY+pvH+1 = 11+5+1 = 17)
     local presetY = 17
     if y == presetY then
       if x >= 3  and x < 9  then return "preset_default" end
       if x >= 10 and x < 17 then return "preset_light"   end
       if x >= 18 and x < 25 then return "preset_dark"    end
     end
-    -- [BACK] button (row presetY+1)
     local backLabel = "[BACK]"
     local backY     = math.min(presetY + 1, height - 2)
     local backX     = math.max(3, width - #backLabel - 2)
@@ -764,7 +770,6 @@ function monitor.getClientTouchAction(side, x, y, screenMode, prompt, settingsSt
     }) then
       return "update_now"
     end
-    -- [COLORS] button opens palette editor
     if hitButton(x, y, {
       x = layout.colorsX,
       y = layout.colorsRow,
@@ -908,7 +913,6 @@ function monitor.renderHost(station, snapshot, playlistSource, updateStatus)
   local updateBtn = getClientUpdateCheckButtonLayout(width, height)
   local status = updateStatus or "up to date"
   
-  -- Display status just above the button
   writeAt(device, updateBtn.x, updateBtn.y - 1, fit(status, width - updateBtn.x - 2), colors.white, palette.panel)
 
   if width >= #updateBtn.label + 5 then

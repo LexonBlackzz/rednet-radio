@@ -324,7 +324,8 @@ local function renderTunedScreen()
     audio.getMaxVolumePercent(),
     updateStatus,
     updatePrompt,
-    settings.getEnableVisualizer() and audio.getAmplitude() or nil
+    settings.getEnableVisualizer() and audio.getAmplitude() or nil,
+	settings.getEnableVisualizer() and audio.getBufferRatio() or nil
   )
 end
 
@@ -340,20 +341,14 @@ local function tuneStation(station)
   rednet_api.requestTune(station, extra)
   rednet_api.sendPing(station, extra)
   settings.setLastStationId(station.station_id)
-	
--- update screen every 1s, seperate from other threads
-  local function renderThread()
-    renderTunedScreen()
-    while true do
-      os.sleep(1)
-      renderTunedScreen()
-    end
-  end
-
--- handle all touch screen events immediately
+  
   local function eventThread()
     local pingTimer        = os.startTimer(config.client_ping_interval_seconds)
     local checkUpdateTimer = os.startTimer(120)
+    local clockTimer       = os.startTimer(1)
+    local visTimer         = os.startTimer(1.36)
+    
+    renderTunedScreen()
 
     while true do
       local event, p1, p2, p3 = os.pullEvent()
@@ -362,10 +357,21 @@ local function tuneStation(station)
         if p1 == pingTimer then
           rednet_api.sendPing(station, { palette = settings.getPalette() })
           pingTimer = os.startTimer(config.client_ping_interval_seconds)
+        
         elseif p1 == checkUpdateTimer then
           refreshUpdateState()
           checkUpdateTimer = os.startTimer(60)
           renderTunedScreen()
+        
+        elseif p1 == clockTimer then
+          renderTunedScreen()
+          clockTimer = os.startTimer(1)
+        
+        elseif p1 == visTimer then
+          if screenMode == "main" and settings.getEnableVisualizer() then
+            monitor.updateVisualizerOnly(audio.getAmplitude(), audio.getBufferRatio())
+          end
+          visTimer = os.startTimer(1.36)
         end
 
       elseif event == "rednet_message" then
@@ -374,6 +380,9 @@ local function tuneStation(station)
 
         if rednet_api.matchesStationProtocol(station, protocol) and rednet_api.isRadioMessage(message) then
           if message.station_id == station.station_id then
+            
+            local wasWaiting = (currentSnapshot == nil)
+
             if message.message_type == config.message_types.station_info then
               currentStation = util.mergeTables(currentStation, message.station)
               currentSnapshot = message.snapshot or currentSnapshot
@@ -381,18 +390,22 @@ local function tuneStation(station)
               if not currentSnapshot or not currentSnapshot.eas_active then
                 os.queueEvent("audio_sync", currentSnapshot)
               end
-              renderTunedScreen()
+              if wasWaiting and currentSnapshot then renderTunedScreen() end
+
             elseif message.message_type == config.message_types.now_playing
               or message.message_type == config.message_types.sync
               or message.message_type == config.message_types.announce then
+              
               currentSnapshot = message.snapshot or currentSnapshot
               lastUpdateMs = util.nowMilliseconds()
               os.queueEvent("audio_sync", currentSnapshot)
-              renderTunedScreen()
+              if wasWaiting and currentSnapshot then renderTunedScreen() end
+
             elseif message.message_type == config.message_types.eas_start then
               if currentSnapshot then currentSnapshot.eas_active = true end
               os.queueEvent("audio_eas_start", message)
               renderTunedScreen()
+
             elseif message.message_type == config.message_types.eas_end then
               if currentSnapshot then 
                 currentSnapshot.eas_active = false 
@@ -408,41 +421,26 @@ local function tuneStation(station)
         if key == "q" then
           return "QUIT"
         elseif screenMode == "settings" then
-          if key == "b" then
-            screenMode = "main"
-          elseif key == "t" then
-            settings.toggleShowNeverOption()
-            refreshUpdateState()
-          elseif key == "v" then
-            settings.toggleEnableVisualizer()
-          elseif key == "a" then
-            settings.toggleAutoUpdate()
-          elseif key == "-" then
-            adjustRemindLaterMinutes(-settings.getRemindLaterStepMinutes())
-          elseif key == "=" then
-            adjustRemindLaterMinutes(settings.getRemindLaterStepMinutes())
-          elseif key == "u" then
-            installAvailableUpdate()
+          if key == "b" then screenMode = "main"
+          elseif key == "t" then settings.toggleShowNeverOption(); refreshUpdateState()
+          elseif key == "v" then settings.toggleEnableVisualizer()
+          elseif key == "a" then settings.toggleAutoUpdate()
+          elseif key == "-" then adjustRemindLaterMinutes(-settings.getRemindLaterStepMinutes())
+          elseif key == "=" then adjustRemindLaterMinutes(settings.getRemindLaterStepMinutes())
+          elseif key == "u" then installAvailableUpdate()
           end
           renderTunedScreen()
         elseif updatePrompt.visible then
-          if key == "o" then
-            installAvailableUpdate()
-          elseif key == "l" then
-            remindAboutUpdateLater()
-          elseif key == "n" then
-            neverShowThisUpdate()
-          elseif key == "s" then
-            screenMode = "settings"
-          elseif key == "[" then
-            adjustVolume(-audio.getVolumeStepPercent())
-          elseif key == "]" then
-            adjustVolume(audio.getVolumeStepPercent())
+          if key == "o" then installAvailableUpdate()
+          elseif key == "l" then remindAboutUpdateLater()
+          elseif key == "n" then neverShowThisUpdate()
+          elseif key == "s" then screenMode = "settings"
+          elseif key == "[" then adjustVolume(-audio.getVolumeStepPercent())
+          elseif key == "]" then adjustVolume(audio.getVolumeStepPercent())
           end
           renderTunedScreen()
         else
-          if key == "p" then
-            rednet_api.sendPing(station, { palette = settings.getPalette() })
+          if key == "p" then rednet_api.sendPing(station, { palette = settings.getPalette() })
           elseif key == "r" then
             local loadedStations = directory.loadStations(config.directory_url)
             if loadedStations then
@@ -452,92 +450,47 @@ local function tuneStation(station)
                 rednet_api.listenToStation(currentStation)
               end
             end
-          elseif key == "n" then
-            rednet_api.requestSkip(currentStation)
-          elseif key == "x" then
-            rednet_api.requestShuffleToggle(currentStation)
-          elseif key == "s" then
-            screenMode = "settings"
-            paletteState.selectedRole = 1
-          elseif key == "[" then
-            adjustVolume(-audio.getVolumeStepPercent())
-          elseif key == "]" then
-            adjustVolume(audio.getVolumeStepPercent())
+          elseif key == "n" then rednet_api.requestSkip(currentStation)
+          elseif key == "x" then rednet_api.requestShuffleToggle(currentStation)
+          elseif key == "s" then screenMode = "settings"; paletteState.selectedRole = 1
+          elseif key == "[" then adjustVolume(-audio.getVolumeStepPercent())
+          elseif key == "]" then adjustVolume(audio.getVolumeStepPercent())
           end
           renderTunedScreen()
         end
 
       elseif event == "monitor_touch" then
         local action = monitor.getClientTouchAction(
-          p1,
-          p2,
-          p3,
-          screenMode,
-          updatePrompt,
+          p1, p2, p3, screenMode, updatePrompt,
           util.mergeTables(settings.get(), { palette = settings.getPalette() })
         )
-        if action == "volume_down" then
-          adjustVolume(-audio.getVolumeStepPercent())
-        elseif action == "volume_up" then
-          adjustVolume(audio.getVolumeStepPercent())
-        elseif action == "open_settings" then
-          screenMode = "settings"
-        elseif action == "settings_back" then
-          screenMode = "main"
-        elseif action == "toggle_never_option" then
-          settings.toggleShowNeverOption()
-          refreshUpdateState()
-        elseif action == "toggle_visualizer" then
-          settings.toggleEnableVisualizer()
-        elseif action == "toggle_auto_update" then
-          settings.toggleAutoUpdate()
-        elseif action == "remind_delay_down" then
-          adjustRemindLaterMinutes(-settings.getRemindLaterStepMinutes())
-        elseif action == "remind_delay_up" then
-          adjustRemindLaterMinutes(settings.getRemindLaterStepMinutes())
-        elseif action == "update_now" then
-          installAvailableUpdate()
-        elseif action == "check_updates" then
-          updateStatus = "Checking for updates..."
-          refreshUpdateState()
-        elseif action == "update_ok" then
-          installAvailableUpdate()
-        elseif action == "update_auto" then
-          settings.setAutoUpdate(true)
-          installAvailableUpdate(true)
-        elseif action == "update_later" then
-          remindAboutUpdateLater()
+        if action == "volume_down" then adjustVolume(-audio.getVolumeStepPercent())
+        elseif action == "volume_up" then adjustVolume(audio.getVolumeStepPercent())
+        elseif action == "open_settings" then screenMode = "settings"
+        elseif action == "settings_back" then screenMode = "main"
+        elseif action == "toggle_never_option" then settings.toggleShowNeverOption(); refreshUpdateState()
+        elseif action == "toggle_visualizer" then settings.toggleEnableVisualizer()
+        elseif action == "toggle_auto_update" then settings.toggleAutoUpdate()
+        elseif action == "remind_delay_down" then adjustRemindLaterMinutes(-settings.getRemindLaterStepMinutes())
+        elseif action == "remind_delay_up" then adjustRemindLaterMinutes(settings.getRemindLaterStepMinutes())
+        elseif action == "update_now" then installAvailableUpdate()
+        elseif action == "check_updates" then updateStatus = "Checking for updates..."; refreshUpdateState()
+        elseif action == "update_ok" then installAvailableUpdate()
+        elseif action == "update_auto" then settings.setAutoUpdate(true); installAvailableUpdate(true)
+        elseif action == "update_later" then remindAboutUpdateLater()
         elseif action == "skip_track" then
           if currentSnapshot and currentSnapshot.allow_remote_skip == false then
-            currentSnapshot.message_prompt = {
-              visible = true,
-              title = "Skip not allowed",
-              message = "Contact host to enable skipping."
-            }
-          else
-            rednet_api.requestSkip(currentStation)
-          end
+            currentSnapshot.message_prompt = { visible = true, title = "Skip not allowed", message = "Contact host to enable skipping." }
+          else rednet_api.requestSkip(currentStation) end
         elseif action == "toggle_shuffle" then
           if currentSnapshot and currentSnapshot.allow_remote_shuffle == false then
-            currentSnapshot.message_prompt = {
-              visible = true,
-              title = "Shuffle not allowed",
-              message = "Contact host to enable shuffling."
-            }
-          else
-            rednet_api.requestShuffleToggle(currentStation)
-          end
+            currentSnapshot.message_prompt = { visible = true, title = "Shuffle not allowed", message = "Contact host to enable shuffling." }
+          else rednet_api.requestShuffleToggle(currentStation) end
         elseif action == "message_ok" then
-          if currentSnapshot and currentSnapshot.message_prompt then
-            currentSnapshot.message_prompt.visible = false
-          end
-        elseif action == "open_palette" then
-          screenMode = "palette"
-          paletteState.selectedRole = 1
-        elseif action == "update_never" then
-          neverShowThisUpdate()
+          if currentSnapshot and currentSnapshot.message_prompt then currentSnapshot.message_prompt.visible = false end
+        elseif action == "open_palette" then screenMode = "palette"; paletteState.selectedRole = 1
+        elseif action == "update_never" then neverShowThisUpdate()
         else
-          -- Palette cycling / presets / back...
           local role = action and action:match("^palette_cycle_(.+)$")
           if role then
             local cp  = settings.getPalette()
@@ -555,14 +508,14 @@ local function tuneStation(station)
             for i, r in ipairs(PALETTE_ROLES) do if r == selRole then paletteState.selectedRole = i; break end end
           end
           if action == "palette_prev" or action == "palette_next" then
-            local role = PALETTE_ROLES[paletteState.selectedRole] or "bg"
+            local pRole = PALETTE_ROLES[paletteState.selectedRole] or "bg"
             local cp   = settings.getPalette()
             local cv   = cp[role] or 1
             local vals = {1,2,4,8,16,32,64,128,256,512,1024,2048,4096,8192,16384,32768}
             local idx  = 1
             for ci, v in ipairs(vals) do if v == cv then idx = ci; break end end
             if action == "palette_prev" then idx = idx - 1; if idx < 1 then idx = #vals end else idx = idx + 1; if idx > #vals then idx = 1 end end
-            settings.setPaletteColor(role, vals[idx])
+            settings.setPaletteColor(pRole, vals[idx])
             monitor.setPalette(settings.getPalette())
             if currentStation then rednet_api.sendPing(currentStation, { palette = settings.getPalette() }) end
           end
@@ -580,9 +533,7 @@ local function tuneStation(station)
         renderTunedScreen()
 
       elseif event == "key" then
-        if p1 == keys.backspace then
-          return "QUIT"
-        end
+        if p1 == keys.backspace then return "QUIT" end
       end
     end
   end
@@ -667,7 +618,7 @@ local function tuneStation(station)
       end
     end
   end
-  parallel.waitForAny(renderThread, eventThread, audioThread)
+  parallel.waitForAny(eventThread, audioThread)
   audio.stopTrack()
 end
 

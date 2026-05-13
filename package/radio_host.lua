@@ -49,7 +49,7 @@ local function main(...)
   monitor.setPalette(settings.getPalette())
   rednet_api.hostStation(stationDefinition)
 
-  log(("Hosting station '%s'").format(stationDefinition.name))
+  log(("Hosting station '%s'"):format(stationDefinition.name))
   local screenMode = "main"
   local playlistSourceOrErr = playErr
 
@@ -191,7 +191,7 @@ local function main(...)
           if arg1 then stationDefinition = util.mergeTables(stationDefinition, arg1); rednet_api.hostStation(stationDefinition) end
         elseif task == "playlist" then
           if arg1 then
-            if stationRuntime:setPlaylist(arg1) then rednet_api.broadcastNowPlaying(stationDefinition, stationRuntime:getSnapshot()) end
+            if stationRuntime:setPlaylist(arg1) then rednet_api.broadcastNowPlaying(stationDefinition, getHostSnapshot()) end
             playlistSourceOrErr = arg2
           end
         end
@@ -211,9 +211,9 @@ local function main(...)
           
           if message.message_type == config.message_types.ping or message.message_type == config.message_types.tune_request then
             if message.is_update_signal then os.queueEvent("run_bg_task", "updates", "manual") end
-            rednet_api.sendStationInfo(senderId, stationDefinition, stationRuntime:getSnapshot())
+            rednet_api.sendStationInfo(senderId, stationDefinition, getHostSnapshot())
             if message.message_type == config.message_types.tune_request then
-              rednet_api.sendNowPlaying(senderId, stationDefinition, stationRuntime:getSnapshot())
+              rednet_api.sendNowPlaying(senderId, stationDefinition, getHostSnapshot())
             end
           elseif message.message_type == config.message_types.skip_request and settings.getAllowRemoteSkip() then
             stationRuntime:advanceTrack(util.nowMilliseconds()); rednet_api.broadcastNowPlaying(stationDefinition, getHostSnapshot()); renderScreen()
@@ -243,6 +243,23 @@ local function main(...)
   parallel.waitForAny(mainEventLoop, backgroundThread)
 end
 
+local function relaunchCurrentProgram(args)
+  for key in pairs(package.loaded) do
+    if key:match("^rednet_radio%.") then
+      package.loaded[key] = nil
+    end
+  end
+
+  if shell and shell.getRunningProgram then
+    local program = shell.getRunningProgram()
+    if program and program ~= "" then
+      return os.run(_ENV, program, table.unpack(args or {}))
+    end
+  end
+
+  os.reboot()
+end
+
 local launchArgs = { ... }
 while true do
   local ok, err = xpcall(function() main(table.unpack(launchArgs)) end, function(message)
@@ -251,8 +268,9 @@ while true do
   end)
 
   if not ok and err == "RESTART" then
-    print("\n--- Rebooting ---")
+    print("\n--- Reloading ---")
     os.sleep(0.5)
+    return relaunchCurrentProgram(launchArgs)
   elseif not ok then
     print("radio_host failed:\n" .. tostring(err))
     break
@@ -260,5 +278,3 @@ while true do
     break
   end
 end
-
-if not ok then print("radio_host failed:\n" .. tostring(err)) end

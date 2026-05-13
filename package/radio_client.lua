@@ -12,6 +12,7 @@ local stations = {}
 local currentStation
 local currentSnapshot
 local lastUpdateMs
+local lastSnapshotSentAtMs
 local updateStatus = "update check pending"
 local updateInfo = nil
 local screenMode = "main"
@@ -31,6 +32,10 @@ local paletteState = { selectedRole = 1 }
 
 local refreshUpdateState
 local installAvailableUpdate
+
+local function isStaleSnapshotMessage(message)
+  return message and message.sent_at_ms and lastSnapshotSentAtMs and message.sent_at_ms < lastSnapshotSentAtMs
+end
 
 local function clear()
   term.setBackgroundColor(colors.black)
@@ -236,6 +241,7 @@ local function tuneStation(station)
   currentStation = station
   currentSnapshot = nil
   lastUpdateMs = nil
+  lastSnapshotSentAtMs = nil
   screenMode = "main"
   audio.stopTrack()
 
@@ -314,17 +320,23 @@ local function tuneStation(station)
               hostUpdateWaitTimer = os.startTimer(10)
 
             elseif message.message_type == config.message_types.station_info then
-              currentStation = util.mergeTables(currentStation, message.station)
-              currentSnapshot = message.snapshot or currentSnapshot
-              lastUpdateMs = util.nowMilliseconds()
-              if not currentSnapshot or not currentSnapshot.eas_active then os.queueEvent("audio_sync", currentSnapshot) end
-              if wasWaiting and currentSnapshot then renderTunedScreen() end
+              if not isStaleSnapshotMessage(message) then
+                if message.sent_at_ms then lastSnapshotSentAtMs = message.sent_at_ms end
+                currentStation = util.mergeTables(currentStation, message.station)
+                currentSnapshot = message.snapshot or currentSnapshot
+                lastUpdateMs = util.nowMilliseconds()
+                if not currentSnapshot or not currentSnapshot.eas_active then os.queueEvent("audio_sync", currentSnapshot) end
+                if wasWaiting and currentSnapshot then renderTunedScreen() end
+              end
 
             elseif message.message_type == config.message_types.now_playing or message.message_type == config.message_types.sync or message.message_type == config.message_types.announce then
-              currentSnapshot = message.snapshot or currentSnapshot
-              lastUpdateMs = util.nowMilliseconds()
-              os.queueEvent("audio_sync", currentSnapshot)
-              if wasWaiting and currentSnapshot then renderTunedScreen() end
+              if not isStaleSnapshotMessage(message) then
+                if message.sent_at_ms then lastSnapshotSentAtMs = message.sent_at_ms end
+                currentSnapshot = message.snapshot or currentSnapshot
+                lastUpdateMs = util.nowMilliseconds()
+                os.queueEvent("audio_sync", currentSnapshot)
+                if wasWaiting and currentSnapshot then renderTunedScreen() end
+              end
 
             elseif message.message_type == config.message_types.eas_start then
               if currentSnapshot then currentSnapshot.eas_active = true end
@@ -532,6 +544,23 @@ local function main()
   end
 end
 
+local function relaunchCurrentProgram(args)
+  for key in pairs(package.loaded) do
+    if key:match("^rednet_radio%.") then
+      package.loaded[key] = nil
+    end
+  end
+
+  if shell and shell.getRunningProgram then
+    local program = shell.getRunningProgram()
+    if program and program ~= "" then
+      return os.run(_ENV, program, table.unpack(args or {}))
+    end
+  end
+
+  os.reboot()
+end
+
 local launchArgs = { ... }
 while true do
   local ok, err = xpcall(function() main(table.unpack(launchArgs)) end, function(message)
@@ -542,8 +571,9 @@ while true do
   audio.stopTrack()
 
   if not ok and err == "RESTART" then
-    print("\n--- Rebooting Cleanly ---")
+    print("\n--- Reloading Cleanly ---")
     os.sleep(0.5)
+    return relaunchCurrentProgram(launchArgs)
   elseif not ok then
     term.setBackgroundColor(colors.black)
     term.setTextColor(colors.red)
@@ -561,15 +591,3 @@ while true do
 end
 
 audio.stopTrack()
-
-if not ok and err ~= "RESTART" then 
-  term.setBackgroundColor(colors.black)
-  term.setTextColor(colors.red)
-  term.clear()
-  term.setCursorPos(1, 1)
-  print("RADIO CLIENT CRASHED:")
-  term.setTextColor(colors.white)
-  print(err)
-  print("\nPress any key to exit.")
-  os.pullEvent("key") 
-end

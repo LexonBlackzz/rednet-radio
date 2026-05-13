@@ -73,6 +73,30 @@ refreshUpdateState = function(statusOverride)
   end
 end
 
+local function applyUpdateCheckResult(result, err, statusOverride)
+  updateInfo = result or nil
+  if not result then
+    updateStatus = statusOverride or ("update check failed (%s)"):format(err or "unknown error")
+    updatePrompt.visible = false
+    updatePrompt.latest_version = nil
+    updatePrompt.show_never_option = settings.shouldShowNeverOption()
+    return
+  end
+
+  if result.update_available then
+    if settings.getAutoUpdate() then installAvailableUpdate(true); return end
+    updateStatus = ("update available: %s -> %s"):format(result.current_version, result.latest_version)
+    updatePrompt.visible = settings.shouldPromptForVersion(result.latest_version)
+    updatePrompt.latest_version = result.latest_version
+    updatePrompt.show_never_option = settings.shouldShowNeverOption()
+  else
+    updateStatus = ("up to date (%s)"):format(result.current_version)
+    updatePrompt.visible = false
+    updatePrompt.latest_version = nil
+    updatePrompt.show_never_option = settings.shouldShowNeverOption()
+  end
+end
+
 local function remindAboutUpdateLater()
   settings.remindLater(); updatePrompt.visible = false
   if updateInfo and updateInfo.latest_version then updateStatus = ("update available: %s (remind later)"):format(updateInfo.latest_version) end
@@ -254,8 +278,8 @@ local function tuneStation(station)
     while true do
       local e, p1 = os.pullEvent("run_bg_task")
       if p1 == "check_updates" then
-        refreshUpdateState()
-        os.queueEvent("bg_task_done")
+        local result, err = updater.check()
+        os.queueEvent("bg_task_done", "check_updates", result, err)
       end
     end
   end
@@ -271,7 +295,7 @@ local function tuneStation(station)
     renderTunedScreen()
 
     while true do
-      local event, p1, p2, p3 = os.pullEvent()
+      local event, p1, p2, p3, p4 = os.pullEvent()
 
       if event == "timer" then
         if p1 == pingTimer then
@@ -306,6 +330,9 @@ local function tuneStation(station)
         end
 
       elseif event == "bg_task_done" then
+        if p1 == "check_updates" then
+          applyUpdateCheckResult(p2, p3)
+        end
         isCheckingUpdates = false
         renderTunedScreen()
 

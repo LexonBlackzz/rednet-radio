@@ -121,8 +121,8 @@ local function main(...)
     while true do
       local e, task, reason = os.pullEvent("run_bg_task")
       if task == "updates" then
-        updater.check()
-        os.queueEvent("bg_task_done", "updates", reason)
+        local result, err = updater.check()
+        os.queueEvent("bg_task_done", "updates", reason, result, err)
       elseif task == "directory" then
         local def, src = loadStationDefinition()
         os.queueEvent("bg_task_done", "directory", def, src)
@@ -141,7 +141,7 @@ local function main(...)
     if (config.playlist_refresh_seconds or 0) > 0 then schedule("refresh_playlist", config.playlist_refresh_seconds) end
 
     while true do
-      local event, p1, p2, p3 = os.pullEvent()
+      local event, p1, p2, p3, p4, p5 = os.pullEvent()
 
       if event == "timer" then
         local timerName = timers[p1]
@@ -178,11 +178,20 @@ local function main(...)
         end
 
       elseif event == "bg_task_done" then
-        local task, arg1, arg2 = p1, p2, p3
+        local task, arg1, arg2, arg3 = p1, p2, p3, p4
         if task == "updates" then
-          updateStatus = updater.getStatusSummary()
+          local reason, result, err = arg1, arg2, arg3
+          if result then
+            if result.update_available then
+              updateStatus = ("update available: %s -> %s"):format(result.current_version, result.latest_version)
+            else
+              updateStatus = ("up to date (%s)"):format(result.current_version)
+            end
+          else
+            updateStatus = ("update check failed (%s)"):format(err or "unknown error")
+          end
           renderScreen()
-          if arg1 == "manual" and updateStatus:match("update available") then
+          if reason == "manual" and result and result.update_available then
             updateStatus = "Update available! Installing..."
             renderScreen()
             installAvailableUpdate()
@@ -223,7 +232,11 @@ local function main(...)
         end
 
       elseif event == "monitor_touch" then
-        local action = monitor.getHostTouchAction(p2, p3, screenMode, settings.getAllowRemoteSkip(), settings.getAllowRemoteShuffle())
+        local action = monitor.getHostTouchAction(
+          p2, p3, screenMode,
+          settings.getAllowRemoteSkip(), settings.getAllowRemoteShuffle(),
+          settings.getEnableRedstoneAnnouncement(), settings.getAnnouncementRedstoneSide()
+        )
         if action == "open_settings" then screenMode = "settings"
         elseif action == "settings_back" then screenMode = "main"
         elseif action == "toggle_remote_skip" then settings.toggleAllowRemoteSkip()

@@ -287,7 +287,6 @@ local function tuneStation(station)
         elseif p1 == visualUpdateTimer then
           os.queueEvent("run_bg_task", "check_updates")
         
-        -- DEBUG TIMER: End the alarm
         elseif p1 == debugEasTimer then
           if currentSnapshot then currentSnapshot.eas_active = false; os.queueEvent("audio_eas_end", currentSnapshot) end
           renderTunedScreen()
@@ -333,7 +332,6 @@ local function tuneStation(station)
               os.queueEvent("audio_eas_start", message); renderTunedScreen() 
 
             elseif message.message_type == config.message_types.eas_end then
-              -- CHANGED to fire "audio_eas_end" so the audioThread handles it properly!
               if currentSnapshot then currentSnapshot.eas_active = false; os.queueEvent("audio_eas_end", currentSnapshot) end
               renderTunedScreen()
             end
@@ -400,8 +398,36 @@ local function tuneStation(station)
         elseif action == "open_palette" then screenMode = "palette"; paletteState.selectedRole = 1
         elseif action == "update_never" then neverShowThisUpdate()
         else
+          -- PALETTE EDITOR BUTTONS
           local selRole = action and action:match("^palette_select_(.+)$")
-          if selRole then for i, r in ipairs(PALETTE_ROLES) do if r == selRole then paletteState.selectedRole = i; break end end end
+          if selRole then 
+            for i, r in ipairs(PALETTE_ROLES) do if r == selRole then paletteState.selectedRole = i; break end end 
+          end
+          
+          if action == "palette_prev" or action == "palette_next" then
+            local pRole = PALETTE_ROLES[paletteState.selectedRole] or "bg"
+            local cp   = settings.getPalette()
+            local cv   = cp[pRole] or 1
+            local vals = {1,2,4,8,16,32,64,128,256,512,1024,2048,4096,8192,16384,32768}
+            local idx  = 1
+            for ci, v in ipairs(vals) do if v == cv then idx = ci; break end end
+            if action == "palette_prev" then idx = idx - 1; if idx < 1 then idx = #vals end else idx = idx + 1; if idx > #vals then idx = 1 end end
+            settings.setPaletteColor(pRole, vals[idx])
+            monitor.setPalette(settings.getPalette())
+            if currentStation then rednet_api.sendPing(currentStation, { palette = settings.getPalette() }) end
+            
+          elseif action == "preset_default" then 
+            settings.applyPreset("default"); monitor.setPalette(settings.getPalette())
+            if currentStation then rednet_api.sendPing(currentStation, { palette = settings.getPalette() }) end
+          elseif action == "preset_light" then 
+            settings.applyPreset("light"); monitor.setPalette(settings.getPalette())
+            if currentStation then rednet_api.sendPing(currentStation, { palette = settings.getPalette() }) end
+          elseif action == "preset_dark" then 
+            settings.applyPreset("dark"); monitor.setPalette(settings.getPalette())
+            if currentStation then rednet_api.sendPing(currentStation, { palette = settings.getPalette() }) end
+          elseif action == "palette_back" then 
+            screenMode = "settings" 
+          end
         end
         renderTunedScreen()
       elseif event == "key" then if p1 == keys.backspace then return "QUIT" end end
@@ -418,7 +444,7 @@ local function tuneStation(station)
       local event, p1, p2, p3 = os.pullEvent()
       
       if event == "speaker_audio_empty" then 
-        -- Only allow normal music chunks if the alarm is NOT playing
+        -- only allow normal music chunks if the alarm is NOT playing
         if not isEasPlaying then
           audio.handleEvent(event, p1, p2, p3) 
         end
@@ -432,7 +458,7 @@ local function tuneStation(station)
             if easChunksPlayed < 10 then 
               easTimer = os.startTimer(0.45)
             else
-              -- 5 seconds reached. Wait for Host to send audio_eas_end!
+              -- wait for Hhst to send audio_eas_end
               easTimer = nil
             end
           else
@@ -442,7 +468,7 @@ local function tuneStation(station)
         end
 
       elseif event == "audio_sync" then
-        -- THE SHIELD: If alarm is going, completely ignore all network sync packets!
+        -- if alarm is going, completely ignore all network sync packets
         if not isEasPlaying then
            audio.syncToSnapshot(p1)
         end
@@ -458,7 +484,6 @@ local function tuneStation(station)
           local vol = math.min(1, (message.volume or 3) / 3)
           local volScaled = 126 * vol
           
-          -- Build the alternating siren chunk
           combinedChunk = {}
           local step1, step2 = (2 * math.pi * 880) / 48000, (2 * math.pi * 440) / 48000
           for i = 1, 12000 do combinedChunk[i] = math.floor(math.sin(i * step1) * volScaled + 0.5) end
@@ -470,7 +495,6 @@ local function tuneStation(station)
           easTimer = os.startTimer(0.45)
         end
 
-      -- ALARM OVER: Triggered by Host (or Debug Key)
       elseif event == "audio_eas_end" then
         local snapshot = p1
         if isEasPlaying then
@@ -479,7 +503,6 @@ local function tuneStation(station)
           local speaker = peripheral.find("speaker")
           if speaker and speaker.stop then speaker.stop() end
         end
-        -- Immediately resume normal music
         audio.syncToSnapshot(snapshot)
       end
     end

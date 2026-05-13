@@ -153,13 +153,13 @@ local function renderTunedScreen()
   if hostUpdateInProgress then
     clear()
     print("HOST STATION UPDATE IN PROGRESS")
-    print("Please stand by (10s delay)...")
+    print("Please stand by...")
     local device = peripheral.find("monitor")
     if device then
       local w, h = device.getSize()
       device.setBackgroundColor(colors.black)
       device.clear()
-      local msg1, msg2 = "HOST STATION UPDATE IN PROGRESS", "Please stand by (10s delay)..."
+      local msg1, msg2 = "HOST STATION UPDATE IN PROGRESS", "Please stand by..."
       device.setCursorPos(math.floor((w - #msg1) / 2) + 1, math.floor(h / 2))
       device.setTextColor(colors.yellow)
       device.write(msg1)
@@ -222,6 +222,7 @@ local function renderTunedScreen()
   print(("Last sync: %s"):format(lastUpdateMs and util.formatAge(lastUpdateMs) or "never"))
   print("Keys: q = back, p = ping, r = reload, s = settings, [ / ] = volume")
   print("      n = skip track, x = toggle shuffle")
+  print("Debug: d = test host update, e = test EAS alarm")
 
   if updatePrompt.visible then
     local promptLine = "Update prompt: o = OK, l = remind me later"
@@ -252,7 +253,6 @@ local function tuneStation(station)
   rednet_api.sendPing(station, { palette = settings.getPalette() })
   settings.setLastStationId(station.station_id)
 
-  -- BACKGROUND WORKER: Prevents UI Freezes
   local function backgroundThread()
     while true do
       local e, p1 = os.pullEvent("run_bg_task")
@@ -263,13 +263,13 @@ local function tuneStation(station)
     end
   end
 
-  -- MASTER EVENT LOOP
   local function eventThread()
     local pingTimer        = os.startTimer(config.client_ping_interval_seconds)
     local checkUpdateTimer = os.startTimer(120)
     local clockTimer       = os.startTimer(1)
     local visTimer         = os.startTimer(1.35)
     local visualUpdateTimer = nil
+    local debugEasTimer    = nil
     
     renderTunedScreen()
 
@@ -294,6 +294,9 @@ local function tuneStation(station)
           visTimer = os.startTimer(1.35)
         elseif p1 == visualUpdateTimer then
           os.queueEvent("run_bg_task", "check_updates")
+        elseif p1 == debugEasTimer then
+          if currentSnapshot then currentSnapshot.eas_active = false; os.queueEvent("audio_sync", currentSnapshot) end
+          renderTunedScreen()
         elseif p1 == hostUpdateWaitTimer then
           refreshUpdateState()
           if updateInfo and updateInfo.update_available then installAvailableUpdate(true)
@@ -365,6 +368,13 @@ local function tuneStation(station)
           elseif key == "s" then screenMode = "settings"; paletteState.selectedRole = 1
           elseif key == "[" then adjustVolume(-audio.getVolumeStepPercent())
           elseif key == "]" then adjustVolume(audio.getVolumeStepPercent())
+          elseif key == "d" then 
+            hostUpdateInProgress = true; audio.stopTrack(); renderTunedScreen()
+            hostUpdateWaitTimer = os.startTimer(10)
+          elseif key == "e" then
+            if currentSnapshot then currentSnapshot.eas_active = true end
+            os.queueEvent("audio_eas_start", { volume = 3 }); renderTunedScreen()
+            debugEasTimer = os.startTimer(5)
           end
           renderTunedScreen()
         end

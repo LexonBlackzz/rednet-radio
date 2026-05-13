@@ -21,6 +21,7 @@ function Station.new(stationDefinition, playlistDoc)
   self.current_index = 0
   self.shuffle_mode = false
   self.shuffle_bag = {}
+  self.started_at_ms = util.nowMilliseconds()
   self:setPlaylist(playlistDoc, true)
   return self
 end
@@ -58,11 +59,9 @@ function Station:setPlaylist(playlistDoc, isFirstLoad)
   end
 
   self.current_index = clampTrackIndex(self.current_index or preservedIndex, #self.tracks)
-  self.started_at_ms = self.started_at_ms or util.nowMilliseconds()
-
   if isFirstLoad then
     self.current_index = 1
-    self.started_at_ms = util.nowMilliseconds()
+    self.started_at_ms = util.nowMilliseconds() + ((config.track_start_buffer_seconds or 0) * 1000)
   end
 
   return true
@@ -118,8 +117,7 @@ function Station:advanceTrack(nowMs)
     end
   end
   
-  local startBufferMs = (config.track_start_buffer_seconds or 0) * 1000
-  self.started_at_ms = (nowMs or util.nowMilliseconds()) + startBufferMs
+  self.started_at_ms = nowMs or util.nowMilliseconds()
   return true
 end
 
@@ -160,7 +158,7 @@ function Station:getSnapshot()
   local elapsed_ms = track and (util.nowMilliseconds() - (self.started_at_ms or util.nowMilliseconds())) or 0
   local duration_ms = track and (track.duration * 1000) or 0
   local gap_ms = (config.track_gap_seconds or 0) * 1000
-  local in_gap = track and elapsed_ms >= duration_ms or false
+  local in_gap = track and elapsed_ms >= duration_ms and elapsed_ms < (duration_ms + gap_ms) or false
   return {
     playlist_version = self.playlist_version,
     started_at_ms = self.started_at_ms,

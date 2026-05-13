@@ -104,7 +104,7 @@ end
 local function patchConfig(contents, websiteUrl, packageUrl)
   if websiteUrl and websiteUrl ~= "" then
     contents = contents:gsub(
-      'local baseUrl = "https://raw%.githubusercontent%.com/LexonBlackzz/rednet%-radio/main"',
+      'local baseUrl = "https://raw%.githubusercontent%.com/[^"]+/rednet%-radio/main"',
       ('local baseUrl = "%s"'):format(websiteUrl)
     )
   end

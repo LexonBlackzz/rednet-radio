@@ -5,13 +5,14 @@ local audio = {}
 local SAMPLE_RATE = 48000
 local BYTES_PER_SECOND = SAMPLE_RATE / 8
 local CHUNK_BYTES = 8 * 1024
-local MAX_BUFFER_SAMPLES = 128 * 1024 -- CC:Tweaked maximum speaker buffer capacity (131,072)
+local MAX_BUFFER_SAMPLES = 128 * 1024
 local PRE_ROLL_SECONDS = 1
-local RESYNC_THRESHOLD_SECONDS = 2
+local RESYNC_THRESHOLD_SECONDS = 5 
 local MIN_VOLUME_PERCENT = 0
 local MAX_VOLUME_PERCENT = 300
 local DEFAULT_VOLUME_PERCENT = 100
 local VOLUME_STEP_PERCENT = 5
+local MAX_TRACKED_CHUNKS = 16
 
 local state = {
   speaker = nil,
@@ -23,8 +24,8 @@ local state = {
   pending_buffer = nil,
   pending_amplitude = 0,
   amplitude_queue = {},
-  chunk_queue = {},       -- Tracks the size of chunks in the buffer
-  buffered_samples = 0,   -- Tracks total samples currently in the speaker
+  chunk_queue = {},
+  buffered_samples = 0,
   skip_samples = 0,
   sync_offset_seconds = 0,
   sync_clock_ms = 0,
@@ -67,7 +68,11 @@ local function trimBuffer(buffer, samplesToSkip)
   if samplesToSkip <= 0 then return buffer, 0 end
   if samplesToSkip >= #buffer then return {}, samplesToSkip - #buffer end
   local trimmed = {}
-  for index = samplesToSkip + 1, #buffer do trimmed[#trimmed + 1] = buffer[index] end
+  local c = 1
+  for index = samplesToSkip + 1, #buffer do 
+    trimmed[c] = buffer[index] 
+    c = c + 1
+  end
   return trimmed, 0
 end
 
@@ -81,7 +86,6 @@ local function playPendingBuffer()
   if not speaker or not state.pending_buffer then return false end
 
   if speaker.playAudio(state.pending_buffer, getSpeakerVolume()) then
-    -- Audio successfully entered the speaker buffer! Track it.
     table.insert(state.amplitude_queue, state.pending_amplitude)
     table.insert(state.chunk_queue, #state.pending_buffer)
     state.buffered_samples = state.buffered_samples + #state.pending_buffer
@@ -97,10 +101,15 @@ local function playPendingBuffer()
 end
 
 local function skipBytes(response, bytesToSkip)
+  local cycles = 0
   while bytesToSkip > 0 do
-    local chunk = response.read(math.min(CHUNK_BYTES, bytesToSkip))
-    if not chunk or #chunk == 0 then return false end
+    -- PROTECTED CALL: Safely catches "attempt to use closed file" if connection drops
+    local ok, chunk = pcall(response.read, math.min(CHUNK_BYTES, bytesToSkip))
+    if not ok or not chunk or #chunk == 0 then return false end
     bytesToSkip = bytesToSkip - #chunk
+    
+    cycles = cycles + 1
+    if cycles % 10 == 0 then os.sleep(0) end 
   end
   return true
 end
@@ -133,8 +142,12 @@ local function queueNextChunk()
       if not playPendingBuffer() then return end
     end
 
-    local chunk = state.stream.read(CHUNK_BYTES)
-    if not chunk or #chunk == 0 then
+    -- Safety check in case stream was closed while we were yielded
+    if not state.stream then return end 
+
+    -- PROTECTED CALL: If eventThread calls audio.stopTrack() while we are downloading, safely abort!
+    local ok, chunk = pcall(state.stream.read, CHUNK_BYTES)
+    if not ok or not chunk or #chunk == 0 then
       closeStream()
       if not state.pending_buffer then state.status = "track ended" end
       return
@@ -147,7 +160,7 @@ local function queueNextChunk()
 
     if #buffer > 0 then
       local peak = 0
-      for i = 1, #buffer do
+      for i = 1, #buffer, 16 do
         local val = math.abs(buffer[i])
         if val > peak then peak = val end
       end
@@ -278,7 +291,7 @@ function audio.syncToSnapshot(snapshot)
     return nil
   end
 
-  local targetOffsetSeconds = elapsedSeconds
+  local targetOffsetSeconds = math.max(0, elapsedSeconds)
   local sameTrack = state.current_track_id == track.id and state.current_playback_url == track.playback_url
 
   if sameTrack then
@@ -294,14 +307,11 @@ end
 
 function audio.handleEvent(event)
   if event == "speaker_audio_empty" then
-    -- A chunk physically finished playing! Subtract its size from our buffer tracker.
     if #state.chunk_queue > 0 then
       local playedSamples = table.remove(state.chunk_queue, 1)
       state.buffered_samples = math.max(0, state.buffered_samples - playedSamples)
     end
-    if #state.amplitude_queue > 0 then
-      table.remove(state.amplitude_queue, 1)
-    end
+    if #state.amplitude_queue > 0 then table.remove(state.amplitude_queue, 1) end
     queueNextChunk()
   end
 end
@@ -312,9 +322,7 @@ end
 
 function audio.stopTrack()
   local speaker = getSpeaker()
-  if speaker and speaker.stop then
-    pcall(function() speaker.stop() end)
-  end
+  if speaker and speaker.stop then pcall(function() speaker.stop() end) end
 
   closeStream()
   state.decoder = nil
@@ -331,11 +339,7 @@ function audio.stopTrack()
   state.bytes_started_at = 0
   state.last_error = nil
 
-  if speaker then
-    state.status = "idle"
-  else
-    state.status = "metadata mode only (no speaker attached)"
-  end
+  if speaker then state.status = "idle" else state.status = "metadata mode only (no speaker attached)" end
   return true
 end
 
@@ -346,19 +350,17 @@ function audio.getAmplitude()
   return 0
 end
 
--- returns the current fill level of the speaker as a percentage (0.0 to 1.0)
 function audio.getBufferRatio()
   if state.status == "playing" or state.status == "buffering speaker" then
-    -- if we downloaded a chunk but the speaker rejected it, the buffer is literally overflowing
-    if state.pending_buffer ~= nil then
-      return 1.0 
+    if #state.chunk_queue > MAX_TRACKED_CHUNKS then
+      state.chunk_queue = {}
+      state.amplitude_queue = {}
+      state.buffered_samples = 0
     end
-
-    -- calculate the maximum chunks the hardware can hold for the specific CHUNK_BYTES
+    if state.pending_buffer ~= nil then return 1.0 end
     local samples_per_chunk = CHUNK_BYTES * 8
     local max_chunks_allowed = math.min(8, math.floor(131072 / samples_per_chunk))
     if max_chunks_allowed < 1 then max_chunks_allowed = 1 end
-
     return math.max(0, math.min(1, #state.chunk_queue / max_chunks_allowed))
   end
   return 0

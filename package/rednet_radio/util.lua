@@ -121,7 +121,7 @@ function util.trackElapsedMilliseconds(snapshot)
     return 0
   end
 
-  return util.nowMilliseconds() - snapshot.started_at_ms
+  return math.max(0, util.nowMilliseconds() - snapshot.started_at_ms)
 end
 
 function util.formatAge(timestampMs)

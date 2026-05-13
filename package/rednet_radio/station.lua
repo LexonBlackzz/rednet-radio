@@ -1,22 +1,16 @@
 local config = require("rednet_radio.config")
 local util = require("rednet_radio.util")
 
+-- ensures true randomness on every reboot
+math.randomseed(os.epoch("utc"))
+
 local Station = {}
 Station.__index = Station
 
 local function clampTrackIndex(index, trackCount)
-  if trackCount <= 0 then
-    return 0
-  end
-
-  if index < 1 then
-    return 1
-  end
-
-  if index > trackCount then
-    return 1
-  end
-
+  if trackCount <= 0 then return 0 end
+  if index < 1 then return 1 end
+  if index > trackCount then return 1 end
   return index
 end
 
@@ -26,15 +20,26 @@ function Station.new(stationDefinition, playlistDoc)
   self.tracks = {}
   self.current_index = 0
   self.shuffle_mode = false
+  self.shuffle_bag = {}
   self:setPlaylist(playlistDoc, true)
   return self
 end
 
 function Station:setPlaylist(playlistDoc, isFirstLoad)
   local previousTrack = self:getCurrentTrack()
+  
+  -- check if the playlist ACTUALLY changed
+  local isNewVersion = (self.playlist_version ~= playlistDoc.version)
+  
   self.playlist = playlistDoc
   self.tracks = playlistDoc.tracks or {}
   self.playlist_version = playlistDoc.version
+  
+  -- ONLY wipe the bag if the playlist version actually changed
+  -- This prevents the background 5-minute refresh from ruining the shuffle memory.
+  if isNewVersion or isFirstLoad then
+    self.shuffle_bag = {}
+  end
 
   if #self.tracks == 0 then
     self.current_index = 0
@@ -67,8 +72,31 @@ function Station:getCurrentTrack()
   if not self.tracks or not self.current_index or self.current_index < 1 then
     return nil
   end
-
   return self.tracks[self.current_index]
+end
+
+function Station:_refillShuffleBag()
+  self.shuffle_bag = {}
+  
+  -- add all tracks to the bag
+  for i = 1, #self.tracks do
+    table.insert(self.shuffle_bag, i)
+  end
+
+  -- scramble the bag
+  for i = #self.shuffle_bag, 2, -1 do
+    local j = math.random(1, i)
+    self.shuffle_bag[i], self.shuffle_bag[j] = self.shuffle_bag[j], self.shuffle_bag[i]
+  end
+
+  -- Prevent back-to-back repeats: 
+  -- If the top card in our new deck is the song that just finished, swap it with the bottom card!
+  if #self.tracks > 1 and self.current_index > 0 then
+    if self.shuffle_bag[1] == self.current_index then
+      local last = #self.shuffle_bag
+      self.shuffle_bag[1], self.shuffle_bag[last] = self.shuffle_bag[last], self.shuffle_bag[1]
+    end
+  end
 end
 
 function Station:advanceTrack(nowMs)
@@ -77,13 +105,19 @@ function Station:advanceTrack(nowMs)
   end
 
   if self.shuffle_mode then
-    self.current_index = math.random(1, #self.tracks)
+    -- if the deck is empty, shuffle a new one
+    if not self.shuffle_bag or #self.shuffle_bag == 0 then
+      self:_refillShuffleBag()
+    end
+    
+    self.current_index = table.remove(self.shuffle_bag, 1)
   else
     self.current_index = self.current_index + 1
     if self.current_index > #self.tracks then
       self.current_index = 1
     end
   end
+  
   local startBufferMs = (config.track_start_buffer_seconds or 0) * 1000
   self.started_at_ms = (nowMs or util.nowMilliseconds()) + startBufferMs
   return true
@@ -91,25 +125,27 @@ end
 
 function Station:toggleShuffle()
   self.shuffle_mode = not self.shuffle_mode
+  if self.shuffle_mode then
+    self.shuffle_bag = {} 
+  end
   return self.shuffle_mode
 end
 
 function Station:update(nowMs)
   local track = self:getCurrentTrack()
-  if not track then
-    return false
-  end
+  if not track then return false end
 
   local changed = false
   local trackWindowMs = (track.duration + (config.track_gap_seconds or 0)) * 1000
+  if trackWindowMs <= 0 then trackWindowMs = 1000 end 
+  
   while nowMs >= self.started_at_ms + trackWindowMs do
     self:advanceTrack(self.started_at_ms + trackWindowMs)
     track = self:getCurrentTrack()
     changed = true
-    if not track then
-      break
-    end
+    if not track then break end
     trackWindowMs = (track.duration + (config.track_gap_seconds or 0)) * 1000
+    if trackWindowMs <= 0 then trackWindowMs = 1000 end
   end
 
   return changed

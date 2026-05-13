@@ -7,6 +7,7 @@ Modular `CC:Tweaked` radio scripts backed by a simple website that hosts station
 - `radio_host.lua`: runs a radio station host on a ComputerCraft computer
 - `radio_client.lua`: browses stations and tunes in on another ComputerCraft computer
 - `rednet_radio/`: shared Lua modules for HTTP, playlist parsing, rednet sync, and station state
+- `radio_studio.py`: A Python GUI desktop app to easily create stations and edit playlists without hand-typing JSON.
 - `site/`: sample static files you can upload to InfinityFree or another free host
 
 ## How It Works
@@ -39,7 +40,7 @@ radio_client
 
 You can also install this inside ComputerCraft using a single installer script.
 
-1. Upload [install.lua](https://github.com/LexonBlackzz/rednet-radio/blob/main/install.lua) to Pastebin.
+1. Upload `install.lua` to Pastebin.
 2. Upload the installable Lua files to a static host under one folder, for example:
    - `radio_host.lua`
    - `radio_client.lua`
@@ -76,87 +77,37 @@ https://raw.githubusercontent.com/LexonBlackzz/rednet-radio/main
 
 With your current layout, keep `stations.json` and `playlists/` at the repo root, and keep installable Lua files under `package/`.
 
-The current pastebin link for the YPS PMWeather server is https://pastebin.com/g4hY9Jn3
-
-For new computers in the server, use this link with `pastebin run https://pastebin.com/g4hY9Jn3`.
-
 ## Website Layout
 
 - `stations.json`: station directory
 - `playlists/<station-id>.json`: playlist data for each station
 
-## Playlist Tool
+## Rednet Radio Studio (GUI)
 
-Use [manage_radio.py](https://github.com/LexonBlackzz/rednet-radio/blob/main/manage_radio.py) to avoid hand-editing JSON.
+Forget hand-editing JSON! We now include a unified, easy-to-use desktop application for managing stations and playlists. 
 
-List stations:
+**Requirements:** Python 3 (No external libraries required; runs entirely on the standard `tkinter` library).
 
+**To launch:**
 ```text
-python manage_radio.py list
+python radio_studio.py
 ```
+*(Or simply double-click the file on Windows).*
 
-Add a track interactively:
-
-```text
-python manage_radio.py add-track demo_station
-```
-
-Create a new station plus an empty playlist:
-
-```text
-python manage_radio.py create-station chill
-```
-
-If your `stations.json` and `playlists/` live somewhere else, pass `--root`:
-
-```text
-python manage_radio.py --root C:\path\to\repo create-station chill
-```
-
-## Submission Tool
-
-Use [playlist_submission.py](https://github.com/LexonBlackzz/rednet-radio/blob/main/playlist_submission.py) if you want contributors to build a ready-to-send JSON file.
-
-They run:
-
-```text
-python playlist_submission.py
-```
-
-It asks for:
-- station ID
-- station name
-- description
-- each track's title, artist, source URL, playback URL, and duration
-
-It writes a file like:
-
-```text
-demo_station.json
-```
-
-By default this is a drop-in playlist file you can place in `playlists/`.
-
-If you want the older wrapped submission format with station metadata too:
-
-```text
-python playlist_submission.py --wrap-submission
-```
-
-That writes a file like:
-
-```text
-demo_station_submission.json
-```
-
-The host now accepts both plain playlist files and wrapped submission JSON.
+### Studio Features:
+- **Workspace Initialization:** Run the tool in an empty folder and it will offer to automatically build your `stations.json` and `playlists/` layout for you.
+- **Station Manager:** Create and configure stations directly in the UI.
+- **Playlist Editor:** Add, edit, or delete tracks seamlessly.
+- **Auto-Fill:** Paste a GitHub `.dfpwm` link and click Auto-Fill. It automatically converts the URL to a raw download link, and guesses the Artist and Title directly from the filename.
+- **Smart Duration Parser:** You no longer need to calculate seconds manually. Type natural durations like `3:45` or `1:05:20` and the app handles the math automatically.
+- **Standalone Submissions:** Allows community contributors to build ready-to-send JSON playlists to submit to you, without needing write-access to your workspace.
 
 ## Monitor Support
 
 If a `monitor` peripheral is attached:
 
-- `radio_client` mirrors its now-playing screen to the monitor
-- `radio_host` shows the current station/track on the monitor and logs track changes in the terminal
+- `radio_client` mirrors its now-playing screen to the monitor, complete with interactive touch buttons, a fast-updating audio visualizer, and a stream buffer health bar.
+- `radio_host` shows the current station/track on the monitor, including interactive settings buttons, and logs track changes in the terminal.
 
 ## Track Gaps
 
@@ -168,7 +119,7 @@ The default gap is:
 2 seconds
 ```
 
-You can change it in [rednet_radio/config.lua]([/d:/Projects/rednet%20radio/rednet_radio/config.lua](https://github.com/LexonBlackzz/rednet-radio/blob/main/package/rednet_radio/config.lua)) with:
+You can change it in `rednet_radio/config.lua` with:
 
 ```lua
 track_gap_seconds = 2,
@@ -189,4 +140,4 @@ This project now supports client-side `.dfpwm` playback through the speaker peri
 
 Normal MP3 links are still just source assets and metadata. For in-game playback, tracks should provide a `playback_url` pointing to a `.dfpwm` file.
 
-If you use GitHub-hosted audio, use raw file URLs, not `github.com/.../blob/...` page URLs. The helper scripts will convert common GitHub blob links to `raw.githubusercontent.com` automatically.
+If you use GitHub-hosted audio, use raw file URLs, not `github.com/.../blob/...` page URLs. The Radio Studio GUI will convert common GitHub blob links to `raw.githubusercontent.com` automatically for you!

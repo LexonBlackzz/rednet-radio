@@ -7,16 +7,6 @@ local monitor = require("rednet_radio.monitor")
 local settings = require("rednet_radio.settings")
 local updater = require("rednet_radio.updater")
 local version = require("rednet_radio.version")
- 
-local function generateSine(freq, duration, volume)
-  local samples = {}
-  local numSamples = math.floor(48000 * duration)
-  local step = (2 * math.pi * freq) / 48000
-  for i = 1, numSamples do
-    samples[i] = math.floor(math.sin(i * step) * 126 * volume + 0.5)
-  end
-  return samples
-end
 
 local stations = {}
 local currentStation
@@ -43,6 +33,8 @@ local refreshUpdateState
 local installAvailableUpdate
 
 local function clear()
+  term.setBackgroundColor(colors.black)
+  term.setTextColor(colors.white)
   term.clear()
   term.setCursorPos(1, 1)
 end
@@ -153,13 +145,13 @@ local function renderTunedScreen()
   if hostUpdateInProgress then
     clear()
     print("HOST STATION UPDATE IN PROGRESS")
-    print("Please stand by...")
+    print("Please stand by (10s delay)...")
     local device = peripheral.find("monitor")
     if device then
       local w, h = device.getSize()
       device.setBackgroundColor(colors.black)
       device.clear()
-      local msg1, msg2 = "HOST STATION UPDATE IN PROGRESS", "Please stand by..."
+      local msg1, msg2 = "HOST STATION UPDATE IN PROGRESS", "Please stand by (10s delay)..."
       device.setCursorPos(math.floor((w - #msg1) / 2) + 1, math.floor(h / 2))
       device.setTextColor(colors.yellow)
       device.write(msg1)
@@ -294,9 +286,12 @@ local function tuneStation(station)
           visTimer = os.startTimer(1.35)
         elseif p1 == visualUpdateTimer then
           os.queueEvent("run_bg_task", "check_updates")
+        
+        -- DEBUG TIMER: End the alarm
         elseif p1 == debugEasTimer then
-          if currentSnapshot then currentSnapshot.eas_active = false; os.queueEvent("audio_sync", currentSnapshot) end
+          if currentSnapshot then currentSnapshot.eas_active = false; os.queueEvent("audio_eas_end", currentSnapshot) end
           renderTunedScreen()
+        
         elseif p1 == hostUpdateWaitTimer then
           refreshUpdateState()
           if updateInfo and updateInfo.update_available then installAvailableUpdate(true)
@@ -338,7 +333,8 @@ local function tuneStation(station)
               os.queueEvent("audio_eas_start", message); renderTunedScreen() 
 
             elseif message.message_type == config.message_types.eas_end then
-              if currentSnapshot then currentSnapshot.eas_active = false; os.queueEvent("audio_sync", currentSnapshot) end
+              -- CHANGED to fire "audio_eas_end" so the audioThread handles it properly!
+              if currentSnapshot then currentSnapshot.eas_active = false; os.queueEvent("audio_eas_end", currentSnapshot) end
               renderTunedScreen()
             end
           end
@@ -404,36 +400,8 @@ local function tuneStation(station)
         elseif action == "open_palette" then screenMode = "palette"; paletteState.selectedRole = 1
         elseif action == "update_never" then neverShowThisUpdate()
         else
-          -- PALETTE EDITOR BUTTONS
           local selRole = action and action:match("^palette_select_(.+)$")
-          if selRole then 
-            for i, r in ipairs(PALETTE_ROLES) do if r == selRole then paletteState.selectedRole = i; break end end 
-          end
-          
-          if action == "palette_prev" or action == "palette_next" then
-            local pRole = PALETTE_ROLES[paletteState.selectedRole] or "bg"
-            local cp   = settings.getPalette()
-            local cv   = cp[pRole] or 1
-            local vals = {1,2,4,8,16,32,64,128,256,512,1024,2048,4096,8192,16384,32768}
-            local idx  = 1
-            for ci, v in ipairs(vals) do if v == cv then idx = ci; break end end
-            if action == "palette_prev" then idx = idx - 1; if idx < 1 then idx = #vals end else idx = idx + 1; if idx > #vals then idx = 1 end end
-            settings.setPaletteColor(pRole, vals[idx])
-            monitor.setPalette(settings.getPalette())
-            if currentStation then rednet_api.sendPing(currentStation, { palette = settings.getPalette() }) end
-            
-          elseif action == "preset_default" then 
-            settings.applyPreset("default"); monitor.setPalette(settings.getPalette())
-            if currentStation then rednet_api.sendPing(currentStation, { palette = settings.getPalette() }) end
-          elseif action == "preset_light" then 
-            settings.applyPreset("light"); monitor.setPalette(settings.getPalette())
-            if currentStation then rednet_api.sendPing(currentStation, { palette = settings.getPalette() }) end
-          elseif action == "preset_dark" then 
-            settings.applyPreset("dark"); monitor.setPalette(settings.getPalette())
-            if currentStation then rednet_api.sendPing(currentStation, { palette = settings.getPalette() }) end
-          elseif action == "palette_back" then 
-            screenMode = "settings" 
-          end
+          if selRole then for i, r in ipairs(PALETTE_ROLES) do if r == selRole then paletteState.selectedRole = i; break end end end
         end
         renderTunedScreen()
       elseif event == "key" then if p1 == keys.backspace then return "QUIT" end end
@@ -448,48 +416,71 @@ local function tuneStation(station)
     
     while true do
       local event, p1, p2, p3 = os.pullEvent()
-      if event == "speaker_audio_empty" then audio.handleEvent(event, p1, p2, p3)
+      
+      if event == "speaker_audio_empty" then 
+        -- Only allow normal music chunks if the alarm is NOT playing
+        if not isEasPlaying then
+          audio.handleEvent(event, p1, p2, p3) 
+        end
+
       elseif event == "timer" and p1 == easTimer then
         if isEasPlaying then
           local speaker = peripheral.find("speaker")
           if speaker then
             speaker.playAudio(combinedChunk)
             easChunksPlayed = easChunksPlayed + 1
-            if easChunksPlayed < 10 then easTimer = os.startTimer(0.45)
+            if easChunksPlayed < 10 then 
+              easTimer = os.startTimer(0.45)
             else
-              isEasPlaying = false; easTimer = nil
-              if currentSnapshot then os.queueEvent("audio_sync", currentSnapshot) end
+              -- 5 seconds reached. Wait for Host to send audio_eas_end!
+              easTimer = nil
             end
           else
-            isEasPlaying = false; easTimer = nil
+            isEasPlaying = false
+            easTimer = nil
           end
         end
+
       elseif event == "audio_sync" then
-        local snapshot = p1
-        if not (snapshot and snapshot.eas_active) then
-           if isEasPlaying then
-             isEasPlaying = false; if easTimer then os.cancelTimer(easTimer) end
-             local speaker = peripheral.find("speaker")
-             if speaker and speaker.stop then speaker.stop() end
-           end
-           audio.syncToSnapshot(snapshot)
+        -- THE SHIELD: If alarm is going, completely ignore all network sync packets!
+        if not isEasPlaying then
+           audio.syncToSnapshot(p1)
         end
+
       elseif event == "audio_eas_start" then
         local message = p1
-        audio.stopTrack(); local speaker = peripheral.find("speaker")
+        audio.stopTrack()
+        local speaker = peripheral.find("speaker")
+        
         if speaker then
           if speaker.stop then speaker.stop() end 
+          
           local vol = math.min(1, (message.volume or 3) / 3)
           local volScaled = 126 * vol
+          
+          -- Build the alternating siren chunk
           combinedChunk = {}
           local step1, step2 = (2 * math.pi * 880) / 48000, (2 * math.pi * 440) / 48000
           for i = 1, 12000 do combinedChunk[i] = math.floor(math.sin(i * step1) * volScaled + 0.5) end
           for i = 1, 12000 do combinedChunk[i + 12000] = math.floor(math.sin(i * step2) * volScaled + 0.5) end
           
-          isEasPlaying = true; easChunksPlayed = 1
+          isEasPlaying = true
+          easChunksPlayed = 1
           speaker.playAudio(combinedChunk)
           easTimer = os.startTimer(0.45)
         end
+
+      -- ALARM OVER: Triggered by Host (or Debug Key)
+      elseif event == "audio_eas_end" then
+        local snapshot = p1
+        if isEasPlaying then
+          isEasPlaying = false
+          if easTimer then os.cancelTimer(easTimer); easTimer = nil end
+          local speaker = peripheral.find("speaker")
+          if speaker and speaker.stop then speaker.stop() end
+        end
+        -- Immediately resume normal music
+        audio.syncToSnapshot(snapshot)
       end
     end
   end
@@ -525,4 +516,15 @@ local ok, err = xpcall(main, function(message)
 end)
 
 audio.stopTrack()
-if not ok and err ~= "RESTART" then print("radio_client failed:\n" .. err); os.pullEvent("key") end
+
+if not ok and err ~= "RESTART" then 
+  term.setBackgroundColor(colors.black)
+  term.setTextColor(colors.red)
+  term.clear()
+  term.setCursorPos(1, 1)
+  print("RADIO CLIENT CRASHED:")
+  term.setTextColor(colors.white)
+  print(err)
+  print("\nPress any key to exit.")
+  os.pullEvent("key") 
+end

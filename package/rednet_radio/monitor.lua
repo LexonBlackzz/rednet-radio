@@ -71,9 +71,7 @@ end
 local function drawProgressBar(target, x, y, width, ratio, fg, bg)
   ratio = math.max(0, math.min(1, ratio or 0))
   local filled = math.floor(width * ratio + 0.5)
-  if width <= 0 then
-    return
-  end
+  if width <= 0 then return end
   fill(target, x, y, width, 1, bg or colors.gray)
   if filled > 0 then
     fill(target, x, y, filled, 1, fg or palette.good)
@@ -81,7 +79,7 @@ local function drawProgressBar(target, x, y, width, ratio, fg, bg)
 end
 
 local function getClientVolumeButtonLayout(width, height)
-  local row = math.max(9, height - 3)
+  local row = math.max(10, height - 3)
   local minusLabel = "[-]"
   local plusLabel = "[+]"
   local plusX = math.max(3, width - #plusLabel - 2)
@@ -145,32 +143,14 @@ local function getSettingsScreenLayout(width, height, showNeverOption, remindLat
   local colorsRow = 21
   local backLabel = "[BACK]"
   return {
-    toggleRow = toggleRow,
-    toggleX = math.max(3, width - #toggleLabel - 3),
-    toggleWidth = #toggleLabel,
-    toggleLabel = toggleLabel,
-    visToggleRow = visToggleRow,
-    visToggleX = math.max(3, width - #visToggleLabel - 3),
-    visToggleWidth = #visToggleLabel,
-    visToggleLabel = visToggleLabel,
-    autoToggleRow = autoToggleRow,
-    autoToggleX = math.max(3, width - #autoToggleLabel - 3),
-    autoToggleWidth = #autoToggleLabel,
-    autoToggleLabel = autoToggleLabel,
-    reminderRow = reminderRow,
-    reminderDownX = math.max(3, width - (#reminderUpLabel + #reminderValueLabel + #reminderDownLabel + 6)),
-    reminderDownLabel = reminderDownLabel,
-    reminderValueX = math.max(8, width - (#reminderUpLabel + #reminderValueLabel + 5)),
-    reminderValueLabel = reminderValueLabel,
-    reminderUpX = math.max(12, width - #reminderUpLabel - 3),
-    reminderUpLabel = reminderUpLabel,
-    colorsRow = colorsRow,
-    colorsX = math.max(3, width - #colorsLabel - 3),
-    colorsLabel = colorsLabel,
-    backRow = math.max(colorsRow + 2, height - 2),
-    backX = math.max(3, width - #backLabel - 2),
-    backWidth = #backLabel,
-    backLabel = backLabel,
+    toggleRow = toggleRow, toggleX = math.max(3, width - #toggleLabel - 3), toggleWidth = #toggleLabel, toggleLabel = toggleLabel,
+    visToggleRow = visToggleRow, visToggleX = math.max(3, width - #visToggleLabel - 3), visToggleWidth = #visToggleLabel, visToggleLabel = visToggleLabel,
+    autoToggleRow = autoToggleRow, autoToggleX = math.max(3, width - #autoToggleLabel - 3), autoToggleWidth = #autoToggleLabel, autoToggleLabel = autoToggleLabel,
+    reminderRow = reminderRow, reminderDownX = math.max(3, width - (#reminderUpLabel + #reminderValueLabel + #reminderDownLabel + 6)), reminderDownLabel = reminderDownLabel,
+    reminderValueX = math.max(8, width - (#reminderUpLabel + #reminderValueLabel + 5)), reminderValueLabel = reminderValueLabel,
+    reminderUpX = math.max(12, width - #reminderUpLabel - 3), reminderUpLabel = reminderUpLabel,
+    colorsRow = colorsRow, colorsX = math.max(3, width - #colorsLabel - 3), colorsLabel = colorsLabel,
+    backRow = math.max(colorsRow + 2, height - 2), backX = math.max(3, width - #backLabel - 2), backWidth = #backLabel, backLabel = backLabel,
   }
 end
 
@@ -185,26 +165,11 @@ local function getHostSettingsScreenLayout(width, height, allowRemoteSkip, allow
   local sideRow = 12
   local backLabel = "[BACK]"
   return {
-    skipY = skipRow,
-    skipX = math.max(3, width - #skipLabel - 3),
-    skipWidth = #skipLabel,
-    skipLabel = skipLabel,
-    shuffleY = shuffleRow,
-    shuffleX = math.max(3, width - #shuffleLabel - 3),
-    shuffleWidth = #shuffleLabel,
-    shuffleLabel = shuffleLabel,
-    easY = easRow,
-    easX = math.max(3, width - #easLabel - 3),
-    easWidth = #easLabel,
-    easLabel = easLabel,
-    sideY = sideRow,
-    sideX = math.max(3, width - #sideLabel - 3),
-    sideWidth = #sideLabel,
-    sideLabel = sideLabel,
-    backY = height - 2,
-    backX = math.max(3, width - #backLabel - 2),
-    backWidth = #backLabel,
-    backLabel = backLabel,
+    skipY = skipRow, skipX = math.max(3, width - #skipLabel - 3), skipWidth = #skipLabel, skipLabel = skipLabel,
+    shuffleY = shuffleRow, shuffleX = math.max(3, width - #shuffleLabel - 3), shuffleWidth = #shuffleLabel, shuffleLabel = shuffleLabel,
+    easY = easRow, easX = math.max(3, width - #easLabel - 3), easWidth = #easLabel, easLabel = easLabel,
+    sideY = sideRow, sideX = math.max(3, width - #sideLabel - 3), sideWidth = #sideLabel, sideLabel = sideLabel,
+    backY = height - 2, backX = math.max(3, width - #backLabel - 2), backWidth = #backLabel, backLabel = backLabel,
   }
 end
 
@@ -236,30 +201,11 @@ local function getUpdatePromptLayout(width, height, showNeverOption)
   local x = math.max(3, math.floor((width - boxWidth) / 2) + 1)
   local y = math.max(5, math.floor((height - boxHeight) / 2) + 1)
   return {
-    x = x,
-    y = y,
-    width = boxWidth,
-    height = boxHeight,
-    ok = {
-      x = x + 2,
-      y = y + boxHeight - 2,
-      label = "[OK]",
-    },
-    auto = {
-      x = x + 8,
-      y = y + boxHeight - 2,
-      label = "[AUTO]",
-    },
-    later = {
-      x = x + 16,
-      y = y + boxHeight - 2,
-      label = "[LATER]",
-    },
-    never = showNeverOption and {
-      x = x + 2,
-      y = y + boxHeight - 3,
-      label = "[NEVER]",
-    } or nil,
+    x = x, y = y, width = boxWidth, height = boxHeight,
+    ok = { x = x + 2, y = y + boxHeight - 2, label = "[OK]" },
+    auto = { x = x + 8, y = y + boxHeight - 2, label = "[AUTO]" },
+    later = { x = x + 16, y = y + boxHeight - 2, label = "[LATER]" },
+    never = showNeverOption and { x = x + 2, y = y + boxHeight - 3, label = "[NEVER]" } or nil,
   }
 end
 
@@ -269,128 +215,70 @@ local function getMessagePromptLayout(width, height)
   local x = math.max(3, math.floor((width - boxWidth) / 2) + 1)
   local y = math.max(5, math.floor((height - boxHeight) / 2) + 1)
   return {
-    x = x,
-    y = y,
-    width = boxWidth,
-    height = boxHeight,
-    ok = {
-      x = x + math.floor((boxWidth - 4) / 2),
-      y = y + boxHeight - 2,
-      label = "[OK]",
-    },
+    x = x, y = y, width = boxWidth, height = boxHeight,
+    ok = { x = x + math.floor((boxWidth - 4) / 2), y = y + boxHeight - 2, label = "[OK]" },
   }
 end
 
 local function hitButton(x, y, button)
   local buttonY = button.y or button.row
-  return button
-    and y == buttonY
-    and x >= button.x
-    and x < (button.x + #button.label)
+  return button and y == buttonY and x >= button.x and x < (button.x + #button.label)
 end
 
 local function drawUpdatePrompt(target, width, height, prompt)
-  if not prompt or not prompt.visible then
-    return
-  end
-
+  if not prompt or not prompt.visible then return end
   local layout = getUpdatePromptLayout(width, height, prompt.show_never_option)
   fill(target, layout.x, layout.y, layout.width, layout.height, colors.gray, colors.white)
   fill(target, layout.x + 1, layout.y + 1, layout.width - 2, layout.height - 2, colors.white, colors.black)
   writeAt(target, layout.x + 2, layout.y + 1, fit("Update ready", layout.width - 4), colors.black, colors.white)
-  writeAt(
-    target,
-    layout.x + 2,
-    layout.y + 3,
-    fit(("Version %s is available."):format(prompt.latest_version or "?"), layout.width - 4),
-    colors.black,
-    colors.white
-  )
-  writeAt(
-    target,
-    layout.x + 2,
-    layout.y + 4,
-    fit("OK installs locally.", layout.width - 4),
-    colors.black,
-    colors.white
-  )
+  writeAt(target, layout.x + 2, layout.y + 3, fit(("Version %s is available."):format(prompt.latest_version or "?"), layout.width - 4), colors.black, colors.white)
+  writeAt(target, layout.x + 2, layout.y + 4, fit("OK installs locally.", layout.width - 4), colors.black, colors.white)
   writeAt(target, layout.ok.x, layout.ok.y, layout.ok.label, colors.black, colors.lightGray)
   writeAt(target, layout.auto.x, layout.auto.y, layout.auto.label, colors.black, colors.lightGray)
   writeAt(target, layout.later.x, layout.later.y, layout.later.label, colors.black, colors.lightGray)
-  if layout.never then
-    writeAt(target, layout.never.x, layout.never.y, layout.never.label, colors.black, colors.lightGray)
-  end
+  if layout.never then writeAt(target, layout.never.x, layout.never.y, layout.never.label, colors.black, colors.lightGray) end
 end
 
 function monitor.drawMessagePrompt(target, width, height, prompt)
-  if not prompt or not prompt.visible then
-    return
-  end
-
+  if not prompt or not prompt.visible then return end
   local layout = getMessagePromptLayout(width, height)
   fill(target, layout.x, layout.y, layout.width, layout.height, colors.gray, colors.white)
   fill(target, layout.x + 1, layout.y + 1, layout.width - 2, layout.height - 2, colors.white, colors.black)
   writeAt(target, layout.x + 2, layout.y + 1, fit(prompt.title or "Notice", layout.width - 4), colors.black, colors.white)
   writeAt(target, layout.x + 2, layout.y + 3, fit(prompt.message or "", layout.width - 4), colors.black, colors.white)
-  if not prompt.hide_ok then
-    writeAt(target, layout.ok.x, layout.ok.y, layout.ok.label, colors.black, colors.lightGray)
-  end
+  if not prompt.hide_ok then writeAt(target, layout.ok.x, layout.ok.y, layout.ok.label, colors.black, colors.lightGray) end
 end
 
-function monitor.hasMonitor()
-  return getMonitor() ~= nil
-end
+function monitor.hasMonitor() return getMonitor() ~= nil end
 
 function monitor.setPalette(p)
   if type(p) ~= "table" then return end
   for k, v in pairs(p) do
-    if palette[k] ~= nil then
-      palette[k] = v
-    end
+    if palette[k] ~= nil then palette[k] = v end
   end
 end
 
 function monitor.getPalette()
   local copy = {}
-  for k, v in pairs(palette) do
-    copy[k] = v
-  end
+  for k, v in pairs(palette) do copy[k] = v end
   return copy
 end
 
 function monitor.getDefaultPalette()
   return {
-    bg     = colors.blue,
-    panel  = colors.lightBlue,
-    header = colors.orange,
-    accent = colors.red,
-    text   = colors.white,
-    dim    = colors.lightGray,
-    good   = colors.lime,
-    warn   = colors.yellow,
+    bg = colors.blue, panel = colors.lightBlue, header = colors.orange, accent = colors.red,
+    text = colors.white, dim = colors.lightGray, good = colors.lime, warn = colors.yellow,
   }
 end
 
 function monitor.renderClient(station, snapshot, playbackStatus, volumePercent, maxVolumePercent, updateStatus, prompt, amplitude, bufferRatio)
   local device = getMonitor()
-  if not device then
-    return
-  end
+  if not device then return end
 
   local width, height = drawFrame(device, "Current Broadcast")
   local volumeRow = math.max(10, height - 3)
   local controls = getClientVolumeButtonLayout(width, height)
   local settingsButton = getClientSettingsButtonLayout(width, height)
- 
-  -- EAS banner
-  if snapshot and snapshot.eas_active then
-    local line1 = "THE NATIONAL WEATHER"
-    local line2 = "SERVICE HAS ISSUED A TORNADO WARNING!"
-    local line3 = "SEEK SHELTER IMMEDIATELY!"
-    writeAt(device, width - #line1 - 2, 4, line1, colors.white, colors.red)
-    writeAt(device, width - #line2 - 2, 5, line2, colors.white, colors.red)
-    writeAt(device, width - #line3 - 2, 6, line3, colors.white, colors.red)
-  end
  
   writeAt(device, 3, 6, fit(station and station.name or "No station selected", width - 6), colors.white, palette.panel)
   writeAt(device, 3, 7, fit(station and station.station_id or "", width - 6), colors.yellow, palette.panel)
@@ -404,39 +292,31 @@ function monitor.renderClient(station, snapshot, playbackStatus, volumePercent, 
     writeAt(device, 3, 10, fit(snapshot.track.title or "Unknown Track", width - 6), colors.cyan, palette.panel)
     drawProgressBar(device, 3, 12, barWidth, ratio, snapshot.in_gap and palette.warn or palette.good, colors.gray)
     writeAt(device, 3, 13, ("Duration: %ds/%ds Track: %d/%d"):format(
-      shownElapsed,
-      snapshot.duration or 0,
-      snapshot.track_index or 0,
-      snapshot.track_count or 0
+      shownElapsed, snapshot.duration or 0, snapshot.track_index or 0, snapshot.track_count or 0
     ), colors.white, palette.panel)
-    if snapshot.in_gap then
-      writeAt(device, 3, 16, "INTERMISSION", colors.yellow, palette.panel)
-    end
+    if snapshot.in_gap then writeAt(device, 3, 16, "INTERMISSION", colors.yellow, palette.panel) end
   else
     writeAt(device, 3, 10, "Waiting for station...", colors.white, palette.panel)
   end
 
-  -- audio and buffer vis
+  -- Audio & Buffer Visualizers
   if amplitude ~= nil and bufferRatio ~= nil then
     local bufRow = volumeRow - 2
     local visRow = volumeRow - 1
     
-    -- BUFFER BAR
     local bufFill = math.max(0, math.min(bufferRatio or 0, 1))
     local bufText = ("%4s"):format(math.floor(bufFill * 100) .. "%")
     writeAt(device, 3, bufRow, "BUFFER", colors.lightGray, palette.panel)
     writeAt(device, width - #bufText - 2, bufRow, bufText, palette.dim, palette.panel)
     drawProgressBar(device, 10, bufRow, width - 12 - #bufText - 2, bufFill, colors.lightBlue, colors.gray)
 
-    -- AUDIO DB BAR
     local visRatio = math.max(0, math.min(amplitude or 0, 1))
     local db = -99
     if amplitude > 0 then db = 20 * (math.log(amplitude) / math.log(10)) end
     local dbText = ("%5.1f dB"):format(db)
     
     local visColor = palette.good
-    if db > -3 then visColor = palette.accent
-    elseif db > -12 then visColor = palette.warn end
+    if db > -3 then visColor = palette.accent elseif db > -12 then visColor = palette.warn end
 
     writeAt(device, 4, visRow, "AUDIO", colors.lightGray, palette.panel)
     writeAt(device, width - #dbText - 2, visRow, dbText, visColor, palette.panel)
@@ -465,14 +345,42 @@ function monitor.renderClient(station, snapshot, playbackStatus, volumePercent, 
     writeAt(device, updateBtn.x, updateBtn.y, updateBtn.label, colors.black, colors.lightGray)
   end
   writeAt(device, settingsButton.x, settingsButton.y, settingsButton.label, colors.black, colors.lightGray)
+  
   drawUpdatePrompt(device, width, height, prompt)
   
   if snapshot and snapshot.message_prompt and snapshot.message_prompt.visible then
     monitor.drawMessagePrompt(device, width, height, snapshot.message_prompt)
   end
+
+  if snapshot and snapshot.eas_active then
+    -- Calculate box size
+    local boxWidth = math.max(26, math.min(width - 4, 34))
+    local boxHeight = 7
+    
+    -- center the box
+    local boxX = math.floor((width - boxWidth) / 2) + 1
+    local boxY = math.floor((height - boxHeight) / 2) - 1
+
+    -- draw the solid red background box
+    fill(device, boxX, boxY, boxWidth, boxHeight, colors.red, colors.white)
+
+    local lines = {
+      "NATIONAL WEATHER SERVICE",
+      "TORNADO WARNING",
+      "",
+      "SEEK SHELTER IMMEDIATELY"
+    }
+
+    -- centering
+    local textStartY = boxY + math.floor((boxHeight - #lines) / 2)
+
+    for i, line in ipairs(lines) do
+      local textX = boxX + math.floor((boxWidth - #line) / 2)
+      writeAt(device, textX, textStartY + i - 1, line, colors.white, colors.red)
+    end
+  end
 end
 
--- function to only redraw visualizer
 function monitor.updateVisualizerOnly(amplitude, bufferRatio)
   local device = getMonitor()
   if not device then return end
@@ -484,23 +392,18 @@ function monitor.updateVisualizerOnly(amplitude, bufferRatio)
 
   if width < 20 then return end
 
-  -- Redraw Buffer
   local bufFill = math.max(0, math.min(bufferRatio or 0, 1))
   local bufText = ("%4s"):format(math.floor(bufFill * 100) .. "%")
   writeAt(device, width - #bufText - 2, bufRow, bufText, palette.dim, palette.panel)
   drawProgressBar(device, 10, bufRow, width - 12 - #bufText - 2, bufFill, colors.lightBlue, colors.gray)
 
-  -- Redraw Audio
   local visRatio = math.max(0, math.min(amplitude or 0, 1))
   local db = -99
-  if amplitude and amplitude > 0 then
-    db = 20 * (math.log(amplitude) / math.log(10))
-  end
+  if amplitude and amplitude > 0 then db = 20 * (math.log(amplitude) / math.log(10)) end
   local dbText = ("%5.1f dB"):format(db)
   
   local visColor = palette.good
-  if db > -3 then visColor = palette.accent
-  elseif db > -12 then visColor = palette.warn end
+  if db > -3 then visColor = palette.accent elseif db > -12 then visColor = palette.warn end
 
   writeAt(device, width - #dbText - 2, visRow, dbText, visColor, palette.panel)
   drawProgressBar(device, 10, visRow, width - 12 - #dbText - 2, visRatio, visColor, colors.gray)
@@ -511,9 +414,6 @@ local COLOR_NAMES = {
   [16]="yellow", [32]="lime", [64]="pink", [128]="gray",
   [256]="lightGray", [512]="cyan", [1024]="purple", [2048]="blue",
   [4096]="brown", [8192]="green", [16384]="red", [32768]="black",
-}
-local COLOR_VALUES = {
-  1,2,4,8,16,32,64,128,256,512,1024,2048,4096,8192,16384,32768
 }
 local ROLE_FULL_NAMES = {
   bg="Background", panel="Panel", header="Header", accent="Accent",
@@ -594,15 +494,11 @@ end
 
 function monitor.renderClientSettings(playbackStatus, settingsState)
   local device = getMonitor()
-  if not device then
-    return
-  end
+  if not device then return end
 
   local width, height = drawFrame(device, "Client Settings")
   local layout = getSettingsScreenLayout(
-    width,
-    height,
-    settingsState and settingsState.show_never_option,
+    width, height, settingsState and settingsState.show_never_option,
     settingsState and settingsState.remind_later_minutes,
     settingsState == nil or settingsState.enable_visualizer,
     settingsState and settingsState.auto_update
@@ -655,25 +551,15 @@ end
 
 function monitor.getClientTouchAction(side, x, y, screenMode, prompt, settingsState)
   local device = getMonitor()
-  if not device or peripheral.getName(device) ~= side then
-    return nil
-  end
+  if not device or peripheral.getName(device) ~= side then return nil end
 
   local width, height = device.getSize()
   if prompt and prompt.visible and screenMode ~= "settings" and screenMode ~= "palette" then
     local layout = getUpdatePromptLayout(width, height, prompt.show_never_option)
-    if hitButton(x, y, layout.ok) then
-      return "update_ok"
-    end
-    if hitButton(x, y, layout.auto) then
-      return "update_auto"
-    end
-    if hitButton(x, y, layout.later) then
-      return "update_later"
-    end
-    if hitButton(x, y, layout.never) then
-      return "update_never"
-    end
+    if hitButton(x, y, layout.ok) then return "update_ok" end
+    if hitButton(x, y, layout.auto) then return "update_auto" end
+    if hitButton(x, y, layout.later) then return "update_later" end
+    if hitButton(x, y, layout.never) then return "update_never" end
     return nil
   end
 
@@ -681,24 +567,18 @@ function monitor.getClientTouchAction(side, x, y, screenMode, prompt, settingsSt
     local settingsX = width - 9
     local skipX = settingsX - 7
     local shuffleX = skipX - 7
-    if x >= skipX and x < skipX + 6 then
-      return "skip_track"
-    end
-    if x >= shuffleX and x < shuffleX + 6 then
-      return "toggle_shuffle"
-    end
+    if x >= skipX and x < skipX + 6 then return "skip_track" end
+    if x >= shuffleX and x < shuffleX + 6 then return "toggle_shuffle" end
   end
 
   if screenMode == "palette" then
-    local btnW    = 4
+    local btnW = 4
     local roleRow1, roleRow2 = 5, 6
     for i, role in ipairs(PALETTE_ROLE_ORDER) do
       local col = (i - 1) % 4
       local row = (i <= 4) and roleRow1 or roleRow2
       local bx  = 3 + col * (btnW + 1)
-      if y == row and x >= bx - 1 and x < bx + btnW then
-        return "palette_select_" .. role
-      end
+      if y == row and x >= bx - 1 and x < bx + btnW then return "palette_select_" .. role end
     end
     if y == 9 then
       if x >= 3 and x < 6 then return "palette_prev" end
@@ -713,116 +593,45 @@ function monitor.getClientTouchAction(side, x, y, screenMode, prompt, settingsSt
     local backLabel = "[BACK]"
     local backY     = math.min(presetY + 1, height - 2)
     local backX     = math.max(3, width - #backLabel - 2)
-    if hitButton(x, y, { x = backX, y = backY, label = backLabel }) then
-      return "palette_back"
-    end
+    if hitButton(x, y, { x = backX, y = backY, label = backLabel }) then return "palette_back" end
     return nil
   end
 
   if screenMode == "settings" then
     local layout = getSettingsScreenLayout(
-      width,
-      height,
-      settingsState and settingsState.show_never_option,
+      width, height, settingsState and settingsState.show_never_option,
       settingsState and settingsState.remind_later_minutes,
       settingsState == nil or settingsState.enable_visualizer,
       settingsState and settingsState.auto_update
     )
-    if hitButton(x, y, {
-      x = layout.toggleX,
-      y = layout.toggleRow,
-      label = layout.toggleLabel,
-    }) then
-      return "toggle_never_option"
-    end
-    if hitButton(x, y, {
-      x = layout.visToggleX,
-      y = layout.visToggleRow,
-      label = layout.visToggleLabel,
-    }) then
-      return "toggle_visualizer"
-    end
-    if hitButton(x, y, {
-      x = layout.autoToggleX,
-      y = layout.autoToggleRow,
-      label = layout.autoToggleLabel,
-    }) then
-      return "toggle_auto_update"
-    end
-    if hitButton(x, y, {
-      x = layout.reminderDownX,
-      y = layout.reminderRow,
-      label = layout.reminderDownLabel,
-    }) then
-      return "remind_delay_down"
-    end
-    if hitButton(x, y, {
-      x = layout.reminderUpX,
-      y = layout.reminderRow,
-      label = layout.reminderUpLabel,
-    }) then
-      return "remind_delay_up"
-    end
-    if hitButton(x, y, {
-      x = layout.updateX,
-      y = layout.updateRow,
-      label = layout.updateLabel,
-    }) then
-      return "update_now"
-    end
-    if hitButton(x, y, {
-      x = layout.colorsX,
-      y = layout.colorsRow,
-      label = layout.colorsLabel,
-    }) then
-      return "open_palette"
-    end
-    if hitButton(x, y, {
-      x = layout.backX,
-      y = layout.backRow,
-      label = layout.backLabel,
-    }) then
-      return "settings_back"
-    end
+    if hitButton(x, y, { x = layout.toggleX, y = layout.toggleRow, label = layout.toggleLabel }) then return "toggle_never_option" end
+    if hitButton(x, y, { x = layout.visToggleX, y = layout.visToggleRow, label = layout.visToggleLabel }) then return "toggle_visualizer" end
+    if hitButton(x, y, { x = layout.autoToggleX, y = layout.autoToggleRow, label = layout.autoToggleLabel }) then return "toggle_auto_update" end
+    if hitButton(x, y, { x = layout.reminderDownX, y = layout.reminderRow, label = layout.reminderDownLabel }) then return "remind_delay_down" end
+    if hitButton(x, y, { x = layout.reminderUpX, y = layout.reminderRow, label = layout.reminderUpLabel }) then return "remind_delay_up" end
+    if hitButton(x, y, { x = layout.updateX, y = layout.updateRow, label = layout.updateLabel }) then return "update_now" end
+    if hitButton(x, y, { x = layout.colorsX, y = layout.colorsRow, label = layout.colorsLabel }) then return "open_palette" end
+    if hitButton(x, y, { x = layout.backX, y = layout.backRow, label = layout.backLabel }) then return "settings_back" end
     return nil
   end
 
   local controls = getClientVolumeButtonLayout(width, height)
   local settingsButton = getClientSettingsButtonLayout(width, height)
   if y ~= controls.y then
-    if hitButton(x, y, {
-      x = settingsButton.x,
-      y = settingsButton.y,
-      label = settingsButton.label,
-    }) then
-      return "open_settings"
-    end
+    if hitButton(x, y, { x = settingsButton.x, y = settingsButton.y, label = settingsButton.label }) then return "open_settings" end
     local updateBtn = getClientUpdateCheckButtonLayout(width, height)
-    if hitButton(x, y, {
-      x = updateBtn.x,
-      y = updateBtn.y,
-      label = updateBtn.label,
-    }) then
-      return "check_updates"
-    end
+    if hitButton(x, y, { x = updateBtn.x, y = updateBtn.y, label = updateBtn.label }) then return "check_updates" end
     return nil
   end
 
   if snapshot and snapshot.message_prompt and snapshot.message_prompt.visible then
     local layout = getMessagePromptLayout(width, height)
-    if hitButton(x, y, layout.ok) then
-      return "message_ok"
-    end
+    if hitButton(x, y, layout.ok) then return "message_ok" end
     return nil
   end
 
-  if x >= controls.minusX and x < (controls.minusX + controls.minusWidth) then
-    return "volume_down"
-  end
-
-  if x >= controls.plusX and x < (controls.plusX + controls.plusWidth) then
-    return "volume_up"
-  end
+  if x >= controls.minusX and x < (controls.minusX + controls.minusWidth) then return "volume_down" end
+  if x >= controls.plusX and x < (controls.plusX + controls.plusWidth) then return "volume_up" end
 
   return nil
 end
@@ -834,46 +643,26 @@ function monitor.getHostTouchAction(x, y, mode, allowRemoteSkip, allowRemoteShuf
 
   if mode == "settings" then
     local layout = getHostSettingsScreenLayout(width, height, allowRemoteSkip, allowRemoteShuffle, enableEAS, easSide)
-    if hitButton(x, y, { x = layout.skipX, y = layout.skipY, label = layout.skipLabel }) then
-      return "toggle_remote_skip"
-    end
-    if hitButton(x, y, { x = layout.shuffleX, y = layout.shuffleY, label = layout.shuffleLabel }) then
-      return "toggle_remote_shuffle"
-    end
-    if hitButton(x, y, { x = layout.easX, y = layout.easY, label = layout.easLabel }) then
-      return "toggle_eas"
-    end
-    if hitButton(x, y, { x = layout.sideX, y = layout.sideY, label = layout.sideLabel }) then
-      return "cycle_eas_side"
-    end
-    if hitButton(x, y, { x = layout.backX, y = layout.backY, label = layout.backLabel }) then
-      return "settings_back"
-    end
+    if hitButton(x, y, { x = layout.skipX, y = layout.skipY, label = layout.skipLabel }) then return "toggle_remote_skip" end
+    if hitButton(x, y, { x = layout.shuffleX, y = layout.shuffleY, label = layout.shuffleLabel }) then return "toggle_remote_shuffle" end
+    if hitButton(x, y, { x = layout.easX, y = layout.easY, label = layout.easLabel }) then return "toggle_eas" end
+    if hitButton(x, y, { x = layout.sideX, y = layout.sideY, label = layout.sideLabel }) then return "cycle_eas_side" end
+    if hitButton(x, y, { x = layout.backX, y = layout.backY, label = layout.backLabel }) then return "settings_back" end
     return nil
   end
 
   local settingsBtn = getHostSettingsButtonLayout(width, height)
-  if hitButton(x, y, settingsBtn) then
-    return "open_settings"
-  end
+  if hitButton(x, y, settingsBtn) then return "open_settings" end
 
   local updateBtn = getClientUpdateCheckButtonLayout(width, height)
-  if hitButton(x, y, {
-    x = updateBtn.x,
-    y = updateBtn.y,
-    label = updateBtn.label,
-  }) then
-    return "check_updates"
-  end
+  if hitButton(x, y, { x = updateBtn.x, y = updateBtn.y, label = updateBtn.label }) then return "check_updates" end
 
   return nil
 end
 
 function monitor.renderHost(station, snapshot, playlistSource, updateStatus)
   local device = getMonitor()
-  if not device then
-    return
-  end
+  if not device then return end
 
   local width, height = drawFrame(device, "Station Uplink")
   local settingsBtn = getHostSettingsButtonLayout(width, height)
@@ -890,34 +679,23 @@ function monitor.renderHost(station, snapshot, playlistSource, updateStatus)
     writeAt(device, 3, 12, fit(snapshot.track.artist or "Unknown Artist", width - 6), colors.white, palette.panel)
     writeAt(device, 3, 13, fit(snapshot.track.title or "Unknown Track", width - 6), colors.cyan, palette.panel)
     writeAt(device, 3, 14, ("Track %d  %02ds / %02ds"):format(
-      snapshot.track_index or 0,
-      shownElapsed,
-      snapshot.duration or 0
+      snapshot.track_index or 0, shownElapsed, snapshot.duration or 0
     ), colors.white, palette.panel)
     writeAt(device, 3, 15, ("Queue %d / %d%s"):format(
-      snapshot.track_index or 0,
-      snapshot.track_count or 0,
-      snapshot.shuffle_mode and "  [Shuffle ON]" or ""
+      snapshot.track_index or 0, snapshot.track_count or 0, snapshot.shuffle_mode and "  [Shuffle ON]" or ""
     ), colors.yellow, palette.panel)
-    if snapshot.in_gap then
-      writeAt(device, 3, 16, "Holding before next track", colors.yellow, palette.panel)
-    end
+    if snapshot.in_gap then writeAt(device, 3, 16, "Holding before next track", colors.yellow, palette.panel) end
   else
     writeAt(device, 3, 11, "No track loaded", colors.white, palette.panel)
   end
 
-  if playlistSource then
-    writeAt(device, 3, height - 2, fit("Playlist: " .. tostring(playlistSource), width - 6), colors.white, palette.panel)
-  end
+  if playlistSource then writeAt(device, 3, height - 2, fit("Playlist: " .. tostring(playlistSource), width - 6), colors.white, palette.panel) end
 
   local updateBtn = getClientUpdateCheckButtonLayout(width, height)
   local status = updateStatus or "up to date"
   
   writeAt(device, updateBtn.x, updateBtn.y - 1, fit(status, width - updateBtn.x - 2), colors.white, palette.panel)
-
-  if width >= #updateBtn.label + 5 then
-    writeAt(device, updateBtn.x, updateBtn.y, updateBtn.label, colors.black, colors.lightGray)
-  end
+  if width >= #updateBtn.label + 5 then writeAt(device, updateBtn.x, updateBtn.y, updateBtn.label, colors.black, colors.lightGray) end
 end
 
 return monitor

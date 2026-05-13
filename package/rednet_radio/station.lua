@@ -14,6 +14,19 @@ local function clampTrackIndex(index, trackCount)
   return index
 end
 
+local function trackIdForIndex(tracks, index)
+  local track = tracks and tracks[index]
+  return track and track.id or nil
+end
+
+local function indexForTrackId(tracks, trackId)
+  if not tracks or not trackId then return nil end
+  for index, track in ipairs(tracks) do
+    if track.id == trackId then return index end
+  end
+  return nil
+end
+
 function Station.new(stationDefinition, playlistDoc)
   local self = setmetatable({}, Station)
   self.definition = stationDefinition
@@ -127,6 +140,53 @@ function Station:toggleShuffle()
     self.shuffle_bag = {} 
   end
   return self.shuffle_mode
+end
+
+function Station:getPersistentState()
+  local shuffleBagTrackIds = {}
+  for _, index in ipairs(self.shuffle_bag or {}) do
+    local trackId = trackIdForIndex(self.tracks, index)
+    if trackId then
+      shuffleBagTrackIds[#shuffleBagTrackIds + 1] = trackId
+    end
+  end
+
+  return {
+    playlist_version = self.playlist_version,
+    current_track_id = trackIdForIndex(self.tracks, self.current_index),
+    current_index = self.current_index,
+    shuffle_mode = self.shuffle_mode == true,
+    shuffle_bag_track_ids = shuffleBagTrackIds,
+    started_at_ms = self.started_at_ms,
+    saved_at_ms = util.nowMilliseconds(),
+  }
+end
+
+function Station:restorePersistentState(runtimeState)
+  if type(runtimeState) ~= "table" or #self.tracks == 0 then
+    return false
+  end
+
+  self.current_index = indexForTrackId(self.tracks, runtimeState.current_track_id)
+    or clampTrackIndex(tonumber(runtimeState.current_index) or 1, #self.tracks)
+
+  self.shuffle_mode = runtimeState.shuffle_mode == true
+
+  local restoredShuffleBag = {}
+  for _, trackId in ipairs(runtimeState.shuffle_bag_track_ids or {}) do
+    local index = indexForTrackId(self.tracks, trackId)
+    if index and index ~= self.current_index then
+      restoredShuffleBag[#restoredShuffleBag + 1] = index
+    end
+  end
+  self.shuffle_bag = restoredShuffleBag
+
+  local startedAtMs = tonumber(runtimeState.started_at_ms)
+  if startedAtMs and startedAtMs > 0 then
+    self.started_at_ms = startedAtMs
+  end
+
+  return true
 end
 
 function Station:update(nowMs)

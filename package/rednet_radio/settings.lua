@@ -4,6 +4,7 @@ local version = require("rednet_radio.version")
 local settings = {}
 
 local SETTINGS_PATH = "/rednet_radio/settings.json"
+local HOST_STATE_DIR = "/rednet_radio/host_state"
 local DEFAULT_REMIND_LATER_MINUTES = 60
 local MIN_REMIND_LATER_MINUTES = 5
 local MAX_REMIND_LATER_MINUTES = 180
@@ -332,6 +333,40 @@ end
 
 function settings.getPresetNames()
   return { "default", "light", "dark" }
+end
+
+local function getHostStatePath(stationId)
+  return fs.combine(HOST_STATE_DIR, ("%s.json"):format(util.sanitizeId(stationId or "default")))
+end
+
+function settings.getHostRuntimeState(stationId)
+  local raw = util.readAll(getHostStatePath(stationId))
+  if not raw then return nil end
+
+  local decoded = textutils.unserializeJSON(raw)
+  if type(decoded) ~= "table" then return nil end
+  return decoded
+end
+
+function settings.setHostRuntimeState(stationId, runtimeState)
+  if type(runtimeState) ~= "table" then
+    return nil, "Host runtime state must be a table"
+  end
+
+  local encoded = textutils.serializeJSON(runtimeState)
+  if not encoded then
+    return nil, "Could not serialize host runtime state"
+  end
+
+  return util.writeAll(getHostStatePath(stationId), encoded)
+end
+
+function settings.clearHostRuntimeState(stationId)
+  local path = getHostStatePath(stationId)
+  if fs.exists(path) then
+    fs.delete(path)
+  end
+  return true
 end
 
 return settings

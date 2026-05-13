@@ -54,9 +54,7 @@ local function main(...)
   local playlistSourceOrErr = playErr
 
   local timers = {}
-  local MAX_ACTIVE_TIMERS = 20
   local function schedule(name, seconds)
-    if #timers > MAX_ACTIVE_TIMERS then timers = {} end
     timers[os.startTimer(seconds)] = name
   end
   

@@ -44,8 +44,12 @@ local function main(...)
   local playlistDoc, playErr = loadPlaylist(stationDefinition)
   if not playlistDoc then error(playErr) end
 
-  local stationRuntime = station_module.new(stationDefinition, playlistDoc)
   settings.load()
+  local stationRuntime = station_module.new(stationDefinition, playlistDoc)
+  local savedRuntimeState = settings.getHostRuntimeState(stationDefinition.station_id)
+  if savedRuntimeState then
+    stationRuntime:restorePersistentState(savedRuntimeState)
+  end
   monitor.setPalette(settings.getPalette())
   rednet_api.hostStation(stationDefinition)
 
@@ -58,9 +62,6 @@ local function main(...)
     timers[os.startTimer(seconds)] = name
   end
   
-  rednet_api.broadcastAnnounce(stationDefinition, stationRuntime:getSnapshot())
-  rednet_api.broadcastNowPlaying(stationDefinition, stationRuntime:getSnapshot())
-
   local easActive, easPlaying, easStartTime = false, false, nil
   local updateStatus = "Checking for updates..."
   local hostVisualUpdateTimer = nil
@@ -72,6 +73,17 @@ local function main(...)
     snapshot.eas_active = easPlaying
     return snapshot
   end
+
+  local function persistHostRuntimeState()
+    local ok, err = settings.setHostRuntimeState(stationDefinition.station_id, stationRuntime:getPersistentState())
+    if not ok then
+      log(("Failed to persist host runtime state: %s"):format(err or "unknown error"))
+    end
+  end
+
+  rednet_api.broadcastAnnounce(stationDefinition, getHostSnapshot())
+  rednet_api.broadcastNowPlaying(stationDefinition, getHostSnapshot())
+  persistHostRuntimeState()
 
   local function renderScreen()
     if screenMode == "main" then
@@ -150,7 +162,11 @@ local function main(...)
           if timerName == "tick" then
             if not easPlaying then
               local changed = stationRuntime:update(util.nowMilliseconds())
-              if changed then log("Track advanced"); rednet_api.broadcastNowPlaying(stationDefinition, getHostSnapshot()) end
+              if changed then
+                log("Track advanced")
+                persistHostRuntimeState()
+                rednet_api.broadcastNowPlaying(stationDefinition, getHostSnapshot())
+              end
             else
               rednet_api.broadcastNowPlaying(stationDefinition, getHostSnapshot())
             end
@@ -163,6 +179,7 @@ local function main(...)
             log("EAS alarm finished. Resuming music.")
             if easStartTime then stationRuntime:offsetStartTime(util.nowMilliseconds() - easStartTime) end
             easPlaying = false
+            persistHostRuntimeState()
             stopAnnouncement()
           elseif timerName == "check_updates" then
             os.queueEvent("run_bg_task", "updates", "auto")
@@ -201,7 +218,10 @@ local function main(...)
           if arg1 then stationDefinition = util.mergeTables(stationDefinition, arg1); rednet_api.hostStation(stationDefinition) end
         elseif task == "playlist" then
           if arg1 then
-            if stationRuntime:setPlaylist(arg1) then rednet_api.broadcastNowPlaying(stationDefinition, getHostSnapshot()) end
+            if stationRuntime:setPlaylist(arg1) then
+              persistHostRuntimeState()
+              rednet_api.broadcastNowPlaying(stationDefinition, getHostSnapshot())
+            end
             playlistSourceOrErr = arg2
           end
         end
@@ -226,9 +246,9 @@ local function main(...)
               rednet_api.sendNowPlaying(senderId, stationDefinition, getHostSnapshot())
             end
           elseif message.message_type == config.message_types.skip_request and settings.getAllowRemoteSkip() then
-            stationRuntime:advanceTrack(util.nowMilliseconds()); rednet_api.broadcastNowPlaying(stationDefinition, getHostSnapshot()); renderScreen()
+            stationRuntime:advanceTrack(util.nowMilliseconds()); persistHostRuntimeState(); rednet_api.broadcastNowPlaying(stationDefinition, getHostSnapshot()); renderScreen()
           elseif message.message_type == config.message_types.shuffle_request and settings.getAllowRemoteShuffle() then
-            stationRuntime:toggleShuffle(); rednet_api.broadcastNowPlaying(stationDefinition, getHostSnapshot()); renderScreen()
+            stationRuntime:toggleShuffle(); persistHostRuntimeState(); rednet_api.broadcastNowPlaying(stationDefinition, getHostSnapshot()); renderScreen()
           end
         end
 

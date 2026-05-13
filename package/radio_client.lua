@@ -404,8 +404,36 @@ local function tuneStation(station)
         elseif action == "open_palette" then screenMode = "palette"; paletteState.selectedRole = 1
         elseif action == "update_never" then neverShowThisUpdate()
         else
+          -- PALETTE EDITOR BUTTONS
           local selRole = action and action:match("^palette_select_(.+)$")
-          if selRole then for i, r in ipairs(PALETTE_ROLES) do if r == selRole then paletteState.selectedRole = i; break end end end
+          if selRole then 
+            for i, r in ipairs(PALETTE_ROLES) do if r == selRole then paletteState.selectedRole = i; break end end 
+          end
+          
+          if action == "palette_prev" or action == "palette_next" then
+            local pRole = PALETTE_ROLES[paletteState.selectedRole] or "bg"
+            local cp   = settings.getPalette()
+            local cv   = cp[pRole] or 1
+            local vals = {1,2,4,8,16,32,64,128,256,512,1024,2048,4096,8192,16384,32768}
+            local idx  = 1
+            for ci, v in ipairs(vals) do if v == cv then idx = ci; break end end
+            if action == "palette_prev" then idx = idx - 1; if idx < 1 then idx = #vals end else idx = idx + 1; if idx > #vals then idx = 1 end end
+            settings.setPaletteColor(pRole, vals[idx])
+            monitor.setPalette(settings.getPalette())
+            if currentStation then rednet_api.sendPing(currentStation, { palette = settings.getPalette() }) end
+            
+          elseif action == "preset_default" then 
+            settings.applyPreset("default"); monitor.setPalette(settings.getPalette())
+            if currentStation then rednet_api.sendPing(currentStation, { palette = settings.getPalette() }) end
+          elseif action == "preset_light" then 
+            settings.applyPreset("light"); monitor.setPalette(settings.getPalette())
+            if currentStation then rednet_api.sendPing(currentStation, { palette = settings.getPalette() }) end
+          elseif action == "preset_dark" then 
+            settings.applyPreset("dark"); monitor.setPalette(settings.getPalette())
+            if currentStation then rednet_api.sendPing(currentStation, { palette = settings.getPalette() }) end
+          elseif action == "palette_back" then 
+            screenMode = "settings" 
+          end
         end
         renderTunedScreen()
       elseif event == "key" then if p1 == keys.backspace then return "QUIT" end end

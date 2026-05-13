@@ -1,6 +1,6 @@
 {
   "name": "Mepple's Goon Station Playlist",
-  "version": "4",
+  "version": "7",
   "tracks": [
     {
       "id": "track_01",
@@ -198,6 +198,24 @@
       "duration": 201,
       "source_url": "https://file.garden/ad_jTPVIV3ilAFpI/AURORA%20-%20Cure%20For%20Me%20-%20iamAURORAVEVO.dfpwm",
       "playback_url": "https://file.garden/ad_jTPVIV3ilAFpI/AURORA%20-%20Cure%20For%20Me%20-%20iamAURORAVEVO.dfpwm",
+      "art_url": "-"
+    },
+    {
+      "id": "track_23",
+      "title": "Oblivios",
+      "artist": "\u2606 Angels \u2606",
+      "duration": 118,
+      "source_url": "https://file.garden/ad_jTPVIV3ilAFpI/%E2%98%86%20Angels%20%E2%98%86%20-%20Oblivios.dfpwm",
+      "playback_url": "https://file.garden/ad_jTPVIV3ilAFpI/%E2%98%86%20Angels%20%E2%98%86%20-%20Oblivios.dfpwm",
+      "art_url": "-"
+    },
+    {
+      "id": "track_24",
+      "title": "Returns",
+      "artist": "Vincent Diamente",
+      "duration": 159,
+      "source_url": "https://file.garden/ad_jTPVIV3ilAFpI/Returns%20-%20Vincent%20Diamante(1).dfpwm",
+      "playback_url": "https://file.garden/ad_jTPVIV3ilAFpI/Returns%20-%20Vincent%20Diamante(1).dfpwm",
       "art_url": "-"
     }
   ]

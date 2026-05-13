@@ -1,3 +1,3 @@
 return {
-  version = "v1.9.7",
+  version = "v1.9.8",
 }

@@ -97,7 +97,6 @@ installAvailableUpdate = function(isAuto)
       for k, v in pairs(package.loaded) do
         if k:match("^rednet_radio%.") then package.loaded[k] = nil end
       end
-      shell.run(shell.getRunningProgram())
       error("RESTART", 0)
     end
     return
@@ -533,10 +532,33 @@ local function main()
   end
 end
 
-local ok, err = xpcall(main, function(message)
-  if message == "RESTART" then return "RESTART" end
-  return debug and debug.traceback and debug.traceback(message, 2) or tostring(message)
-end)
+local launchArgs = { ... }
+while true do
+  local ok, err = xpcall(function() main(table.unpack(launchArgs)) end, function(message)
+    if message == "RESTART" then return "RESTART" end
+    return debug and debug.traceback and debug.traceback(message, 2) or tostring(message)
+  end)
+
+  audio.stopTrack()
+
+  if not ok and err == "RESTART" then
+    print("\n--- Rebooting Cleanly ---")
+    os.sleep(0.5)
+  elseif not ok then
+    term.setBackgroundColor(colors.black)
+    term.setTextColor(colors.red)
+    term.clear()
+    term.setCursorPos(1, 1)
+    print("RADIO CLIENT CRASHED:")
+    term.setTextColor(colors.white)
+    print(err)
+    print("\nPress any key to exit.")
+    os.pullEvent("key") 
+    break
+  else
+    break
+  end
+end
 
 audio.stopTrack()
 

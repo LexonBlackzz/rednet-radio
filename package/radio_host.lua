@@ -162,7 +162,8 @@ local function main(...)
           elseif timerName == "eas_finish" then
             log("EAS alarm finished. Resuming music.")
             if easStartTime then stationRuntime:offsetStartTime(util.nowMilliseconds() - easStartTime) end
-            easPlaying = false; rednet_api.broadcastNowPlaying(stationDefinition, getHostSnapshot())
+            easPlaying = false
+            stopAnnouncement()
           elseif timerName == "check_updates" then
             os.queueEvent("run_bg_task", "updates", "auto")
             schedule("check_updates", 120)

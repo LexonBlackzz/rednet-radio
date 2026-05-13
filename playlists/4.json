@@ -1,6 +1,6 @@
 {
   "name": "Mepple's Goon Station Playlist",
-  "version": "1",
+  "version": "4",
   "tracks": [
     {
       "id": "track_01",
@@ -167,7 +167,7 @@
     {
       "id": "track_19",
       "title": "The Light Beyond",
-      "artist": "Aurora",
+      "artist": "AURORA",
       "duration": 201,
       "source_url": "https://file.garden/ad_jTPVIV3ilAFpI/15.%20The%20Light%20Beyond.dfpwm",
       "playback_url": "https://file.garden/ad_jTPVIV3ilAFpI/15.%20The%20Light%20Beyond.dfpwm",
@@ -176,7 +176,7 @@
     {
       "id": "track_20",
       "title": "Warrior",
-      "artist": "Aurora",
+      "artist": "AURORA",
       "duration": 221,
       "source_url": "https://file.garden/ad_jTPVIV3ilAFpI/10.%20Warrior.dfpwm",
       "playback_url": "https://file.garden/ad_jTPVIV3ilAFpI/10.%20Warrior.dfpwm",
@@ -189,6 +189,15 @@
       "duration": 116,
       "source_url": "https://file.garden/ad_jTPVIV3ilAFpI/31.%20A%20Rose's%20Lament.dfpwm",
       "playback_url": "https://file.garden/ad_jTPVIV3ilAFpI/31.%20A%20Rose's%20Lament.dfpwm",
+      "art_url": "-"
+    },
+    {
+      "id": "track_22",
+      "title": "Cure For Me",
+      "artist": "AURORA",
+      "duration": 201,
+      "source_url": "https://file.garden/ad_jTPVIV3ilAFpI/AURORA%20-%20Cure%20For%20Me%20-%20iamAURORAVEVO.dfpwm",
+      "playback_url": "https://file.garden/ad_jTPVIV3ilAFpI/AURORA%20-%20Cure%20For%20Me%20-%20iamAURORAVEVO.dfpwm",
       "art_url": "-"
     }
   ]

@@ -175,6 +175,8 @@ local function getSettingsScreenLayout(width, height, showNeverOption, remindLat
   local updateRow = 19
   local colorsRow = 21
   local backLabel = "[BACK]"
+  local stereoToggleLabel = enableStereo and "[ON]" or "[OFF]"
+  local stereoToggleRow = 16
   return {
     toggleRow = toggleRow, toggleX = math.max(3, width - #toggleLabel - 3), toggleWidth = #toggleLabel, toggleLabel = toggleLabel,
     visToggleRow = visToggleRow, visToggleX = math.max(3, width - #visToggleLabel - 3), visToggleWidth = #visToggleLabel, visToggleLabel = visToggleLabel,
@@ -184,6 +186,7 @@ local function getSettingsScreenLayout(width, height, showNeverOption, remindLat
     reminderUpX = math.max(12, width - #reminderUpLabel - 3), reminderUpLabel = reminderUpLabel,
     colorsRow = colorsRow, colorsX = math.max(3, width - #colorsLabel - 3), colorsLabel = colorsLabel,
     backRow = math.max(colorsRow + 2, height - 2), backX = math.max(3, width - #backLabel - 2), backWidth = #backLabel, backLabel = backLabel,
+    stereoToggleRow = stereoToggleRow, stereoToggleX = math.max(3, width - #stereoToggleLabel - 3), stereoToggleWidth = #stereoToggleLabel, stereoToggleLabel = stereoToggleLabel
   }
 end
 
@@ -536,6 +539,9 @@ function monitor.renderClientSettings(playbackStatus, settingsState)
 
   writeAt(device, 3, layout.autoToggleRow, fit("Auto-Update (Hot Reload)", width - 6), colors.white, palette.panel)
   writeAt(device, layout.autoToggleX, layout.autoToggleRow, layout.autoToggleLabel, colors.black, colors.lightGray)
+
+  writeAt(device, 3, layout.stereoToggleRow, fit("Enable Stereo (Experimental)", width - 6), colors.white, palette.panel)
+  writeAt(device, layout.stereoToggleX, layout.stereoToggleRow, layout.stereoToggleLabel, colors.black, colors.lightGray)
   
   writeAt(device, 3, layout.reminderRow, fit("Remind me later delay", width - 6), colors.white, palette.panel)
   writeAt(device, layout.reminderDownX, layout.reminderRow, layout.reminderDownLabel, colors.black, colors.lightGray)

@@ -54,6 +54,7 @@ local function normalizeTrack(track)
     playback_url = track.playback_url,
     playback_url_r = track.playback_url_r, 
   }
+end  
 
 function playlist.loadPlaylist(stationId, url, fallbackName)
   local decoded, source, err = util.fetchJson(url, getCachePath(stationId))

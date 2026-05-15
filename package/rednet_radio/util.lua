@@ -60,7 +60,7 @@ function util.fetchJson(url, cachePath)
     local decoded = textutils.unserializeJSON(raw)
     if decoded == nil then
       local preview = tostring(raw or ""):sub(1, 120):gsub("%s+", " ")
-      return nil, ("Could not parse JSON from %s. Preview: %s"):format(url, preview)
+      return nil, nil, ("Could not parse JSON from %s. Preview: %s"):format(url, preview)
     end
 
     if cachePath then

@@ -39,6 +39,14 @@
       "playlist_url": "https://raw.githubusercontent.com/LexonBlackzz/rednet-radio/main/playlists/custom_ost.json",
       "rednet_channel": "rednet_radio_v1:station:custom_ost",
       "host_label": "user-submitted"
+    },
+    {
+      "station_id": "stereo_test",
+      "name": "Stereo Station Test",
+      "description": "As said in the name, it's a test for stereo audio functionality.",
+      "playlist_url": "https://raw.githubusercontent.com/LexonBlackzz/rednet-radio/refs/heads/main/playlists/stereo_test.json",
+      "rednet_channel": "rednet_radio_v1:station:stereo_test",
+      "host_label": "user-submitted"
     }
   ]
 }

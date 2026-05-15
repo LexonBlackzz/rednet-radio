@@ -45,6 +45,7 @@ local function clear()
 end
 
 local function adjustVolume(deltaPercent) audio.adjustVolumePercent(deltaPercent) end
+local function adjustVisualizerRange(deltaPercent) audio.adjustVisualizerRangePercent(deltaPercent) end
 local function adjustRemindLaterMinutes(deltaMinutes) settings.adjustRemindLaterMinutes(deltaMinutes) end
 
 refreshUpdateState = function(statusOverride)
@@ -238,9 +239,11 @@ local function renderTunedScreen()
 
   print("\nPlayback: " .. audio.getStatusSummary())
   print(("Volume: %d%% / %d%%"):format(audio.getVolumePercent(), audio.getMaxVolumePercent()))
+  print(("Range: %d%% / %d%%"):format(audio.getVisualizerRangePercent(), audio.getMaxVisualizerRangePercent()))
   print(("Updates: %s"):format(updateStatus))
   print(("Last sync: %s"):format(lastUpdateMs and util.formatAge(lastUpdateMs) or "never"))
   print("Keys: q = back, p = ping, r = reload, s = settings, [ / ] = volume")
+  print("      - / = = range")
   print("      n = skip track, x = toggle shuffle")
   print("Debug: d = test host update, e = test EAS alarm")
 
@@ -254,7 +257,7 @@ local function renderTunedScreen()
 
   monitor.renderClient(
     currentStation, currentSnapshot, audio.getStatusSummary(),
-    audio.getVolumePercent(), audio.getMaxVolumePercent(),
+    audio.getVolumePercent(), audio.getMaxVolumePercent(), audio.getVisualizerRangePercent(),
     updateStatus, updatePrompt,
     settings.getEnableVisualizer() and audio.getAmplitude() or nil,
     settings.getEnableVisualizer() and audio.getBufferRatio() or nil
@@ -310,7 +313,7 @@ local function tuneStation(station)
           renderTunedScreen(); clockTimer = os.startTimer(1)
         elseif p1 == visTimer then
           if screenMode == "main" and settings.getEnableVisualizer() then
-            monitor.updateVisualizerOnly(audio.getAmplitude(), audio.getBufferRatio())
+            monitor.updateVisualizerOnly(audio.getAmplitude(), audio.getBufferRatio(), audio.getVisualizerRangePercent())
           end
           visTimer = os.startTimer(1.35)
         elseif p1 == visualUpdateTimer then
@@ -400,6 +403,8 @@ local function tuneStation(station)
           elseif key == "s" then screenMode = "settings"; paletteState.selectedRole = 1
           elseif key == "[" then adjustVolume(-audio.getVolumeStepPercent())
           elseif key == "]" then adjustVolume(audio.getVolumeStepPercent())
+          elseif key == "-" then adjustVisualizerRange(-audio.getVisualizerRangeStepPercent())
+          elseif key == "=" then adjustVisualizerRange(audio.getVisualizerRangeStepPercent())
           elseif key == "d" then 
             hostUpdateInProgress = true; audio.stopTrack(); renderTunedScreen()
             hostUpdateWaitTimer = os.startTimer(10)
@@ -415,6 +420,8 @@ local function tuneStation(station)
         local action = monitor.getClientTouchAction(p1, p2, p3, screenMode, updatePrompt, util.mergeTables(settings.get(), { palette = settings.getPalette() }))
         if action == "volume_down" then adjustVolume(-audio.getVolumeStepPercent())
         elseif action == "volume_up" then adjustVolume(audio.getVolumeStepPercent())
+        elseif action == "range_down" then adjustVisualizerRange(-audio.getVisualizerRangeStepPercent())
+        elseif action == "range_up" then adjustVisualizerRange(audio.getVisualizerRangeStepPercent())
         elseif action == "open_settings" then screenMode = "settings"
         elseif action == "settings_back" then screenMode = "main"
         elseif action == "toggle_never_option" then settings.toggleShowNeverOption(); os.queueEvent("run_bg_task", "check_updates")

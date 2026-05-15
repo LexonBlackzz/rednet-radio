@@ -1,0 +1,14 @@
+{
+  "name": "Stereo Station Test",
+  "version": "1",
+  "tracks": [
+    {
+      "id": "track_01",
+      "title": "Icarus (Stereo)",
+      "artist": "Madeon",
+      "duration": 217,
+      "playback_url": "https://file.garden/adrOmj8ZxlwaPhB3/62%20-%20Madeon%20-%20Icarus_L.dfpwm",
+      "playback_url_r": "https://file.garden/adrOmj8ZxlwaPhB3/62%20-%20Madeon%20-%20Icarus_R.dfpwm",
+      "source_url": "https://www.youtube.com/watch?v=hVjosDbp-J4",
+      "art_url": "https://i.ytimg.com/vi/hVjosDbp-J4/maxresdefault.jpg"
+    }

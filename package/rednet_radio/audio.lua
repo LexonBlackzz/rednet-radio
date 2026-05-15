@@ -9,9 +9,13 @@ local MAX_BUFFER_SAMPLES = 128 * 1024
 local PRE_ROLL_SECONDS = 1
 local RESYNC_THRESHOLD_SECONDS = 5 
 local MIN_VOLUME_PERCENT = 0
-local MAX_VOLUME_PERCENT = 300
+local MAX_VOLUME_PERCENT = 200
 local DEFAULT_VOLUME_PERCENT = 100
 local VOLUME_STEP_PERCENT = 5
+local MIN_VISUALIZER_RANGE_PERCENT = 0
+local MAX_VISUALIZER_RANGE_PERCENT = 300
+local DEFAULT_VISUALIZER_RANGE_PERCENT = 100
+local VISUALIZER_RANGE_STEP_PERCENT = 25
 local MAX_TRACKED_CHUNKS = 16
 
 local state = {
@@ -31,6 +35,7 @@ local state = {
   sync_clock_ms = 0,
   bytes_started_at = 0,
   volume_percent = DEFAULT_VOLUME_PERCENT,
+  visualizer_range_percent = DEFAULT_VISUALIZER_RANGE_PERCENT,
   status = "metadata mode only",
   last_error = nil,
 }
@@ -43,7 +48,34 @@ local function clampVolumePercent(volumePercent)
   return volumePercent
 end
 
-local function getSpeakerVolume() return state.volume_percent / 100 end
+local function clampVisualizerRangePercent(rangePercent)
+  rangePercent = tonumber(rangePercent) or DEFAULT_VISUALIZER_RANGE_PERCENT
+  rangePercent = math.floor(rangePercent + 0.5)
+  if rangePercent < MIN_VISUALIZER_RANGE_PERCENT then return MIN_VISUALIZER_RANGE_PERCENT end
+  if rangePercent > MAX_VISUALIZER_RANGE_PERCENT then return MAX_VISUALIZER_RANGE_PERCENT end
+  return rangePercent
+end
+
+local function getSpeakerVolume() return state.visualizer_range_percent / 100 end
+
+local function applyVolumeBoost(buffer)
+  if not buffer or state.volume_percent <= 100 then
+    return buffer
+  end
+
+  local boosted = {}
+  local gain = state.volume_percent / 100
+  for i = 1, #buffer do
+    local sample = buffer[i] * gain
+    if sample > 127 then
+      sample = 127
+    elseif sample < -128 then
+      sample = -128
+    end
+    boosted[i] = sample
+  end
+  return boosted
+end
 
 local function closeStream()
   if state.stream and state.stream.close then
@@ -85,10 +117,11 @@ local function playPendingBuffer()
   local speaker = getSpeaker()
   if not speaker or not state.pending_buffer then return false end
 
-  if speaker.playAudio(state.pending_buffer, getSpeakerVolume()) then
+  local outputBuffer = applyVolumeBoost(state.pending_buffer)
+  if speaker.playAudio(outputBuffer, getSpeakerVolume()) then
     table.insert(state.amplitude_queue, state.pending_amplitude)
-    table.insert(state.chunk_queue, #state.pending_buffer)
-    state.buffered_samples = state.buffered_samples + #state.pending_buffer
+    table.insert(state.chunk_queue, #outputBuffer)
+    state.buffered_samples = state.buffered_samples + #outputBuffer
     
     state.pending_buffer = nil
     state.pending_amplitude = 0
@@ -243,7 +276,7 @@ function audio.playLocalBuffer(data, volume)
         end
     end
 
-    while not speaker.playAudio(samples) do
+    while not speaker.playAudio(samples, getSpeakerVolume()) do
       os.pullEvent("speaker_audio_empty")
     end
   end
@@ -260,6 +293,9 @@ end
 function audio.getVolumePercent() return state.volume_percent end
 function audio.getMaxVolumePercent() return MAX_VOLUME_PERCENT end
 function audio.getVolumeStepPercent() return VOLUME_STEP_PERCENT end
+function audio.getVisualizerRangePercent() return state.visualizer_range_percent end
+function audio.getMaxVisualizerRangePercent() return MAX_VISUALIZER_RANGE_PERCENT end
+function audio.getVisualizerRangeStepPercent() return VISUALIZER_RANGE_STEP_PERCENT end
 
 function audio.setVolumePercent(volumePercent)
   state.volume_percent = clampVolumePercent(volumePercent)
@@ -268,6 +304,15 @@ end
 
 function audio.adjustVolumePercent(deltaPercent)
   return audio.setVolumePercent(state.volume_percent + (deltaPercent or 0))
+end
+
+function audio.setVisualizerRangePercent(rangePercent)
+  state.visualizer_range_percent = clampVisualizerRangePercent(rangePercent)
+  return state.visualizer_range_percent
+end
+
+function audio.adjustVisualizerRangePercent(deltaPercent)
+  return audio.setVisualizerRangePercent(state.visualizer_range_percent + (deltaPercent or 0))
 end
 
 function audio.syncToSnapshot(snapshot)

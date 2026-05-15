@@ -78,20 +78,53 @@ local function drawProgressBar(target, x, y, width, ratio, fg, bg)
   end
 end
 
-local function getClientVolumeButtonLayout(width, height)
-  local row = math.max(10, height - 3)
+local function getVisualizerDisplay(amplitude)
+  local amp = math.max(0, tonumber(amplitude) or 0)
+
+  if amp <= 0 then
+    return 0, -99
+  end
+
+  local db = 20 * (math.log(amp) / math.log(10))
+  local floorDb = -36
+  local ratio = (db - floorDb) / (0 - floorDb)
+  return math.max(0, math.min(1, ratio)), db
+end
+
+local function getClientAudioControlLayout(width, height)
+  local rangeRow = math.max(10, height - 8)
+  local volumeRow = rangeRow + 1
+  local bufferRow = rangeRow + 3
+  local audioRow = rangeRow + 4
   local minusLabel = "[-]"
   local plusLabel = "[+]"
-  local plusX = math.max(3, width - #plusLabel - 2)
-  local minusX = math.max(3, plusX - #minusLabel - 1)
+  local rangeMinusLabel = "[-]"
+  local rangePlusLabel = "[+]"
+  local rangePlusX = math.max(3, width - #rangePlusLabel - 2)
+  local rangeMinusX = math.max(3, rangePlusX - #rangeMinusLabel - 1)
+  local rangeValueX = math.max(3, rangeMinusX - 7)
+  local volumePlusX = rangePlusX
+  local volumeMinusX = rangeMinusX
+  local volumeValueX = rangeValueX
   return {
-    y = row,
-    minusX = minusX,
-    minusWidth = #minusLabel,
-    plusX = plusX,
-    plusWidth = #plusLabel,
-    minusLabel = minusLabel,
-    plusLabel = plusLabel,
+    rangeY = rangeRow,
+    volumeY = volumeRow,
+    bufferY = bufferRow,
+    audioY = audioRow,
+    volumeMinusX = volumeMinusX,
+    volumeMinusWidth = #minusLabel,
+    volumePlusX = volumePlusX,
+    volumePlusWidth = #plusLabel,
+    volumeMinusLabel = minusLabel,
+    volumePlusLabel = plusLabel,
+    volumeValueX = volumeValueX,
+    rangeMinusX = rangeMinusX,
+    rangeMinusWidth = #rangeMinusLabel,
+    rangePlusX = rangePlusX,
+    rangePlusWidth = #rangePlusLabel,
+    rangeMinusLabel = rangeMinusLabel,
+    rangePlusLabel = rangePlusLabel,
+    rangeValueX = rangeValueX,
   }
 end
 
@@ -271,13 +304,12 @@ function monitor.getDefaultPalette()
   }
 end
 
-function monitor.renderClient(station, snapshot, playbackStatus, volumePercent, maxVolumePercent, updateStatus, prompt, amplitude, bufferRatio)
+function monitor.renderClient(station, snapshot, playbackStatus, volumePercent, maxVolumePercent, visualizerRangePercent, updateStatus, prompt, amplitude, bufferRatio)
   local device = getMonitor()
   if not device then return end
 
   local width, height = drawFrame(device, "Current Broadcast")
-  local volumeRow = math.max(10, height - 3)
-  local controls = getClientVolumeButtonLayout(width, height)
+  local controls = getClientAudioControlLayout(width, height)
   local settingsButton = getClientSettingsButtonLayout(width, height)
  
   writeAt(device, 3, 6, fit(station and station.name or "No station selected", width - 6), colors.white, palette.panel)
@@ -301,35 +333,31 @@ function monitor.renderClient(station, snapshot, playbackStatus, volumePercent, 
 
   -- Audio & Buffer Visualizers
   if amplitude ~= nil and bufferRatio ~= nil then
-    local bufRow = volumeRow - 2
-    local visRow = volumeRow - 1
-    
     local bufFill = math.max(0, math.min(bufferRatio or 0, 1))
     local bufText = ("%4s"):format(math.floor(bufFill * 100) .. "%")
-    writeAt(device, 3, bufRow, "BUFFER", colors.lightGray, palette.panel)
-    writeAt(device, width - #bufText - 2, bufRow, bufText, palette.dim, palette.panel)
-    drawProgressBar(device, 10, bufRow, width - 12 - #bufText - 2, bufFill, colors.lightBlue, colors.gray)
+    writeAt(device, 3, controls.bufferY, "BUFFER", colors.lightGray, palette.panel)
+    writeAt(device, width - #bufText - 2, controls.bufferY, bufText, palette.dim, palette.panel)
+    drawProgressBar(device, 10, controls.bufferY, width - 12 - #bufText - 2, bufFill, colors.lightBlue, colors.gray)
 
-    local visRatio = math.max(0, math.min(amplitude or 0, 1))
-    local db = -99
-    if amplitude > 0 then db = 20 * (math.log(amplitude) / math.log(10)) end
+    local visRatio, db = getVisualizerDisplay(amplitude)
     local dbText = ("%5.1f dB"):format(db)
     
     local visColor = palette.good
     if db > -3 then visColor = palette.accent elseif db > -12 then visColor = palette.warn end
 
-    writeAt(device, 4, visRow, "AUDIO", colors.lightGray, palette.panel)
-    writeAt(device, width - #dbText - 2, visRow, dbText, visColor, palette.panel)
-    drawProgressBar(device, 10, visRow, width - 12 - #dbText - 2, visRatio, visColor, colors.gray)
+    writeAt(device, 4, controls.audioY, "AUDIO", colors.lightGray, palette.panel)
+    writeAt(device, width - #dbText - 2, controls.audioY, dbText, visColor, palette.panel)
+    drawProgressBar(device, 10, controls.audioY, width - 12 - #dbText - 2, visRatio, visColor, colors.gray)
   end
 
-  writeAt(
-    device, 3, volumeRow,
-    fit(("Volume: %d%% / %d%%"):format(volumePercent or 100, maxVolumePercent or 300), width - 6),
-    colors.white, palette.panel
-  )
-  writeAt(device, controls.minusX, controls.y, controls.minusLabel, colors.black, colors.lightGray)
-  writeAt(device, controls.plusX, controls.y, controls.plusLabel, colors.black, colors.lightGray)
+  writeAt(device, controls.rangeValueX - 4, controls.rangeY, "RNG", colors.white, palette.panel)
+  writeAt(device, controls.rangeValueX, controls.rangeY, fit(("%3d%%"):format(visualizerRangePercent or 100), 5), colors.white, palette.panel)
+  writeAt(device, controls.rangeMinusX, controls.rangeY, controls.rangeMinusLabel, colors.black, colors.lightGray)
+  writeAt(device, controls.rangePlusX, controls.rangeY, controls.rangePlusLabel, colors.black, colors.lightGray)
+  writeAt(device, controls.volumeValueX - 4, controls.volumeY, "VOL", colors.white, palette.panel)
+  writeAt(device, controls.volumeValueX, controls.volumeY, fit(("%3d%%"):format(volumePercent or 100), 5), colors.white, palette.panel)
+  writeAt(device, controls.volumeMinusX, controls.volumeY, controls.volumeMinusLabel, colors.black, colors.lightGray)
+  writeAt(device, controls.volumePlusX, controls.volumeY, controls.volumePlusLabel, colors.black, colors.lightGray)
   
   local updateBtn = getClientUpdateCheckButtonLayout(width, height)
   local skipX = settingsButton.x - 7
@@ -381,32 +409,28 @@ function monitor.renderClient(station, snapshot, playbackStatus, volumePercent, 
   end
 end
 
-function monitor.updateVisualizerOnly(amplitude, bufferRatio)
+function monitor.updateVisualizerOnly(amplitude, bufferRatio, visualizerRangePercent)
   local device = getMonitor()
   if not device then return end
 
   local width, height = device.getSize()
-  local volumeRow = math.max(10, height - 3)
-  local bufRow = volumeRow - 2
-  local visRow = volumeRow - 1
+  local controls = getClientAudioControlLayout(width, height)
 
   if width < 20 then return end
 
   local bufFill = math.max(0, math.min(bufferRatio or 0, 1))
   local bufText = ("%4s"):format(math.floor(bufFill * 100) .. "%")
-  writeAt(device, width - #bufText - 2, bufRow, bufText, palette.dim, palette.panel)
-  drawProgressBar(device, 10, bufRow, width - 12 - #bufText - 2, bufFill, colors.lightBlue, colors.gray)
+  writeAt(device, width - #bufText - 2, controls.bufferY, bufText, palette.dim, palette.panel)
+  drawProgressBar(device, 10, controls.bufferY, width - 12 - #bufText - 2, bufFill, colors.lightBlue, colors.gray)
 
-  local visRatio = math.max(0, math.min(amplitude or 0, 1))
-  local db = -99
-  if amplitude and amplitude > 0 then db = 20 * (math.log(amplitude) / math.log(10)) end
+  local visRatio, db = getVisualizerDisplay(amplitude)
   local dbText = ("%5.1f dB"):format(db)
   
   local visColor = palette.good
   if db > -3 then visColor = palette.accent elseif db > -12 then visColor = palette.warn end
 
-  writeAt(device, width - #dbText - 2, visRow, dbText, visColor, palette.panel)
-  drawProgressBar(device, 10, visRow, width - 12 - #dbText - 2, visRatio, visColor, colors.gray)
+  writeAt(device, width - #dbText - 2, controls.audioY, dbText, visColor, palette.panel)
+  drawProgressBar(device, 10, controls.audioY, width - 12 - #dbText - 2, visRatio, visColor, colors.gray)
 end
 
 local COLOR_NAMES = {
@@ -615,9 +639,9 @@ function monitor.getClientTouchAction(side, x, y, screenMode, prompt, settingsSt
     return nil
   end
 
-  local controls = getClientVolumeButtonLayout(width, height)
+  local controls = getClientAudioControlLayout(width, height)
   local settingsButton = getClientSettingsButtonLayout(width, height)
-  if y ~= controls.y then
+  if y ~= controls.volumeY and y ~= controls.rangeY then
     if hitButton(x, y, { x = settingsButton.x, y = settingsButton.y, label = settingsButton.label }) then return "open_settings" end
     local updateBtn = getClientUpdateCheckButtonLayout(width, height)
     if hitButton(x, y, { x = updateBtn.x, y = updateBtn.y, label = updateBtn.label }) then return "check_updates" end
@@ -630,8 +654,13 @@ function monitor.getClientTouchAction(side, x, y, screenMode, prompt, settingsSt
     return nil
   end
 
-  if x >= controls.minusX and x < (controls.minusX + controls.minusWidth) then return "volume_down" end
-  if x >= controls.plusX and x < (controls.plusX + controls.plusWidth) then return "volume_up" end
+  if y == controls.volumeY then
+    if x >= controls.volumeMinusX and x < (controls.volumeMinusX + controls.volumeMinusWidth) then return "volume_down" end
+    if x >= controls.volumePlusX and x < (controls.volumePlusX + controls.volumePlusWidth) then return "volume_up" end
+  elseif y == controls.rangeY then
+    if x >= controls.rangeMinusX and x < (controls.rangeMinusX + controls.rangeMinusWidth) then return "range_down" end
+    if x >= controls.rangePlusX and x < (controls.rangePlusX + controls.rangePlusWidth) then return "range_up" end
+  end
 
   return nil
 end

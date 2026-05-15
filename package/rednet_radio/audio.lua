@@ -22,9 +22,12 @@ local MAX_TRACKED_CHUNKS = 16
 local state = {
   -- Primary (left / mono) speaker
   speaker = nil,
+  speaker_name = nil,
+  speaker_ready = true,
   -- Secondary (right) speaker — only used in stereo mode
   speaker_r       = nil,
   speaker_r_name  = nil,   -- peripheral name, used to filter speaker_audio_empty events
+  speaker_r_ready = true,
 
   dfpwm    = nil,
   decoder   = nil,
@@ -43,6 +46,7 @@ local state = {
   chunk_queue      = {},
   buffered_samples = 0,
   skip_samples     = 0,
+  skip_samples_r   = 0,
 
   sync_offset_seconds = 0,
   sync_clock_ms       = 0,
@@ -167,22 +171,52 @@ local function playPendingBuffer()
   local speaker = getSpeaker()
   if not speaker or not state.pending_buffer then return false end
 
+  if state.stereo_active then
+    if not state.speaker_ready or not state.speaker_r_ready then
+      state.status = "buffering speaker"
+      return false
+    end
+  elseif not state.speaker_ready then
+    state.status = "buffering speaker"
+    return false
+  end
+
   local outputBuffer = applyVolumeBoost(state.pending_buffer)
   local vol = getSpeakerVolume()
 
   if not speaker.playAudio(outputBuffer, vol) then
+    state.speaker_ready = false
     state.status = "buffering speaker"
     return false
   end
+  state.speaker_ready = false
 
   -- ── Stereo right channel ──────────────────────────────────────────────────
   if state.stereo_active and state.speaker_r then
     local outputBufferR = state.pending_buffer_r
       and applyVolumeBoost(state.pending_buffer_r)
       or outputBuffer        -- fall back: play same mono data on right
-    -- Wrapped in pcall — right speaker may have been detached
-    pcall(function() state.speaker_r.playAudio(outputBufferR, vol) end)
-    state.pending_buffer_r = nil
+
+    local okRight, acceptedRight = pcall(state.speaker_r.playAudio, outputBufferR, vol)
+    if okRight and acceptedRight then
+      state.speaker_r_ready = false
+    elseif okRight then
+      -- Keep both channels aligned: if the right speaker rejects this chunk,
+      -- roll back the left side and retry once the right speaker empties.
+      if speaker.stop then
+        pcall(function() speaker.stop() end)
+      end
+      state.speaker_ready = true
+      state.speaker_r_ready = false
+      state.status = "buffering speaker"
+      return false
+    else
+      closeStreamR()
+      state.speaker_r = nil
+      state.speaker_r_name = nil
+      state.speaker_r_ready = true
+      state.stereo_active = false
+    end
   end
 
   table.insert(state.amplitude_queue, state.pending_amplitude)
@@ -190,6 +224,7 @@ local function playPendingBuffer()
   state.buffered_samples = state.buffered_samples + #outputBuffer
 
   state.pending_buffer   = nil
+  state.pending_buffer_r = nil
   state.pending_amplitude = 0
 
   if state.stereo_active then
@@ -261,8 +296,9 @@ local function queueNextChunk()
       local ok_r, chunk_r = pcall(state.stream_r.read, CHUNK_BYTES)
       if ok_r and chunk_r and #chunk_r > 0 then
         buffer_r = state.decoder_r(chunk_r)
-        -- Note: skip_samples for right channel mirrors left; the right stream
-        -- was opened at the same startByte so pre-roll is already aligned.
+        if state.skip_samples_r > 0 then
+          buffer_r, state.skip_samples_r = trimBuffer(buffer_r, state.skip_samples_r)
+        end
       else
         -- Right stream ended or errored — fall back to mono-dup silently
         closeStreamR()
@@ -304,13 +340,17 @@ local function restartPlayback(track, targetOffsetSeconds)
   end
 
   state.speaker       = allSpeakers[1].handle
+  state.speaker_name  = allSpeakers[1].name
+  state.speaker_ready = true
   state.speaker_r     = nil
   state.speaker_r_name = nil
+  state.speaker_r_ready = true
   state.stereo_active = false
 
   if state.stereo_enabled and #allSpeakers >= 2 then
     state.speaker_r      = allSpeakers[2].handle
     state.speaker_r_name = allSpeakers[2].name
+    state.speaker_r_ready = true
     state.stereo_active  = true
   end
 
@@ -338,6 +378,7 @@ local function restartPlayback(track, targetOffsetSeconds)
   state.chunk_queue         = {}
   state.buffered_samples    = 0
   state.skip_samples        = skipSamples
+  state.skip_samples_r      = skipSamples
   state.sync_offset_seconds = targetOffsetSeconds
   state.sync_clock_ms       = util.nowMilliseconds()
   state.bytes_started_at    = startByte
@@ -436,7 +477,12 @@ end
 
 -- Enable or disable stereo mode.  Takes effect on the next track start / resync.
 function audio.setStereoEnabled(enabled)
-  state.stereo_enabled = enabled == true
+  enabled = enabled == true
+  if state.stereo_enabled ~= enabled then
+    state.current_track_id = nil
+    state.current_playback_url = nil
+  end
+  state.stereo_enabled = enabled
 end
 
 function audio.getStereoEnabled()
@@ -499,21 +545,36 @@ function audio.syncToSnapshot(snapshot)
 end
 
 -- Called from the audio thread on speaker events.
--- speakerName (p1 from the event) is used in stereo mode to ignore events from
--- the right speaker — otherwise queueNextChunk would run twice per chunk.
+-- In stereo mode we wait for BOTH speakers to report ready before queuing the
+-- next chunk, which keeps the left/right streams from drifting apart.
 function audio.handleEvent(event, speakerName)
   if event == "speaker_audio_empty" then
-    -- In stereo mode, only advance on primary (left) speaker events.
-    if state.stereo_active and state.speaker_r_name
-        and speakerName == state.speaker_r_name then
-      return
-    end
+    if state.stereo_active then
+      if speakerName == state.speaker_name then
+        state.speaker_ready = true
 
-    if #state.chunk_queue > 0 then
-      local playedSamples = table.remove(state.chunk_queue, 1)
-      state.buffered_samples = math.max(0, state.buffered_samples - playedSamples)
+        if #state.chunk_queue > 0 then
+          local playedSamples = table.remove(state.chunk_queue, 1)
+          state.buffered_samples = math.max(0, state.buffered_samples - playedSamples)
+        end
+        if #state.amplitude_queue > 0 then table.remove(state.amplitude_queue, 1) end
+      elseif speakerName == state.speaker_r_name then
+        state.speaker_r_ready = true
+      else
+        return
+      end
+
+      if not (state.speaker_ready and state.speaker_r_ready) then
+        return
+      end
+    else
+      state.speaker_ready = true
+      if #state.chunk_queue > 0 then
+        local playedSamples = table.remove(state.chunk_queue, 1)
+        state.buffered_samples = math.max(0, state.buffered_samples - playedSamples)
+      end
+      if #state.amplitude_queue > 0 then table.remove(state.amplitude_queue, 1) end
     end
-    if #state.amplitude_queue > 0 then table.remove(state.amplitude_queue, 1) end
     queueNextChunk()
   end
 end
@@ -545,13 +606,17 @@ function audio.stopTrack()
   state.chunk_queue         = {}
   state.buffered_samples    = 0
   state.skip_samples        = 0
+  state.skip_samples_r      = 0
   state.sync_offset_seconds = 0
   state.sync_clock_ms       = 0
   state.bytes_started_at    = 0
   state.last_error          = nil
   state.speaker             = nil
+  state.speaker_name        = nil
+  state.speaker_ready       = true
   state.speaker_r           = nil
   state.speaker_r_name      = nil
+  state.speaker_r_ready     = true
   state.stereo_active       = false
 
   local hasSpeaker = peripheral.find("speaker") ~= nil

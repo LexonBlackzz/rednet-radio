@@ -159,34 +159,35 @@ local function getClientUpdateCheckButtonLayout(width, height)
   }
 end
 
-local function getSettingsScreenLayout(width, height, showNeverOption, remindLaterMinutes, enableVisualizer, autoUpdate)
+local function getSettingsScreenLayout(width, height, showNeverOption, remindLaterMinutes, enableVisualizer, autoUpdate, enableStereo)
   local toggleLabel = showNeverOption and "[ON]" or "[OFF]"
   local visToggleLabel = enableVisualizer and "[ON]" or "[OFF]"
   local autoToggleLabel = autoUpdate and "[ON]" or "[OFF]"
+  local stereoToggleLabel = enableStereo and "[ON]" or "[OFF]"
   local reminderDownLabel = "[-]"
   local reminderUpLabel = "[+]"
   local reminderValueLabel = ("%dm"):format(remindLaterMinutes or 60)
   local updateNowLabel = "[UPDATE NOW]"
   local colorsLabel = "[COLORS]"
-  local toggleRow = 10
-  local visToggleRow = 12
-  local autoToggleRow = 14
+  local toggleRow = 8
+  local visToggleRow = 10
+  local autoToggleRow = 12
+  local stereoToggleRow = 14
   local reminderRow = 16
-  local updateRow = 19
-  local colorsRow = 21
+  local updateRow = 18
+  local colorsRow = 20
   local backLabel = "[BACK]"
-  local stereoToggleLabel = enableStereo and "[ON]" or "[OFF]"
-  local stereoToggleRow = 16
   return {
     toggleRow = toggleRow, toggleX = math.max(3, width - #toggleLabel - 3), toggleWidth = #toggleLabel, toggleLabel = toggleLabel,
     visToggleRow = visToggleRow, visToggleX = math.max(3, width - #visToggleLabel - 3), visToggleWidth = #visToggleLabel, visToggleLabel = visToggleLabel,
     autoToggleRow = autoToggleRow, autoToggleX = math.max(3, width - #autoToggleLabel - 3), autoToggleWidth = #autoToggleLabel, autoToggleLabel = autoToggleLabel,
+    stereoToggleRow = stereoToggleRow, stereoToggleX = math.max(3, width - #stereoToggleLabel - 3), stereoToggleWidth = #stereoToggleLabel, stereoToggleLabel = stereoToggleLabel,
     reminderRow = reminderRow, reminderDownX = math.max(3, width - (#reminderUpLabel + #reminderValueLabel + #reminderDownLabel + 6)), reminderDownLabel = reminderDownLabel,
     reminderValueX = math.max(8, width - (#reminderUpLabel + #reminderValueLabel + 5)), reminderValueLabel = reminderValueLabel,
     reminderUpX = math.max(12, width - #reminderUpLabel - 3), reminderUpLabel = reminderUpLabel,
+    updateRow = updateRow, updateX = math.max(3, width - #updateNowLabel - 3), updateLabel = updateNowLabel,
     colorsRow = colorsRow, colorsX = math.max(3, width - #colorsLabel - 3), colorsLabel = colorsLabel,
     backRow = math.max(colorsRow + 2, height - 2), backX = math.max(3, width - #backLabel - 2), backWidth = #backLabel, backLabel = backLabel,
-    stereoToggleRow = stereoToggleRow, stereoToggleX = math.max(3, width - #stereoToggleLabel - 3), stereoToggleWidth = #stereoToggleLabel, stereoToggleLabel = stereoToggleLabel
   }
 end
 
@@ -528,25 +529,30 @@ function monitor.renderClientSettings(playbackStatus, settingsState)
     width, height, settingsState and settingsState.show_never_option,
     settingsState and settingsState.remind_later_minutes,
     settingsState == nil or settingsState.enable_visualizer,
-    settingsState and settingsState.auto_update
+    settingsState and settingsState.auto_update,
+    settingsState and settingsState.enable_stereo
   )
-  writeAt(device, 3, 6, fit("Update prompt style", width - 6), colors.white, palette.panel)
-  writeAt(device, 3, 8, fit("Show optional NEVER button", width - 6), colors.white, palette.panel)
+  writeAt(device, 3, 6, fit("Touch toggles save immediately.", width - 6), colors.white, palette.panel)
+  writeAt(device, 3, layout.toggleRow, fit("Show optional NEVER button", layout.toggleX - 5), colors.white, palette.panel)
   writeAt(device, layout.toggleX, layout.toggleRow, layout.toggleLabel, colors.black, colors.lightGray)
   
-  writeAt(device, 3, layout.visToggleRow, fit("Enable Audio Visualizer", width - 6), colors.white, palette.panel)
+  writeAt(device, 3, layout.visToggleRow, fit("Enable Audio Visualizer", layout.visToggleX - 5), colors.white, palette.panel)
   writeAt(device, layout.visToggleX, layout.visToggleRow, layout.visToggleLabel, colors.black, colors.lightGray)
 
-  writeAt(device, 3, layout.autoToggleRow, fit("Auto-Update (Hot Reload)", width - 6), colors.white, palette.panel)
+  writeAt(device, 3, layout.autoToggleRow, fit("Auto-Update (Hot Reload)", layout.autoToggleX - 5), colors.white, palette.panel)
   writeAt(device, layout.autoToggleX, layout.autoToggleRow, layout.autoToggleLabel, colors.black, colors.lightGray)
 
-  writeAt(device, 3, layout.stereoToggleRow, fit("Enable Stereo (Experimental)", width - 6), colors.white, palette.panel)
+  writeAt(device, 3, layout.stereoToggleRow, fit("Enable Stereo (Experimental)", layout.stereoToggleX - 5), colors.white, palette.panel)
   writeAt(device, layout.stereoToggleX, layout.stereoToggleRow, layout.stereoToggleLabel, colors.black, colors.lightGray)
   
-  writeAt(device, 3, layout.reminderRow, fit("Remind me later delay", width - 6), colors.white, palette.panel)
+  writeAt(device, 3, layout.reminderRow, fit("Remind me later delay", layout.reminderDownX - 5), colors.white, palette.panel)
   writeAt(device, layout.reminderDownX, layout.reminderRow, layout.reminderDownLabel, colors.black, colors.lightGray)
   writeAt(device, layout.reminderValueX, layout.reminderRow, layout.reminderValueLabel, colors.black, palette.panel)
   writeAt(device, layout.reminderUpX, layout.reminderRow, layout.reminderUpLabel, colors.black, colors.lightGray)
+  if layout.updateRow <= height - 3 then
+    writeAt(device, 3, layout.updateRow, fit("Install packaged update", layout.updateX - 5), colors.white, palette.panel)
+    writeAt(device, layout.updateX, layout.updateRow, layout.updateLabel, colors.black, colors.lightGray)
+  end
   if layout.colorsRow <= height - 3 then
     writeAt(device, 3, layout.colorsRow, fit("Colour palette", layout.colorsX - 4), colors.white, palette.panel)
     writeAt(device, layout.colorsX, layout.colorsRow, layout.colorsLabel, colors.black, colors.cyan)
@@ -632,11 +638,13 @@ function monitor.getClientTouchAction(side, x, y, screenMode, prompt, settingsSt
       width, height, settingsState and settingsState.show_never_option,
       settingsState and settingsState.remind_later_minutes,
       settingsState == nil or settingsState.enable_visualizer,
-      settingsState and settingsState.auto_update
+      settingsState and settingsState.auto_update,
+      settingsState and settingsState.enable_stereo
     )
     if hitButton(x, y, { x = layout.toggleX, y = layout.toggleRow, label = layout.toggleLabel }) then return "toggle_never_option" end
     if hitButton(x, y, { x = layout.visToggleX, y = layout.visToggleRow, label = layout.visToggleLabel }) then return "toggle_visualizer" end
     if hitButton(x, y, { x = layout.autoToggleX, y = layout.autoToggleRow, label = layout.autoToggleLabel }) then return "toggle_auto_update" end
+    if hitButton(x, y, { x = layout.stereoToggleX, y = layout.stereoToggleRow, label = layout.stereoToggleLabel }) then return "toggle_stereo" end
     if hitButton(x, y, { x = layout.reminderDownX, y = layout.reminderRow, label = layout.reminderDownLabel }) then return "remind_delay_down" end
     if hitButton(x, y, { x = layout.reminderUpX, y = layout.reminderRow, label = layout.reminderUpLabel }) then return "remind_delay_up" end
     if hitButton(x, y, { x = layout.updateX, y = layout.updateRow, label = layout.updateLabel }) then return "update_now" end

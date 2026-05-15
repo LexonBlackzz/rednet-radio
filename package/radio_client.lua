@@ -47,6 +47,14 @@ end
 local function adjustVolume(deltaPercent) audio.adjustVolumePercent(deltaPercent) end
 local function adjustVisualizerRange(deltaPercent) audio.adjustVisualizerRangePercent(deltaPercent) end
 local function adjustRemindLaterMinutes(deltaMinutes) settings.adjustRemindLaterMinutes(deltaMinutes) end
+local function applyStereoSetting() audio.setStereoEnabled(settings.getEnableStereo()) end
+
+local function refreshStereoPlayback()
+  applyStereoSetting()
+  if currentSnapshot and not currentSnapshot.eas_active then
+    os.queueEvent("audio_sync", currentSnapshot)
+  end
+end
 
 refreshUpdateState = function(statusOverride)
   updateInfo = nil
@@ -197,9 +205,11 @@ local function renderTunedScreen()
     print("Client Settings\n")
     print(("Installed version: %s"):format(version.version))
     print(("Never button in update prompt: %s"):format(currentSettings.show_never_option and "ON" or "OFF"))
+    print(("Stereo playback: %s"):format(currentSettings.enable_stereo and "ON" or "OFF"))
     print(("Remind me later delay: %d minutes"):format(settings.getRemindLaterMinutes()))
     print(("Updates: %s"):format(updateStatus))
-    print("Keys: b = back, t = toggle NEVER, v = vis, a = auto-update, - / = = delay, u = update, q = quit")
+    print("Keys: b = back, t = toggle NEVER, v = vis, a = auto-update")
+    print("      g = stereo, - / = = delay, u = update, q = quit")
     monitor.renderClientSettings(audio.getStatusSummary(), currentSettings)
     return
   elseif screenMode == "palette" then
@@ -240,6 +250,10 @@ local function renderTunedScreen()
   print("\nPlayback: " .. audio.getStatusSummary())
   print(("Volume: %d%% / %d%%"):format(audio.getVolumePercent(), audio.getMaxVolumePercent()))
   print(("Range: %d%% / %d%%"):format(audio.getVisualizerRangePercent(), audio.getMaxVisualizerRangePercent()))
+  print(("Stereo: %s%s"):format(
+    settings.getEnableStereo() and "ON" or "OFF",
+    audio.getStereoActive() and " (active on two speakers)" or ""
+  ))
   print(("Updates: %s"):format(updateStatus))
   print(("Last sync: %s"):format(lastUpdateMs and util.formatAge(lastUpdateMs) or "never"))
   print("Keys: q = back, p = ping, r = reload, s = settings, [ / ] = volume")
@@ -387,6 +401,9 @@ local function tuneStation(station)
           elseif key == "t" then settings.toggleShowNeverOption(); os.queueEvent("run_bg_task", "check_updates")
           elseif key == "v" then settings.toggleEnableVisualizer()
           elseif key == "a" then settings.toggleAutoUpdate()
+          elseif key == "g" then settings.toggleEnableStereo(); refreshStereoPlayback()
+          elseif key == "-" then adjustRemindLaterMinutes(-settings.getRemindLaterStepMinutes())
+          elseif key == "=" then adjustRemindLaterMinutes(settings.getRemindLaterStepMinutes())
           elseif key == "u" then rednet_api.sendPing(station, { palette = settings.getPalette(), is_update_signal = true }); installAvailableUpdate()
           end
           renderTunedScreen()
@@ -427,6 +444,9 @@ local function tuneStation(station)
         elseif action == "toggle_never_option" then settings.toggleShowNeverOption(); os.queueEvent("run_bg_task", "check_updates")
         elseif action == "toggle_visualizer" then settings.toggleEnableVisualizer()
         elseif action == "toggle_auto_update" then settings.toggleAutoUpdate()
+        elseif action == "toggle_stereo" then settings.toggleEnableStereo(); refreshStereoPlayback()
+        elseif action == "remind_delay_down" then adjustRemindLaterMinutes(-settings.getRemindLaterStepMinutes())
+        elseif action == "remind_delay_up" then adjustRemindLaterMinutes(settings.getRemindLaterStepMinutes())
         
         elseif action == "check_updates" then 
           if not isCheckingUpdates then
@@ -559,6 +579,7 @@ end
 local function main()
   if rednet_api.openModems() == 0 then error("No modem found.") end
   settings.load()
+  applyStereoSetting()
   monitor.setPalette(settings.getPalette())
   refreshUpdateState()
 

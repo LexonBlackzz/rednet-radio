@@ -39,10 +39,11 @@ local function normalizeTrack(track)
     return nil, ("Track '%s' has invalid art_url"):format(track.id)
   end
 
-  if track.playback_url ~= nil and type(track.playback_url) ~= "string" then
-    return nil, ("Track '%s' has invalid playback_url"):format(track.id)
+  if track.playback_url_r ~= nil and type(track.playback_url_r) ~= "string" then
+    return nil, ("Track '%s' has invalid playback_url_r"):format(track.id)
   end
 
+  -- Then, make sure it gets returned in the final sanitized table!
   return {
     id = track.id,
     title = track.title,
@@ -51,8 +52,8 @@ local function normalizeTrack(track)
     art_url = track.art_url,
     duration = track.duration,
     playback_url = track.playback_url,
+    playback_url_r = track.playback_url_r, 
   }
-end
 
 function playlist.loadPlaylist(stationId, url, fallbackName)
   local decoded, source, err = util.fetchJson(url, getCachePath(stationId))

@@ -26,6 +26,7 @@ local defaults = {
   show_never_option = false,
   enable_visualizer = true,
   auto_update = false,
+  enable_stereo = false,        -- STEREO: experimental dual-speaker playback
   last_station_id = nil,
   remind_at_ms = 0,
   ignored_version = nil,
@@ -124,6 +125,27 @@ function settings.toggleAutoUpdate()
   settings.setAutoUpdate(not current)
   return not current
 end
+
+-- ── Stereo Playback ──────────────────────────────────────────────────────────
+-- Experimental: plays audio through two speakers (L/R).
+-- Tracks with a playback_url_r field get true stereo; others are duplicated mono.
+
+function settings.getEnableStereo()
+  return settings.get().enable_stereo == true
+end
+
+function settings.setEnableStereo(enable)
+  settings.get().enable_stereo = enable == true
+  return persist()
+end
+
+function settings.toggleEnableStereo()
+  local current = settings.getEnableStereo()
+  settings.setEnableStereo(not current)
+  return not current
+end
+
+-- ─────────────────────────────────────────────────────────────────────────────
 
 function settings.getLastStationId()
   return settings.get().last_station_id

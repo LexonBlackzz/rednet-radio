@@ -56,6 +56,8 @@ local function main(...)
   log(("Hosting station '%s'"):format(stationDefinition.name))
   local screenMode = "main"
   local playlistSourceOrErr = playErr
+  local receiverPalettes = {}
+  local receiverPaletteOrder = {}
 
   local timers = {}
   local function schedule(name, seconds)
@@ -81,6 +83,60 @@ local function main(...)
     end
   end
 
+  local function getSelectedPaletteReceiverId()
+    return settings.getHostPaletteReceiverId()
+  end
+
+  local function getReceiverPaletteEntries()
+    local entries = {}
+    for _, receiverId in ipairs(receiverPaletteOrder) do
+      local receiver = receiverPalettes[receiverId]
+      if receiver and receiver.palette then
+        table.insert(entries, {
+          id = receiverId,
+          palette = util.copyTable(receiver.palette),
+          last_seen_ms = receiver.last_seen_ms,
+        })
+      end
+    end
+    return entries
+  end
+
+  local function applyReceiverPalette(receiverId)
+    local receiver = receiverId and receiverPalettes[receiverId]
+    if not receiver or not receiver.palette then
+      return false
+    end
+
+    settings.setHostPaletteReceiverId(receiverId)
+    settings.setPalette(receiver.palette)
+    monitor.setPalette(receiver.palette)
+    return true
+  end
+
+  local function rememberReceiverPalette(receiverId, palette)
+    if type(palette) ~= "table" then
+      return
+    end
+
+    if not receiverPalettes[receiverId] then
+      table.insert(receiverPaletteOrder, receiverId)
+    end
+
+    receiverPalettes[receiverId] = {
+      palette = util.copyTable(palette),
+      last_seen_ms = util.nowMilliseconds(),
+    }
+
+    local selectedReceiverId = getSelectedPaletteReceiverId()
+    if selectedReceiverId == nil then
+      applyReceiverPalette(receiverId)
+    elseif selectedReceiverId == receiverId then
+      monitor.setPalette(palette)
+      settings.setPalette(palette)
+    end
+  end
+
   rednet_api.broadcastAnnounce(stationDefinition, getHostSnapshot())
   rednet_api.broadcastNowPlaying(stationDefinition, getHostSnapshot())
   persistHostRuntimeState()
@@ -88,6 +144,8 @@ local function main(...)
   local function renderScreen()
     if screenMode == "main" then
       monitor.renderHost(stationDefinition, getHostSnapshot(), playlistSourceOrErr, updateStatus)
+    elseif screenMode == "palette" then
+      monitor.renderHostPalettePicker(stationDefinition.name, getReceiverPaletteEntries(), getSelectedPaletteReceiverId())
     else
       monitor.renderHostSettings(stationDefinition.name, settings.getAllowRemoteSkip(), settings.getAllowRemoteShuffle(), settings.getEnableRedstoneAnnouncement(), settings.getAnnouncementRedstoneSide())
     end
@@ -237,7 +295,9 @@ local function main(...)
       elseif event == "rednet_message" then
         local senderId, message, protocol = p1, p2, p3
         if rednet_api.acceptsProtocol(stationDefinition, protocol) and rednet_api.isRadioMessage(message) then
-          if message.palette then settings.setPalette(message.palette); monitor.setPalette(message.palette) end
+          if message.palette then
+            rememberReceiverPalette(senderId, message.palette)
+          end
           
           if message.message_type == config.message_types.ping or message.message_type == config.message_types.tune_request then
             if message.is_update_signal then os.queueEvent("run_bg_task", "updates", "manual") end
@@ -247,6 +307,12 @@ local function main(...)
             end
           elseif message.message_type == config.message_types.skip_request and settings.getAllowRemoteSkip() then
             stationRuntime:advanceTrack(util.nowMilliseconds()); persistHostRuntimeState(); rednet_api.broadcastNowPlaying(stationDefinition, getHostSnapshot()); renderScreen()
+          elseif message.message_type == config.message_types.track_select_request and settings.getAllowRemoteSkip() then
+            if stationRuntime:selectTrack(message.track_index, util.nowMilliseconds()) then
+              persistHostRuntimeState()
+              rednet_api.broadcastNowPlaying(stationDefinition, getHostSnapshot())
+              renderScreen()
+            end
           elseif message.message_type == config.message_types.shuffle_request and settings.getAllowRemoteShuffle() then
             stationRuntime:toggleShuffle(); persistHostRuntimeState(); rednet_api.broadcastNowPlaying(stationDefinition, getHostSnapshot()); renderScreen()
           end
@@ -259,15 +325,26 @@ local function main(...)
           settings.getEnableRedstoneAnnouncement(), settings.getAnnouncementRedstoneSide()
         )
         if action == "open_settings" then screenMode = "settings"
+        elseif action == "open_palette" then screenMode = "palette"
+        elseif action == "palette_back" then screenMode = "main"
         elseif action == "settings_back" then screenMode = "main"
         elseif action == "toggle_remote_skip" then settings.toggleAllowRemoteSkip()
         elseif action == "toggle_remote_shuffle" then settings.toggleAllowRemoteShuffle()
         elseif action == "toggle_eas" then settings.toggleEnableRedstoneAnnouncement()
         elseif action == "cycle_eas_side" then settings.cycleAnnouncementRedstoneSide()
-        elseif action == "check_updates" then 
-          updateStatus = "Checking for updates..."
-          renderScreen()
-          hostVisualUpdateTimer = os.startTimer(1) 
+        else
+          local selectedIndex = action and action:match("^select_palette_receiver_(%d+)$")
+          if selectedIndex then
+            local receivers = getReceiverPaletteEntries()
+            local selected = receivers[tonumber(selectedIndex)]
+            if selected then
+              applyReceiverPalette(selected.id)
+            end
+          elseif action == "check_updates" then 
+            updateStatus = "Checking for updates..."
+            renderScreen()
+            hostVisualUpdateTimer = os.startTimer(1) 
+          end
         end
         renderScreen()
       end

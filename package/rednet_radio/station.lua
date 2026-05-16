@@ -111,6 +111,15 @@ function Station:_refillShuffleBag()
   end
 end
 
+local function removeIndexFromBag(bag, indexToRemove)
+  if not bag or not indexToRemove then return end
+  for i = #bag, 1, -1 do
+    if bag[i] == indexToRemove then
+      table.remove(bag, i)
+    end
+  end
+end
+
 function Station:advanceTrack(nowMs)
   if #self.tracks == 0 then
     return false
@@ -130,6 +139,25 @@ function Station:advanceTrack(nowMs)
     end
   end
   
+  self.started_at_ms = nowMs or util.nowMilliseconds()
+  return true
+end
+
+function Station:selectTrack(index, nowMs)
+  index = tonumber(index)
+  if not index or #self.tracks == 0 then
+    return false
+  end
+
+  index = math.floor(index)
+  if index < 1 or index > #self.tracks then
+    return false
+  end
+
+  self.current_index = index
+  if self.shuffle_mode then
+    removeIndexFromBag(self.shuffle_bag, index)
+  end
   self.started_at_ms = nowMs or util.nowMilliseconds()
   return true
 end
@@ -225,6 +253,7 @@ function Station:getSnapshot()
     track_index = self.current_index,
     track_count = #self.tracks,
     duration = track and track.duration or 0,
+    track_list = self.tracks,
     gap_seconds = config.track_gap_seconds or 0,
     in_gap = in_gap,
     shuffle_mode = self.shuffle_mode,

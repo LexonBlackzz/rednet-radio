@@ -8,6 +8,8 @@ local CHUNK_BYTES = 8 * 1024
 local MAX_BUFFER_SAMPLES = 128 * 1024
 local PRE_ROLL_SECONDS = 1
 local RESYNC_THRESHOLD_SECONDS = 5
+local STEREO_RESYNC_INTERVAL_SECONDS = 5
+local STEREO_MISMATCH_GRACE_MS = 500
 local MIN_VOLUME_PERCENT = 0
 local MAX_VOLUME_PERCENT = 200
 local DEFAULT_VOLUME_PERCENT = 100
@@ -37,6 +39,7 @@ local state = {
 
   current_track_id       = nil,
   current_playback_url   = nil,
+  current_track          = nil,
 
   pending_buffer   = nil,
   pending_buffer_r = nil,  -- right-channel pending (nil = use left data)
@@ -61,6 +64,10 @@ local state = {
   -- Stereo flags (set by audio.setStereoEnabled / restartPlayback)
   stereo_enabled = false,  -- user-facing toggle
   stereo_active  = false,  -- true while a track is actually playing on 2 speakers
+  stereo_resync_timer = nil,
+  stereo_mismatch_started_ms = 0,
+  speaker_empty_count = 0,
+  speaker_r_empty_count = 0,
 }
 -- ─────────────────────────────────────────────────────────────────────────────
 
@@ -160,6 +167,61 @@ local function estimateCurrentOffsetSeconds()
   return state.sync_offset_seconds + ((util.nowMilliseconds() - state.sync_clock_ms) / 1000)
 end
 
+local restartPlayback
+
+local function scheduleStereoResyncTimer()
+  if state.stereo_active then
+    state.stereo_resync_timer = os.startTimer(STEREO_RESYNC_INTERVAL_SECONDS)
+  else
+    state.stereo_resync_timer = nil
+  end
+end
+
+local function updateStereoMismatchState()
+  if not state.stereo_active or not state.speaker_r then
+    state.stereo_mismatch_started_ms = 0
+    return
+  end
+
+  local mismatched = state.speaker_ready ~= state.speaker_r_ready
+    or state.speaker_empty_count ~= state.speaker_r_empty_count
+
+  if mismatched then
+    if state.stereo_mismatch_started_ms == 0 then
+      state.stereo_mismatch_started_ms = util.nowMilliseconds()
+    end
+  else
+    state.stereo_mismatch_started_ms = 0
+  end
+end
+
+local function finalizePendingPlayback()
+  table.insert(state.amplitude_queue, state.pending_amplitude)
+  table.insert(state.chunk_queue, #state.pending_buffer)
+  state.buffered_samples = math.min(MAX_BUFFER_SAMPLES, state.buffered_samples + #state.pending_buffer)
+  state.pending_buffer = nil
+  state.pending_buffer_r = nil
+  state.pending_amplitude = 0
+
+  if state.stereo_active then
+    state.status = state.stream_r and "playing (stereo L+R)" or "playing (stereo dup)"
+  else
+    state.status = "playing"
+  end
+
+  updateStereoMismatchState()
+  return true
+end
+
+local function forceStereoResync(reason)
+  if not state.stereo_active or not state.current_track then
+    return false
+  end
+
+  state.status = reason or "resyncing stereo"
+  return restartPlayback(state.current_track, math.max(0, estimateCurrentOffsetSeconds()))
+end
+
 -- ── Playback core ─────────────────────────────────────────────────────────────
 
 -- Attempts to push pending buffer(s) to the speaker(s).
@@ -186,10 +248,12 @@ local function playPendingBuffer()
 
   if not speaker.playAudio(outputBuffer, vol) then
     state.speaker_ready = false
+    updateStereoMismatchState()
     state.status = "buffering speaker"
     return false
   end
-  state.speaker_ready = false
+  -- Speaker readiness is updated only after both stereo channels accept
+  -- the same chunk, which prevents one side from running ahead.
 
   -- ── Stereo right channel ──────────────────────────────────────────────────
   if state.stereo_active and state.speaker_r then
@@ -197,42 +261,32 @@ local function playPendingBuffer()
       and applyVolumeBoost(state.pending_buffer_r)
       or outputBuffer        -- fall back: play same mono data on right
 
-    local okRight, acceptedRight = pcall(state.speaker_r.playAudio, outputBufferR, vol)
+    local okRight, acceptedRight = pcall(function()
+      return state.speaker_r.playAudio(outputBufferR, vol)
+    end)
     if okRight and acceptedRight then
+      state.speaker_ready = false
       state.speaker_r_ready = false
     elseif okRight then
-      -- Keep both channels aligned: if the right speaker rejects this chunk,
-      -- roll back the left side and retry once the right speaker empties.
-      if speaker.stop then
-        pcall(function() speaker.stop() end)
-      end
-      state.speaker_ready = true
+      -- Left already accepted, so rebuild both channels from the same offset
+      -- instead of letting one side run ahead of the other.
+      state.speaker_ready = false
       state.speaker_r_ready = false
-      state.status = "buffering speaker"
-      return false
+      updateStereoMismatchState()
+      return forceStereoResync("resyncing stereo")
     else
       closeStreamR()
       state.speaker_r = nil
       state.speaker_r_name = nil
       state.speaker_r_ready = true
       state.stereo_active = false
+      state.speaker_ready = false
     end
-  end
-
-  table.insert(state.amplitude_queue, state.pending_amplitude)
-  table.insert(state.chunk_queue, #outputBuffer)
-  state.buffered_samples = state.buffered_samples + #outputBuffer
-
-  state.pending_buffer   = nil
-  state.pending_buffer_r = nil
-  state.pending_amplitude = 0
-
-  if state.stereo_active then
-    state.status = state.stream_r and "playing (stereo L+R)" or "playing (stereo dup)"
   else
-    state.status = "playing"
+    state.speaker_ready = false
   end
-  return true
+
+  return finalizePendingPlayback()
 end
 
 local function skipBytes(response, bytesToSkip)
@@ -318,7 +372,7 @@ local function queueNextChunk()
   end
 end
 
-local function restartPlayback(track, targetOffsetSeconds)
+restartPlayback = function(track, targetOffsetSeconds)
   audio.stopTrack()
 
   local dfpwm = getDecoderFactory()
@@ -371,12 +425,16 @@ local function restartPlayback(track, targetOffsetSeconds)
   state.decoder             = dfpwm.make_decoder()
   state.current_track_id    = track.id
   state.current_playback_url = track.playback_url
+  state.current_track       = track
   state.pending_buffer      = nil
   state.pending_buffer_r    = nil
   state.pending_amplitude   = 0
   state.amplitude_queue     = {}
   state.chunk_queue         = {}
   state.buffered_samples    = 0
+  state.speaker_empty_count = 0
+  state.speaker_r_empty_count = 0
+  state.stereo_mismatch_started_ms = 0
   state.skip_samples        = skipSamples
   state.skip_samples_r      = skipSamples
   state.sync_offset_seconds = targetOffsetSeconds
@@ -407,6 +465,7 @@ local function restartPlayback(track, targetOffsetSeconds)
     state.status = "buffering audio"
   end
 
+  scheduleStereoResyncTimer()
   queueNextChunk()
   return true
 end
@@ -552,6 +611,7 @@ function audio.handleEvent(event, speakerName)
     if state.stereo_active then
       if speakerName == state.speaker_name then
         state.speaker_ready = true
+        state.speaker_empty_count = state.speaker_empty_count + 1
 
         if #state.chunk_queue > 0 then
           local playedSamples = table.remove(state.chunk_queue, 1)
@@ -560,10 +620,12 @@ function audio.handleEvent(event, speakerName)
         if #state.amplitude_queue > 0 then table.remove(state.amplitude_queue, 1) end
       elseif speakerName == state.speaker_r_name then
         state.speaker_r_ready = true
+        state.speaker_r_empty_count = state.speaker_r_empty_count + 1
       else
         return
       end
 
+      updateStereoMismatchState()
       if not (state.speaker_ready and state.speaker_r_ready) then
         return
       end
@@ -576,11 +638,30 @@ function audio.handleEvent(event, speakerName)
       if #state.amplitude_queue > 0 then table.remove(state.amplitude_queue, 1) end
     end
     queueNextChunk()
+  elseif event == "timer" and speakerName == state.stereo_resync_timer then
+    state.stereo_resync_timer = nil
+
+    if not state.stereo_active then
+      return
+    end
+
+    updateStereoMismatchState()
+    if state.stereo_mismatch_started_ms > 0
+        and (util.nowMilliseconds() - state.stereo_mismatch_started_ms) >= STEREO_MISMATCH_GRACE_MS then
+      forceStereoResync("resyncing stereo")
+      return
+    end
+
+    scheduleStereoResyncTimer()
   end
 end
 
 function audio.startTrack(track, offsetSeconds)
   return restartPlayback(track, offsetSeconds or 0)
+end
+
+function audio.forceStereoResync()
+  return forceStereoResync("manual stereo resync")
 end
 
 function audio.stopTrack()
@@ -599,12 +680,17 @@ function audio.stopTrack()
   state.decoder             = nil
   state.current_track_id    = nil
   state.current_playback_url = nil
+  state.current_track       = nil
   state.pending_buffer      = nil
   state.pending_buffer_r    = nil
   state.pending_amplitude   = 0
   state.amplitude_queue     = {}
   state.chunk_queue         = {}
   state.buffered_samples    = 0
+  state.speaker_empty_count = 0
+  state.speaker_r_empty_count = 0
+  state.stereo_mismatch_started_ms = 0
+  state.stereo_resync_timer = nil
   state.skip_samples        = 0
   state.skip_samples_r      = 0
   state.sync_offset_seconds = 0

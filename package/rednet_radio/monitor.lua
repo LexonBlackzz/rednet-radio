@@ -138,11 +138,41 @@ local function getClientSettingsButtonLayout(width, height)
   }
 end
 
+local function getClientResyncButtonLayout(height)
+  local label = "[RESYNC]"
+  return {
+    y = height - 2,
+    x = 3,
+    width = #label,
+    label = label,
+  }
+end
+
+local function getClientTracksButtonLayout(width)
+  local label = "[TRACKS]"
+  return {
+    y = 11,
+    x = math.max(3, width - #label - 2),
+    width = #label,
+    label = label,
+  }
+end
+
 local function getHostSettingsButtonLayout(width, height)
   local label = "[SET]"
   return {
     y = 3,
     x = math.max(3, width - #label - 2),
+    width = #label,
+    label = label,
+  }
+end
+
+local function getHostPaletteButtonLayout(width, height)
+  local label = "[PALETTE]"
+  return {
+    y = 3,
+    x = math.max(3, width - #label - 10),
     width = #label,
     label = label,
   }
@@ -315,6 +345,7 @@ function monitor.renderClient(station, snapshot, playbackStatus, volumePercent, 
   local width, height = drawFrame(device, "Current Broadcast")
   local controls = getClientAudioControlLayout(width, height)
   local settingsButton = getClientSettingsButtonLayout(width, height)
+  local resyncButton = getClientResyncButtonLayout(height)
  
   writeAt(device, 3, 6, fit(station and station.name or "No station selected", width - 6), colors.white, palette.panel)
   writeAt(device, 3, 7, fit(station and station.station_id or "", width - 6), colors.yellow, palette.panel)
@@ -325,7 +356,9 @@ function monitor.renderClient(station, snapshot, playbackStatus, volumePercent, 
     local barWidth = math.max(8, width - 8)
     local ratio = (snapshot.duration or 0) > 0 and (shownElapsed / snapshot.duration) or 0
     writeAt(device, 3, 9, fit(snapshot.track.artist or "Unknown Artist", width - 6), colors.white, palette.panel)
-    writeAt(device, 3, 10, fit(snapshot.track.title or "Unknown Track", width - 6), colors.cyan, palette.panel)
+    local tracksButton = getClientTracksButtonLayout(width)
+    writeAt(device, 3, 10, fit(snapshot.track.title or "Unknown Track", math.max(8, tracksButton.x - 5)), colors.cyan, palette.panel)
+    writeAt(device, tracksButton.x, tracksButton.y, tracksButton.label, colors.black, colors.lightGray)
     drawProgressBar(device, 3, 12, barWidth, ratio, snapshot.in_gap and palette.warn or palette.good, colors.gray)
     writeAt(device, 3, 13, ("Duration: %ds/%ds Track: %d/%d"):format(
       shownElapsed, snapshot.duration or 0, snapshot.track_index or 0, snapshot.track_count or 0
@@ -373,6 +406,7 @@ function monitor.renderClient(station, snapshot, playbackStatus, volumePercent, 
     writeAt(device, shuffleX, settingsButton.y, "[SHUF]", colors.black, snapshot and snapshot.shuffle_mode and colors.lime or colors.lightGray)
     writeAt(device, skipX, settingsButton.y, "[SKIP]", colors.black, colors.lightGray)
   end
+  writeAt(device, resyncButton.x, resyncButton.y, resyncButton.label, colors.black, colors.lightGray)
   if width >= #updateBtn.label + 5 then
     writeAt(device, updateBtn.x, updateBtn.y, updateBtn.label, colors.black, colors.lightGray)
   end
@@ -411,6 +445,51 @@ function monitor.renderClient(station, snapshot, playbackStatus, volumePercent, 
       writeAt(device, textX, textStartY + i - 1, line, colors.white, colors.red)
     end
   end
+end
+
+function monitor.renderClientTrackPicker(station, snapshot, page)
+  local device = getMonitor()
+  if not device then return end
+
+  local width, height = drawFrame(device, "Select Track")
+  local tracks = snapshot and snapshot.track_list or {}
+  local pageSize = math.max(1, height - 11)
+  local totalPages = math.max(1, math.ceil(#tracks / pageSize))
+  local currentPage = math.max(1, math.min(page or 1, totalPages))
+  local startIndex = ((currentPage - 1) * pageSize) + 1
+  local endIndex = math.min(#tracks, startIndex + pageSize - 1)
+  local backLabel = "[BACK]"
+  local prevLabel = "[PREV]"
+  local nextLabel = "[NEXT]"
+  local backX = math.max(3, width - #backLabel - 2)
+  local prevX = 3
+  local nextX = math.max(prevX + #prevLabel + 2, backX - #nextLabel - 2)
+
+  writeAt(device, 3, 4, fit(station and station.name or "Station", width - 6), colors.white, palette.panel)
+  writeAt(device, 3, 5, fit(("Page %d/%d"):format(currentPage, totalPages), width - 6), colors.yellow, palette.panel)
+
+  if #tracks == 0 then
+    writeAt(device, 3, 8, fit("No track list available yet.", width - 6), colors.white, palette.panel)
+  else
+    local rowY = 7
+    for index = startIndex, endIndex do
+      local track = tracks[index]
+      local isCurrent = snapshot and snapshot.track_index == index
+      local prefix = isCurrent and ">" or " "
+      local label = ("%s%02d. %s"):format(prefix, index, track.title or track.id or "Untitled")
+      local artist = track.artist and track.artist ~= "" and (" - " .. track.artist) or ""
+      local fullLabel = label .. artist
+      local rowBg = isCurrent and palette.header or palette.panel
+      local rowFg = isCurrent and colors.black or palette.text
+      fill(device, 3, rowY, math.max(1, width - 5), 1, rowBg, rowFg)
+      writeAt(device, 4, rowY, fit(fullLabel, width - 8), rowFg, rowBg)
+      rowY = rowY + 1
+    end
+  end
+
+  writeAt(device, prevX, height - 2, prevLabel, colors.black, colors.lightGray)
+  writeAt(device, nextX, height - 2, nextLabel, colors.black, colors.lightGray)
+  writeAt(device, backX, height - 2, backLabel, colors.black, colors.lightGray)
 end
 
 function monitor.updateVisualizerOnly(amplitude, bufferRatio, visualizerRangePercent)
@@ -585,6 +664,49 @@ function monitor.renderHostSettings(stationName, allowRemoteSkip, allowRemoteShu
   writeAt(device, layout.backX, layout.backY, layout.backLabel, colors.black, colors.lightGray)
 end
 
+function monitor.renderHostPalettePicker(stationName, receivers, selectedReceiverId)
+  local device = getMonitor()
+  if not device then return end
+
+  local width, height = drawFrame(device, "Host Palette Source")
+  local backLabel = "[BACK]"
+  local backX = math.max(3, width - #backLabel - 2)
+  local backY = height - 2
+
+  writeAt(device, 3, 4, fit(stationName or "Station", width - 6), colors.white, palette.panel)
+  writeAt(device, 3, 6, fit("Choose which receiver controls the host palette.", width - 6), colors.white, palette.panel)
+
+  if not receivers or #receivers == 0 then
+    writeAt(device, 3, 9, fit("No receiver palettes received yet.", width - 6), colors.white, palette.panel)
+  else
+    local startY = 8
+    local maxRows = math.max(1, height - startY - 3)
+    local visibleCount = math.min(#receivers, maxRows)
+
+    for index = 1, visibleCount do
+      local receiver = receivers[index]
+      local rowY = startY + (index - 1)
+      local rowPalette = receiver.palette or {}
+      local rowBg = rowPalette.panel or palette.panel
+      local rowText = rowPalette.text or palette.text
+      local buttonLabel = (receiver.id == selectedReceiverId) and "[ACTIVE]" or "[CHOOSE]"
+      local buttonX = math.max(3, width - #buttonLabel - 3)
+      local labelWidth = math.max(10, buttonX - 5)
+      local receiverLabel = ("%d. Receiver %s"):format(index, tostring(receiver.id))
+
+      fill(device, 3, rowY, math.max(1, width - 5), 1, rowBg, rowText)
+      writeAt(device, 4, rowY, fit(receiverLabel, labelWidth), rowText, rowBg)
+      writeAt(device, buttonX, rowY, buttonLabel, colors.black, colors.lightGray)
+    end
+
+    if #receivers > visibleCount then
+      writeAt(device, 3, startY + visibleCount + 1, fit(("Showing %d/%d receivers"):format(visibleCount, #receivers), width - 6), colors.white, palette.panel)
+    end
+  end
+
+  writeAt(device, backX, backY, backLabel, colors.black, colors.lightGray)
+end
+
 function monitor.getClientTouchAction(side, x, y, screenMode, prompt, settingsState)
   local device = getMonitor()
   if not device or peripheral.getName(device) ~= side then return nil end
@@ -599,12 +721,35 @@ function monitor.getClientTouchAction(side, x, y, screenMode, prompt, settingsSt
     return nil
   end
 
-  if screenMode == "main" and y == height - 2 and width >= 28 then
+  if screenMode == "main" and y == height - 2 then
+    local resyncButton = getClientResyncButtonLayout(height)
     local settingsX = width - 9
     local skipX = settingsX - 7
     local shuffleX = skipX - 7
-    if x >= skipX and x < skipX + 6 then return "skip_track" end
-    if x >= shuffleX and x < shuffleX + 6 then return "toggle_shuffle" end
+    if x >= resyncButton.x and x < resyncButton.x + #resyncButton.label then return "stereo_resync" end
+    if width >= 28 then
+      if x >= skipX and x < skipX + 6 then return "skip_track" end
+      if x >= shuffleX and x < shuffleX + 6 then return "toggle_shuffle" end
+    end
+  end
+
+  if screenMode == "main" then
+    local tracksButton = getClientTracksButtonLayout(width)
+    if hitButton(x, y, tracksButton) then return "open_tracks" end
+  end
+
+  if screenMode == "tracks" then
+    local prevLabel = "[PREV]"
+    local nextLabel = "[NEXT]"
+    local backLabel = "[BACK]"
+    local backX = math.max(3, width - #backLabel - 2)
+    local prevX = 3
+    local nextX = math.max(prevX + #prevLabel + 2, backX - #nextLabel - 2)
+    if hitButton(x, y, { x = prevX, y = height - 2, label = prevLabel }) then return "tracks_prev" end
+    if hitButton(x, y, { x = nextX, y = height - 2, label = nextLabel }) then return "tracks_next" end
+    if hitButton(x, y, { x = backX, y = height - 2, label = backLabel }) then return "tracks_back" end
+    if y >= 7 and y < height - 2 then return "track_pick_row_" .. tostring(y - 6) end
+    return nil
   end
 
   if screenMode == "palette" then
@@ -684,6 +829,19 @@ function monitor.getHostTouchAction(x, y, mode, allowRemoteSkip, allowRemoteShuf
   if not device then return nil end
   local width, height = device.getSize()
 
+  if mode == "palette" then
+    local backLabel = "[BACK]"
+    local backX = math.max(3, width - #backLabel - 2)
+    local backY = height - 2
+    if hitButton(x, y, { x = backX, y = backY, label = backLabel }) then return "palette_back" end
+
+    local startY = 8
+    if y >= startY and y < (height - 2) then
+      return "select_palette_receiver_" .. tostring(y - startY + 1)
+    end
+    return nil
+  end
+
   if mode == "settings" then
     local layout = getHostSettingsScreenLayout(width, height, allowRemoteSkip, allowRemoteShuffle, enableEAS, easSide)
     if hitButton(x, y, { x = layout.skipX, y = layout.skipY, label = layout.skipLabel }) then return "toggle_remote_skip" end
@@ -697,6 +855,9 @@ function monitor.getHostTouchAction(x, y, mode, allowRemoteSkip, allowRemoteShuf
   local settingsBtn = getHostSettingsButtonLayout(width, height)
   if hitButton(x, y, settingsBtn) then return "open_settings" end
 
+  local paletteBtn = getHostPaletteButtonLayout(width, height)
+  if hitButton(x, y, paletteBtn) then return "open_palette" end
+
   local updateBtn = getClientUpdateCheckButtonLayout(width, height)
   if hitButton(x, y, { x = updateBtn.x, y = updateBtn.y, label = updateBtn.label }) then return "check_updates" end
 
@@ -709,6 +870,8 @@ function monitor.renderHost(station, snapshot, playlistSource, updateStatus)
 
   local width, height = drawFrame(device, "Station Uplink")
   local settingsBtn = getHostSettingsButtonLayout(width, height)
+  local paletteBtn = getHostPaletteButtonLayout(width, height)
+  writeAt(device, paletteBtn.x, paletteBtn.y, paletteBtn.label, colors.black, colors.lightGray)
   writeAt(device, settingsBtn.x, settingsBtn.y, settingsBtn.label, colors.black, colors.lightGray)
   
   writeAt(device, 3, 6, fit(station and station.name or "Unknown station", width - 6), colors.white, palette.panel)

@@ -385,7 +385,15 @@ local function tuneStation(station)
           end
           checkUpdateTimer = os.startTimer(60)
         elseif p1 == clockTimer then
-          renderTunedScreen(); clockTimer = os.startTimer(1)
+          renderTunedScreen()
+          if screenMode == "main" and currentSnapshot and not hostUpdateInProgress then
+            monitor.updateClientProgressOnly(
+              currentSnapshot,
+              audio.getVolumePercent(),
+              audio.getVisualizerRangePercent()
+            )
+          end
+          clockTimer = os.startTimer(1)
         elseif p1 == visTimer then
           if screenMode == "main" and settings.getEnableVisualizer() then
             monitor.updateVisualizerOnly(audio.getAmplitude(), audio.getBufferRatio(), audio.getVisualizerRangePercent())

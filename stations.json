@@ -47,6 +47,14 @@
       "playlist_url": "https://raw.githubusercontent.com/LexonBlackzz/rednet-radio/refs/heads/main/playlists/stereo_test.json",
       "rednet_channel": "rednet_radio_v1:station:stereo_test",
       "host_label": "user-submitted"
+    },
+    {
+      "station_id": "lexons_realer_hits",
+      "name": "Lexon's REALER Hits",
+      "description": "It's the same real hits playlist, just.... stereo!",
+      "playlist_url": "https://raw.githubusercontent.com/LexonBlackzz/rednet-radio/main/playlists/lexons_realer_hits.json",
+      "rednet_channel": "rednet_radio_v1:station:lexons_realer_hits",
+      "host_label": "user-submitted"
     }
   ]
 }

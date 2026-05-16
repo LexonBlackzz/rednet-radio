@@ -29,6 +29,7 @@ local updatePrompt = {
 
 local PALETTE_ROLES = { "bg", "panel", "header", "accent", "text", "dim", "good", "warn" }
 local paletteState = { selectedRole = 1 }
+local trackPickerState = { page = 1 }
 
 local refreshUpdateState
 local installAvailableUpdate
@@ -220,6 +221,20 @@ local function renderTunedScreen()
     local selectedRoleName = PALETTE_ROLES[paletteState.selectedRole] or "bg"
     monitor.renderPaletteEditor(settings.getPalette(), selectedRoleName)
     return
+  elseif screenMode == "tracks" then
+    print("Track Selection\n")
+    print("Choose a track on the monitor.")
+    print("Use [PREV] / [NEXT] to change pages.")
+    print("Press [BACK] to return.\n")
+    if currentSnapshot and currentSnapshot.track_list then
+      local pageSize = math.max(1, (peripheral.find("monitor") and select(2, peripheral.find("monitor"):getSize()) or 19) - 11)
+      local totalPages = math.max(1, math.ceil(#currentSnapshot.track_list / pageSize))
+      print(("Page %d/%d"):format(trackPickerState.page, totalPages))
+    else
+      print("Waiting for track list...")
+    end
+    monitor.renderClientTrackPicker(currentStation, currentSnapshot, trackPickerState.page)
+    return
   end
 
   print(("Tuned to: %s"):format(currentStation.name))
@@ -258,7 +273,7 @@ local function renderTunedScreen()
   print(("Last sync: %s"):format(lastUpdateMs and util.formatAge(lastUpdateMs) or "never"))
   print("Keys: q = back, p = ping, r = reload, s = settings, [ / ] = volume")
   print("      - / = = range")
-  print("      n = skip track, x = toggle shuffle")
+  print("      n = skip track, x = toggle shuffle, m = tracks")
   print("Debug: d = test host update, e = test EAS alarm")
 
   if updatePrompt.visible then
@@ -278,12 +293,58 @@ local function renderTunedScreen()
   )
 end
 
+local function getTrackList()
+  return currentSnapshot and currentSnapshot.track_list or {}
+end
+
+local function getTrackPickerPageSize()
+  local device = peripheral.find("monitor")
+  if not device then
+    return 8
+  end
+  local _, height = device.getSize()
+  return math.max(1, height - 11)
+end
+
+local function clampTrackPickerPage()
+  local tracks = getTrackList()
+  local totalPages = math.max(1, math.ceil(#tracks / getTrackPickerPageSize()))
+  if trackPickerState.page < 1 then
+    trackPickerState.page = 1
+  elseif trackPickerState.page > totalPages then
+    trackPickerState.page = totalPages
+  end
+  return totalPages
+end
+
+local function openTrackPicker()
+  local currentIndex = currentSnapshot and currentSnapshot.track_index or 1
+  trackPickerState.page = math.max(1, math.ceil((currentIndex or 1) / getTrackPickerPageSize()))
+  clampTrackPickerPage()
+  screenMode = "tracks"
+end
+
+local function getSelectedTrackIndexForRow(rowNumber)
+  rowNumber = tonumber(rowNumber)
+  if not rowNumber then
+    return nil
+  end
+  local pageSize = getTrackPickerPageSize()
+  local trackIndex = ((trackPickerState.page - 1) * pageSize) + rowNumber
+  local tracks = getTrackList()
+  if trackIndex < 1 or trackIndex > #tracks then
+    return nil
+  end
+  return trackIndex
+end
+
 local function tuneStation(station)
   currentStation = station
   currentSnapshot = nil
   lastUpdateMs = nil
   lastSnapshotSentAtMs = nil
   screenMode = "main"
+  trackPickerState.page = 1
   audio.stopTrack()
 
   rednet_api.listenToStation(station)
@@ -368,6 +429,7 @@ local function tuneStation(station)
                 if message.sent_at_ms then lastSnapshotSentAtMs = message.sent_at_ms end
                 currentStation = util.mergeTables(currentStation, message.station)
                 currentSnapshot = message.snapshot or currentSnapshot
+                clampTrackPickerPage()
                 lastUpdateMs = util.nowMilliseconds()
                 if not currentSnapshot or not currentSnapshot.eas_active then os.queueEvent("audio_sync", currentSnapshot) end
                 if wasWaiting and currentSnapshot then renderTunedScreen() end
@@ -377,6 +439,7 @@ local function tuneStation(station)
               if not isStaleSnapshotMessage(message) then
                 if message.sent_at_ms then lastSnapshotSentAtMs = message.sent_at_ms end
                 currentSnapshot = message.snapshot or currentSnapshot
+                clampTrackPickerPage()
                 lastUpdateMs = util.nowMilliseconds()
                 os.queueEvent("audio_sync", currentSnapshot)
                 if wasWaiting and currentSnapshot then renderTunedScreen() end
@@ -395,7 +458,13 @@ local function tuneStation(station)
 
       elseif event == "char" then
         local key = p1
-        if key == "q" then return "QUIT"
+        if screenMode == "tracks" then
+          if key == "q" or key == "b" then screenMode = "main"
+          elseif key == "," then trackPickerState.page = trackPickerState.page - 1; clampTrackPickerPage()
+          elseif key == "." then trackPickerState.page = trackPickerState.page + 1; clampTrackPickerPage()
+          end
+          renderTunedScreen()
+        elseif key == "q" then return "QUIT"
         elseif screenMode == "settings" then
           if key == "b" then screenMode = "main"
           elseif key == "t" then settings.toggleShowNeverOption(); os.queueEvent("run_bg_task", "check_updates")
@@ -417,6 +486,7 @@ local function tuneStation(station)
           if key == "p" then rednet_api.sendPing(station, { palette = settings.getPalette() })
           elseif key == "n" then rednet_api.requestSkip(currentStation)
           elseif key == "x" then rednet_api.requestShuffleToggle(currentStation)
+          elseif key == "m" then openTrackPicker()
           elseif key == "s" then screenMode = "settings"; paletteState.selectedRole = 1
           elseif key == "[" then adjustVolume(-audio.getVolumeStepPercent())
           elseif key == "]" then adjustVolume(audio.getVolumeStepPercent())
@@ -439,6 +509,14 @@ local function tuneStation(station)
         elseif action == "volume_up" then adjustVolume(audio.getVolumeStepPercent())
         elseif action == "range_down" then adjustVisualizerRange(-audio.getVisualizerRangeStepPercent())
         elseif action == "range_up" then adjustVisualizerRange(audio.getVisualizerRangeStepPercent())
+        elseif action == "stereo_resync" then
+          if audio.getStereoActive() then
+            os.queueEvent("audio_force_resync")
+          end
+        elseif action == "open_tracks" then openTrackPicker()
+        elseif action == "tracks_back" then screenMode = "main"
+        elseif action == "tracks_prev" then trackPickerState.page = trackPickerState.page - 1; clampTrackPickerPage()
+        elseif action == "tracks_next" then trackPickerState.page = trackPickerState.page + 1; clampTrackPickerPage()
         elseif action == "open_settings" then screenMode = "settings"
         elseif action == "settings_back" then screenMode = "main"
         elseif action == "toggle_never_option" then settings.toggleShowNeverOption(); os.queueEvent("run_bg_task", "check_updates")
@@ -463,13 +541,20 @@ local function tuneStation(station)
         elseif action == "open_palette" then screenMode = "palette"; paletteState.selectedRole = 1
         elseif action == "update_never" then neverShowThisUpdate()
         else
+          local pickedRow = action and action:match("^track_pick_row_(%d+)$")
+          if pickedRow then
+            local selectedTrackIndex = getSelectedTrackIndexForRow(pickedRow)
+            if selectedTrackIndex then
+              rednet_api.requestTrackSelect(currentStation, selectedTrackIndex)
+              screenMode = "main"
+            end
+          end
+
           -- PALETTE EDITOR BUTTONS
           local selRole = action and action:match("^palette_select_(.+)$")
           if selRole then 
             for i, r in ipairs(PALETTE_ROLES) do if r == selRole then paletteState.selectedRole = i; break end end 
-          end
-          
-          if action == "palette_prev" or action == "palette_next" then
+          elseif action == "palette_prev" or action == "palette_next" then
             local pRole = PALETTE_ROLES[paletteState.selectedRole] or "bg"
             local cp   = settings.getPalette()
             local cv   = cp[pRole] or 1
@@ -531,11 +616,20 @@ local function tuneStation(station)
             easTimer = nil
           end
         end
+      elseif event == "timer" then
+        if not isEasPlaying then
+          audio.handleEvent(event, p1, p2, p3)
+        end
 
       elseif event == "audio_sync" then
         -- if alarm is going, completely ignore all network sync packets
         if not isEasPlaying then
            audio.syncToSnapshot(p1)
+        end
+
+      elseif event == "audio_force_resync" then
+        if not isEasPlaying then
+          audio.forceStereoResync()
         end
 
       elseif event == "audio_eas_start" then

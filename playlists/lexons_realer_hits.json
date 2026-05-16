@@ -1,6 +1,6 @@
 {
   "name": "Lexon's REALER Hits Playlist",
-  "version": "43",
+  "version": "45",
   "tracks": [
     {
       "id": "track_01",
@@ -76,7 +76,7 @@
     },
     {
       "id": "track_10",
-      "title": "Better Off Alone (Official Video)",
+      "title": "Better Off Alone",
       "artist": "Alice Deejay",
       "duration": 175,
       "playback_url": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/19%20-%20Alice%20Deejay%20-%20Better%20Off%20Alone%20%28Official%20Video%29_L.dfpwm",
@@ -271,8 +271,8 @@
       "title": "Little Kandi Raver (Original Mix)",
       "artist": "S3RL",
       "duration": 384,
-      "playback_url": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/68%20-%20Little%20Kandi%20Raver%20%28Original%20Mix%29_L.dfpwm",
-      "playback_url_r": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/68%20-%20Little%20Kandi%20Raver%20%28Original%20Mix%29_R.dfpwm"
+      "playback_url": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/68%20-%20Little%20Kandi%20Raver%20(Original%20Mix)_L.dfpwm",
+      "playback_url_r": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/68%20-%20Little%20Kandi%20Raver%20(Original%20Mix)_R.dfpwm"
     },
     {
       "id": "track_35",

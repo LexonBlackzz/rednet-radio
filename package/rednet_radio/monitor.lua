@@ -3,905 +3,968 @@ local util = require("rednet_radio.util")
 local monitor = {}
 
 local state = {
-  device = nil,
-  scale = 0.5,
+device = nil,
+scale = 0.5,
 }
 
 local palette = {
-  bg = colors.blue,
-  panel = colors.lightBlue,
-  header = colors.orange,
-  accent = colors.red,
-  text = colors.white,
-  dim = colors.lightGray,
-  good = colors.lime,
-  warn = colors.yellow,
+bg = colors.blue,
+panel = colors.lightBlue,
+header = colors.orange,
+accent = colors.red,
+text = colors.white,
+dim = colors.lightGray,
+good = colors.lime,
+warn = colors.yellow,
 }
 
 local function getMonitor()
-  state.device = peripheral.find("monitor")
-  if state.device and state.device.setTextScale then
-    pcall(function()
-      state.device.setTextScale(state.scale)
-    end)
-  end
-  return state.device
+state.device = peripheral.find("monitor")
+if state.device and state.device.setTextScale then
+pcall(function()
+state.device.setTextScale(state.scale)
+end)
+end
+return state.device
 end
 
 local function fill(target, x, y, width, height, bg, text)
-  target.setBackgroundColor(bg)
-  target.setTextColor(text or palette.text)
-  local blank = string.rep(" ", math.max(0, width))
-  for row = 0, height - 1 do
-    target.setCursorPos(x, y + row)
-    target.write(blank)
-  end
+target.setBackgroundColor(bg)
+target.setTextColor(text or palette.text)
+local blank = string.rep(" ", math.max(0, width))
+for row = 0, height - 1 do
+target.setCursorPos(x, y + row)
+target.write(blank)
+end
 end
 
 local function writeAt(target, x, y, text, fg, bg)
-  if bg then
-    target.setBackgroundColor(bg)
-  end
-  target.setTextColor(fg or palette.text)
-  target.setCursorPos(x, y)
-  target.write(text)
+if bg then
+target.setBackgroundColor(bg)
+end
+target.setTextColor(fg or palette.text)
+target.setCursorPos(x, y)
+target.write(text)
 end
 
 local function fit(text, width)
-  text = tostring(text or "")
-  if #text <= width then
-    return text
-  end
-  if width <= 3 then
-    return text:sub(1, width)
-  end
-  return text:sub(1, width - 3) .. "..."
+text = tostring(text or "")
+if #text <= width then
+return text
+end
+if width <= 3 then
+return text:sub(1, width)
+end
+return text:sub(1, width - 3) .. "..."
 end
 
 local function drawFrame(target, title)
-  local width, height = target.getSize()
-  fill(target, 1, 1, width, height, palette.bg, palette.text)
-  fill(target, 2, 2, width - 2, height - 2, palette.panel, palette.text)
-  fill(target, 2, 2, width - 2, 3, palette.header, colors.black)
-  fill(target, width - 2, 2, 1, 1, palette.accent, palette.accent)
-  writeAt(target, 4, 3, fit(title, width - 8), colors.yellow, palette.header)
-  return width, height
+local width, height = target.getSize()
+fill(target, 1, 1, width, height, palette.bg, palette.text)
+fill(target, 2, 2, width - 2, height - 2, palette.panel, palette.text)
+fill(target, 2, 2, width - 2, 3, palette.header, colors.black)
+fill(target, width - 2, 2, 1, 1, palette.accent, palette.accent)
+writeAt(target, 4, 3, fit(title, width - 8), colors.yellow, palette.header)
+return width, height
 end
 
 local function drawProgressBar(target, x, y, width, ratio, fg, bg)
-  ratio = math.max(0, math.min(1, ratio or 0))
-  local filled = math.floor(width * ratio + 0.5)
-  if width <= 0 then return end
-  fill(target, x, y, width, 1, bg or colors.gray)
-  if filled > 0 then
-    fill(target, x, y, filled, 1, fg or palette.good)
-  end
+ratio = math.max(0, math.min(1, ratio or 0))
+local filled = math.floor(width * ratio + 0.5)
+if width <= 0 then return end
+fill(target, x, y, width, 1, bg or colors.gray)
+if filled > 0 then
+fill(target, x, y, filled, 1, fg or palette.good)
+end
 end
 
 local function getVisualizerDisplay(amplitude)
-  local amp = math.max(0, tonumber(amplitude) or 0)
+local amp = math.max(0, tonumber(amplitude) or 0)
 
-  if amp <= 0 then
-    return 0, -99
-  end
+if amp <= 0 then
+return 0, -99
+end
 
-  local db = 20 * (math.log(amp) / math.log(10))
-  local floorDb = -36
-  local ratio = (db - floorDb) / (0 - floorDb)
-  return math.max(0, math.min(1, ratio)), db
+local db = 20 * (math.log(amp) / math.log(10))
+local floorDb = -36
+local ratio = (db - floorDb) / (0 - floorDb)
+return math.max(0, math.min(1, ratio)), db
 end
 
 local function getClientAudioControlLayout(width, height)
-  local rangeRow = math.max(10, height - 8)
-  local volumeRow = rangeRow + 1
-  local bufferRow = rangeRow + 3
-  local audioRow = rangeRow + 4
-  local minusLabel = "[-]"
-  local plusLabel = "[+]"
-  local rangeMinusLabel = "[-]"
-  local rangePlusLabel = "[+]"
-  local rangePlusX = math.max(3, width - #rangePlusLabel - 2)
-  local rangeMinusX = math.max(3, rangePlusX - #rangeMinusLabel - 1)
-  local rangeValueX = math.max(3, rangeMinusX - 7)
-  local volumePlusX = rangePlusX
-  local volumeMinusX = rangeMinusX
-  local volumeValueX = rangeValueX
-  return {
-    rangeY = rangeRow,
-    volumeY = volumeRow,
-    bufferY = bufferRow,
-    audioY = audioRow,
-    volumeMinusX = volumeMinusX,
-    volumeMinusWidth = #minusLabel,
-    volumePlusX = volumePlusX,
-    volumePlusWidth = #plusLabel,
-    volumeMinusLabel = minusLabel,
-    volumePlusLabel = plusLabel,
-    volumeValueX = volumeValueX,
-    rangeMinusX = rangeMinusX,
-    rangeMinusWidth = #rangeMinusLabel,
-    rangePlusX = rangePlusX,
-    rangePlusWidth = #rangePlusLabel,
-    rangeMinusLabel = rangeMinusLabel,
-    rangePlusLabel = rangePlusLabel,
-    rangeValueX = rangeValueX,
-  }
+local volumeRow = math.max(14, height - 8)
+local rangeRow = volumeRow + 1
+local bufferRow = rangeRow + 3
+local audioRow = rangeRow + 4
+local minusLabel = "[-]"
+local plusLabel = "[+]"
+local rangeMinusLabel = "[-]"
+local rangePlusLabel = "[+]"
+local rangePlusX = math.max(3, width - #rangePlusLabel - 2)
+local rangeMinusX = math.max(3, rangePlusX - #rangeMinusLabel - 1)
+local rangeValueX = math.max(3, rangeMinusX - 7)
+local volumePlusX = rangePlusX
+local volumeMinusX = rangeMinusX
+local volumeValueX = rangeValueX
+return {
+rangeY = rangeRow,
+volumeY = volumeRow,
+bufferY = bufferRow,
+audioY = audioRow,
+volumeMinusX = volumeMinusX,
+volumeMinusWidth = #minusLabel,
+volumePlusX = volumePlusX,
+volumePlusWidth = #plusLabel,
+volumeMinusLabel = minusLabel,
+volumePlusLabel = plusLabel,
+volumeValueX = volumeValueX,
+rangeMinusX = rangeMinusX,
+rangeMinusWidth = #rangeMinusLabel,
+rangePlusX = rangePlusX,
+rangePlusWidth = #rangePlusLabel,
+rangeMinusLabel = rangeMinusLabel,
+rangePlusLabel = rangePlusLabel,
+rangeValueX = rangeValueX,
+}
 end
 
 local function getClientSettingsButtonLayout(width, height)
-  local label = "[SET]"
-  return {
-    y = height - 2,
-    x = math.max(3, width - #label - 2),
-    width = #label,
-    label = label,
-  }
+local label = "[SET]"
+return {
+y = height - 2,
+x = math.max(3, width - #label - 2),
+width = #label,
+label = label,
+}
 end
 
 local function getClientResyncButtonLayout(height)
-  local label = "[RESYNC]"
-  return {
-    y = height - 2,
-    x = 3,
-    width = #label,
-    label = label,
-  }
+local label = "[RESYNC]"
+return {
+y = height - 2,
+x = 3,
+width = #label,
+label = label,
+}
 end
 
-local function getClientTracksButtonLayout(width)
-  local label = "[TRACKS]"
-  return {
-    y = 11,
-    x = math.max(3, width - #label - 2),
-    width = #label,
-    label = label,
-  }
+local function getClientTracksButtonLayout(width, controlLayout)
+local label = "[TRACKS]"
+local buttonY = 10
+if controlLayout and controlLayout.volumeY then
+buttonY = math.max(9, controlLayout.volumeY - 1)
+end
+return {
+y = buttonY,
+x = math.max(3, width - #label - 2),
+width = #label,
+label = label,
+}
+end
+
+local function getClientTitleWidth(width, tracksButton)
+if not tracksButton or tracksButton.y ~= 10 then
+return width - 6
+end
+return math.max(8, tracksButton.x - 5)
 end
 
 local function getHostSettingsButtonLayout(width, height)
-  local label = "[SET]"
-  return {
-    y = 3,
-    x = math.max(3, width - #label - 2),
-    width = #label,
-    label = label,
-  }
+local label = "[SET]"
+return {
+y = 3,
+x = math.max(3, width - #label - 2),
+width = #label,
+label = label,
+}
 end
 
 local function getHostPaletteButtonLayout(width, height)
-  local label = "[PALETTE]"
-  return {
-    y = 3,
-    x = math.max(3, width - #label - 10),
-    width = #label,
-    label = label,
-  }
+local label = "[PALETTE]"
+return {
+y = 3,
+x = math.max(3, width - #label - 10),
+width = #label,
+label = label,
+}
 end
 
 local function getClientUpdateCheckButtonLayout(width, height)
-  local label = "[CHECK FOR UPDATES]"
-  local settingsButton = getClientSettingsButtonLayout(width, height)
-  return {
-    y = height,
-    x = math.max(3, settingsButton.x - #label - 1),
-    width = #label,
-    label = label,
-  }
+local label = "[CHECK FOR UPDATES]"
+local settingsButton = getClientSettingsButtonLayout(width, height)
+return {
+y = height,
+x = math.max(3, settingsButton.x - #label - 1),
+width = #label,
+label = label,
+}
 end
 
 local function getSettingsScreenLayout(width, height, showNeverOption, remindLaterMinutes, enableVisualizer, autoUpdate, enableStereo)
-  local toggleLabel = showNeverOption and "[ON]" or "[OFF]"
-  local visToggleLabel = enableVisualizer and "[ON]" or "[OFF]"
-  local autoToggleLabel = autoUpdate and "[ON]" or "[OFF]"
-  local stereoToggleLabel = enableStereo and "[ON]" or "[OFF]"
-  local reminderDownLabel = "[-]"
-  local reminderUpLabel = "[+]"
-  local reminderValueLabel = ("%dm"):format(remindLaterMinutes or 60)
-  local updateNowLabel = "[UPDATE NOW]"
-  local colorsLabel = "[COLORS]"
-  local toggleRow = 8
-  local visToggleRow = 10
-  local autoToggleRow = 12
-  local stereoToggleRow = 14
-  local reminderRow = 16
-  local updateRow = 18
-  local colorsRow = 20
-  local backLabel = "[BACK]"
-  return {
-    toggleRow = toggleRow, toggleX = math.max(3, width - #toggleLabel - 3), toggleWidth = #toggleLabel, toggleLabel = toggleLabel,
-    visToggleRow = visToggleRow, visToggleX = math.max(3, width - #visToggleLabel - 3), visToggleWidth = #visToggleLabel, visToggleLabel = visToggleLabel,
-    autoToggleRow = autoToggleRow, autoToggleX = math.max(3, width - #autoToggleLabel - 3), autoToggleWidth = #autoToggleLabel, autoToggleLabel = autoToggleLabel,
-    stereoToggleRow = stereoToggleRow, stereoToggleX = math.max(3, width - #stereoToggleLabel - 3), stereoToggleWidth = #stereoToggleLabel, stereoToggleLabel = stereoToggleLabel,
-    reminderRow = reminderRow, reminderDownX = math.max(3, width - (#reminderUpLabel + #reminderValueLabel + #reminderDownLabel + 6)), reminderDownLabel = reminderDownLabel,
-    reminderValueX = math.max(8, width - (#reminderUpLabel + #reminderValueLabel + 5)), reminderValueLabel = reminderValueLabel,
-    reminderUpX = math.max(12, width - #reminderUpLabel - 3), reminderUpLabel = reminderUpLabel,
-    updateRow = updateRow, updateX = math.max(3, width - #updateNowLabel - 3), updateLabel = updateNowLabel,
-    colorsRow = colorsRow, colorsX = math.max(3, width - #colorsLabel - 3), colorsLabel = colorsLabel,
-    backRow = math.max(colorsRow + 2, height - 2), backX = math.max(3, width - #backLabel - 2), backWidth = #backLabel, backLabel = backLabel,
-  }
+local toggleLabel = showNeverOption and "[ON]" or "[OFF]"
+local visToggleLabel = enableVisualizer and "[ON]" or "[OFF]"
+local autoToggleLabel = autoUpdate and "[ON]" or "[OFF]"
+local stereoToggleLabel = enableStereo and "[ON]" or "[OFF]"
+local reminderDownLabel = "[-]"
+local reminderUpLabel = "[+]"
+local reminderValueLabel = ("%dm"):format(remindLaterMinutes or 60)
+local updateNowLabel = "[UPDATE NOW]"
+local colorsLabel = "[COLORS]"
+local toggleRow = 8
+local visToggleRow = 10
+local autoToggleRow = 12
+local stereoToggleRow = 14
+local reminderRow = 16
+local updateRow = 18
+local colorsRow = 20
+local backLabel = "[BACK]"
+return {
+toggleRow = toggleRow, toggleX = math.max(3, width - #toggleLabel - 3), toggleWidth = #toggleLabel, toggleLabel = toggleLabel,
+visToggleRow = visToggleRow, visToggleX = math.max(3, width - #visToggleLabel - 3), visToggleWidth = #visToggleLabel, visToggleLabel = visToggleLabel,
+autoToggleRow = autoToggleRow, autoToggleX = math.max(3, width - #autoToggleLabel - 3), autoToggleWidth = #autoToggleLabel, autoToggleLabel = autoToggleLabel,
+stereoToggleRow = stereoToggleRow, stereoToggleX = math.max(3, width - #stereoToggleLabel - 3), stereoToggleWidth = #stereoToggleLabel, stereoToggleLabel = stereoToggleLabel,
+reminderRow = reminderRow, reminderDownX = math.max(3, width - (#reminderUpLabel + #reminderValueLabel + #reminderDownLabel + 6)), reminderDownLabel = reminderDownLabel,
+reminderValueX = math.max(8, width - (#reminderUpLabel + #reminderValueLabel + 5)), reminderValueLabel = reminderValueLabel,
+reminderUpX = math.max(12, width - #reminderUpLabel - 3), reminderUpLabel = reminderUpLabel,
+updateRow = updateRow, updateX = math.max(3, width - #updateNowLabel - 3), updateLabel = updateNowLabel,
+colorsRow = colorsRow, colorsX = math.max(3, width - #colorsLabel - 3), colorsLabel = colorsLabel,
+backRow = math.max(colorsRow + 2, height - 2), backX = math.max(3, width - #backLabel - 2), backWidth = #backLabel, backLabel = backLabel,
+}
 end
 
 local function getHostSettingsScreenLayout(width, height, allowRemoteSkip, allowRemoteShuffle, enableEAS, easSide)
-  local skipLabel = allowRemoteSkip and "[ON]" or "[OFF]"
-  local shuffleLabel = allowRemoteShuffle and "[ON]" or "[OFF]"
-  local easLabel = enableEAS and "[ON]" or "[OFF]"
-  local sideLabel = "[" .. string.upper(easSide or "back") .. "]"
-  local skipRow = 6
-  local shuffleRow = 8
-  local easRow = 10
-  local sideRow = 12
-  local backLabel = "[BACK]"
-  return {
-    skipY = skipRow, skipX = math.max(3, width - #skipLabel - 3), skipWidth = #skipLabel, skipLabel = skipLabel,
-    shuffleY = shuffleRow, shuffleX = math.max(3, width - #shuffleLabel - 3), shuffleWidth = #shuffleLabel, shuffleLabel = shuffleLabel,
-    easY = easRow, easX = math.max(3, width - #easLabel - 3), easWidth = #easLabel, easLabel = easLabel,
-    sideY = sideRow, sideX = math.max(3, width - #sideLabel - 3), sideWidth = #sideLabel, sideLabel = sideLabel,
-    backY = height - 2, backX = math.max(3, width - #backLabel - 2), backWidth = #backLabel, backLabel = backLabel,
-  }
+local skipLabel = allowRemoteSkip and "[ON]" or "[OFF]"
+local shuffleLabel = allowRemoteShuffle and "[ON]" or "[OFF]"
+local easLabel = enableEAS and "[ON]" or "[OFF]"
+local sideLabel = "[" .. string.upper(easSide or "back") .. "]"
+local skipRow = 6
+local shuffleRow = 8
+local easRow = 10
+local sideRow = 12
+local backLabel = "[BACK]"
+return {
+skipY = skipRow, skipX = math.max(3, width - #skipLabel - 3), skipWidth = #skipLabel, skipLabel = skipLabel,
+shuffleY = shuffleRow, shuffleX = math.max(3, width - #shuffleLabel - 3), shuffleWidth = #shuffleLabel, shuffleLabel = shuffleLabel,
+easY = easRow, easX = math.max(3, width - #easLabel - 3), easWidth = #easLabel, easLabel = easLabel,
+sideY = sideRow, sideX = math.max(3, width - #sideLabel - 3), sideWidth = #sideLabel, sideLabel = sideLabel,
+backY = height - 2, backX = math.max(3, width - #backLabel - 2), backWidth = #backLabel, backLabel = backLabel,
+}
 end
 
 local PALETTE_ROLE_ORDER = { "bg", "panel", "header", "accent", "text", "dim", "good", "warn" }
-local PALETTE_ROLE_ABBR  = {
-  bg="BG", panel="PN", header="HD", accent="AC",
-  text="TX", dim="DM", good="GD", warn="WN",
+local PALETTE_ROLE_ABBR = {
+bg="BG", panel="PN", header="HD", accent="AC",
+text="TX", dim="DM", good="GD", warn="WN",
 }
 local function getPaletteButtonLayout(startX, startRow, pal)
-  local buttons = {}
-  local btnW = 4
-  for i, role in ipairs(PALETTE_ROLE_ORDER) do
-    local col = (i - 1) % 4
-    local row = math.floor((i - 1) / 4)
-    buttons[i] = {
-      role     = role,
-      x        = startX + col * (btnW + 1),
-      y        = startRow + row,
-      label    = " " .. (PALETTE_ROLE_ABBR[role] or "??") .. " ",
-      colorVal = (pal and pal[role]) or 1,
-    }
-  end
-  return buttons
+local buttons = {}
+local btnW = 4
+for i, role in ipairs(PALETTE_ROLE_ORDER) do
+local col = (i - 1) % 4
+local row = math.floor((i - 1) / 4)
+buttons[i] = {
+role = role,
+x = startX + col * (btnW + 1),
+y = startRow + row,
+label = " " .. (PALETTE_ROLE_ABBR[role] or "??") .. " ",
+colorVal = (pal and pal[role]) or 1,
+}
+end
+return buttons
 end
 
 local function getUpdatePromptLayout(width, height, showNeverOption)
-  local boxWidth = math.max(24, math.min(width - 6, 30))
-  local boxHeight = showNeverOption and 10 or 8
-  local x = math.max(3, math.floor((width - boxWidth) / 2) + 1)
-  local y = math.max(5, math.floor((height - boxHeight) / 2) + 1)
-  return {
-    x = x, y = y, width = boxWidth, height = boxHeight,
-    ok = { x = x + 2, y = y + boxHeight - 2, label = "[OK]" },
-    auto = { x = x + 8, y = y + boxHeight - 2, label = "[AUTO]" },
-    later = { x = x + 16, y = y + boxHeight - 2, label = "[LATER]" },
-    never = showNeverOption and { x = x + 2, y = y + boxHeight - 3, label = "[NEVER]" } or nil,
-  }
+local boxWidth = math.max(24, math.min(width - 6, 30))
+local boxHeight = showNeverOption and 10 or 8
+local x = math.max(3, math.floor((width - boxWidth) / 2) + 1)
+local y = math.max(5, math.floor((height - boxHeight) / 2) + 1)
+return {
+x = x, y = y, width = boxWidth, height = boxHeight,
+ok = { x = x + 2, y = y + boxHeight - 2, label = "[OK]" },
+auto = { x = x + 8, y = y + boxHeight - 2, label = "[AUTO]" },
+later = { x = x + 16, y = y + boxHeight - 2, label = "[LATER]" },
+never = showNeverOption and { x = x + 2, y = y + boxHeight - 3, label = "[NEVER]" } or nil,
+}
 end
 
 local function getMessagePromptLayout(width, height)
-  local boxWidth = math.max(24, math.min(width - 6, 30))
-  local boxHeight = 6
-  local x = math.max(3, math.floor((width - boxWidth) / 2) + 1)
-  local y = math.max(5, math.floor((height - boxHeight) / 2) + 1)
-  return {
-    x = x, y = y, width = boxWidth, height = boxHeight,
-    ok = { x = x + math.floor((boxWidth - 4) / 2), y = y + boxHeight - 2, label = "[OK]" },
-  }
+local boxWidth = math.max(24, math.min(width - 6, 30))
+local boxHeight = 6
+local x = math.max(3, math.floor((width - boxWidth) / 2) + 1)
+local y = math.max(5, math.floor((height - boxHeight) / 2) + 1)
+return {
+x = x, y = y, width = boxWidth, height = boxHeight,
+ok = { x = x + math.floor((boxWidth - 4) / 2), y = y + boxHeight - 2, label = "[OK]" },
+}
 end
 
 local function hitButton(x, y, button)
-  local buttonY = button.y or button.row
-  return button and y == buttonY and x >= button.x and x < (button.x + #button.label)
+local buttonY = button.y or button.row
+return button and y == buttonY and x >= button.x and x < (button.x + #button.label)
 end
 
 local function drawUpdatePrompt(target, width, height, prompt)
-  if not prompt or not prompt.visible then return end
-  local layout = getUpdatePromptLayout(width, height, prompt.show_never_option)
-  fill(target, layout.x, layout.y, layout.width, layout.height, colors.gray, colors.white)
-  fill(target, layout.x + 1, layout.y + 1, layout.width - 2, layout.height - 2, colors.white, colors.black)
-  writeAt(target, layout.x + 2, layout.y + 1, fit("Update ready", layout.width - 4), colors.black, colors.white)
-  writeAt(target, layout.x + 2, layout.y + 3, fit(("Version %s is available."):format(prompt.latest_version or "?"), layout.width - 4), colors.black, colors.white)
-  writeAt(target, layout.x + 2, layout.y + 4, fit("OK installs locally.", layout.width - 4), colors.black, colors.white)
-  writeAt(target, layout.ok.x, layout.ok.y, layout.ok.label, colors.black, colors.lightGray)
-  writeAt(target, layout.auto.x, layout.auto.y, layout.auto.label, colors.black, colors.lightGray)
-  writeAt(target, layout.later.x, layout.later.y, layout.later.label, colors.black, colors.lightGray)
-  if layout.never then writeAt(target, layout.never.x, layout.never.y, layout.never.label, colors.black, colors.lightGray) end
+if not prompt or not prompt.visible then return end
+local layout = getUpdatePromptLayout(width, height, prompt.show_never_option)
+fill(target, layout.x, layout.y, layout.width, layout.height, colors.gray, colors.white)
+fill(target, layout.x + 1, layout.y + 1, layout.width - 2, layout.height - 2, colors.white, colors.black)
+writeAt(target, layout.x + 2, layout.y + 1, fit("Update ready", layout.width - 4), colors.black, colors.white)
+writeAt(target, layout.x + 2, layout.y + 3, fit(("Version %s is available."):format(prompt.latest_version or "?"), layout.width - 4), colors.black, colors.white)
+writeAt(target, layout.x + 2, layout.y + 4, fit("OK installs locally.", layout.width - 4), colors.black, colors.white)
+writeAt(target, layout.ok.x, layout.ok.y, layout.ok.label, colors.black, colors.lightGray)
+writeAt(target, layout.auto.x, layout.auto.y, layout.auto.label, colors.black, colors.lightGray)
+writeAt(target, layout.later.x, layout.later.y, layout.later.label, colors.black, colors.lightGray)
+if layout.never then writeAt(target, layout.never.x, layout.never.y, layout.never.label, colors.black, colors.lightGray) end
 end
 
 function monitor.drawMessagePrompt(target, width, height, prompt)
-  if not prompt or not prompt.visible then return end
-  local layout = getMessagePromptLayout(width, height)
-  fill(target, layout.x, layout.y, layout.width, layout.height, colors.gray, colors.white)
-  fill(target, layout.x + 1, layout.y + 1, layout.width - 2, layout.height - 2, colors.white, colors.black)
-  writeAt(target, layout.x + 2, layout.y + 1, fit(prompt.title or "Notice", layout.width - 4), colors.black, colors.white)
-  writeAt(target, layout.x + 2, layout.y + 3, fit(prompt.message or "", layout.width - 4), colors.black, colors.white)
-  if not prompt.hide_ok then writeAt(target, layout.ok.x, layout.ok.y, layout.ok.label, colors.black, colors.lightGray) end
+if not prompt or not prompt.visible then return end
+local layout = getMessagePromptLayout(width, height)
+fill(target, layout.x, layout.y, layout.width, layout.height, colors.gray, colors.white)
+fill(target, layout.x + 1, layout.y + 1, layout.width - 2, layout.height - 2, colors.white, colors.black)
+writeAt(target, layout.x + 2, layout.y + 1, fit(prompt.title or "Notice", layout.width - 4), colors.black, colors.white)
+writeAt(target, layout.x + 2, layout.y + 3, fit(prompt.message or "", layout.width - 4), colors.black, colors.white)
+if not prompt.hide_ok then writeAt(target, layout.ok.x, layout.ok.y, layout.ok.label, colors.black, colors.lightGray) end
 end
 
 function monitor.hasMonitor() return getMonitor() ~= nil end
 
 function monitor.setPalette(p)
-  if type(p) ~= "table" then return end
-  for k, v in pairs(p) do
-    if palette[k] ~= nil then palette[k] = v end
-  end
+if type(p) ~= "table" then return end
+for k, v in pairs(p) do
+if palette[k] ~= nil then palette[k] = v end
+end
 end
 
 function monitor.getPalette()
-  local copy = {}
-  for k, v in pairs(palette) do copy[k] = v end
-  return copy
+local copy = {}
+for k, v in pairs(palette) do copy[k] = v end
+return copy
 end
 
 function monitor.getDefaultPalette()
-  return {
-    bg = colors.blue, panel = colors.lightBlue, header = colors.orange, accent = colors.red,
-    text = colors.white, dim = colors.lightGray, good = colors.lime, warn = colors.yellow,
-  }
+return {
+bg = colors.blue, panel = colors.lightBlue, header = colors.orange, accent = colors.red,
+text = colors.white, dim = colors.lightGray, good = colors.lime, warn = colors.yellow,
+}
 end
 
 function monitor.renderClient(station, snapshot, playbackStatus, volumePercent, maxVolumePercent, visualizerRangePercent, updateStatus, prompt, amplitude, bufferRatio)
-  local device = getMonitor()
-  if not device then return end
+local device = getMonitor()
+if not device then return end
 
-  local width, height = drawFrame(device, "Current Broadcast")
-  local controls = getClientAudioControlLayout(width, height)
-  local settingsButton = getClientSettingsButtonLayout(width, height)
-  local resyncButton = getClientResyncButtonLayout(height)
- 
-  writeAt(device, 3, 6, fit(station and station.name or "No station selected", width - 6), colors.white, palette.panel)
-  writeAt(device, 3, 7, fit(station and station.station_id or "", width - 6), colors.yellow, palette.panel)
+local width, height = drawFrame(device, "Current Broadcast")
+local controls = getClientAudioControlLayout(width, height)
+local settingsButton = getClientSettingsButtonLayout(width, height)
+local resyncButton = getClientResyncButtonLayout(height)
+local tracksButton = getClientTracksButtonLayout(width, controls)
 
-  if snapshot and snapshot.track then
-    local elapsed = math.floor(util.trackElapsedMilliseconds(snapshot) / 1000)
-    local shownElapsed = math.max(0, math.min(elapsed, snapshot.duration or 0))
-    local barWidth = math.max(8, width - 8)
-    local ratio = (snapshot.duration or 0) > 0 and (shownElapsed / snapshot.duration) or 0
-    writeAt(device, 3, 9, fit(snapshot.track.artist or "Unknown Artist", width - 6), colors.white, palette.panel)
-    local tracksButton = getClientTracksButtonLayout(width)
-    writeAt(device, 3, 10, fit(snapshot.track.title or "Unknown Track", math.max(8, tracksButton.x - 5)), colors.cyan, palette.panel)
-    writeAt(device, tracksButton.x, tracksButton.y, tracksButton.label, colors.black, colors.lightGray)
-    drawProgressBar(device, 3, 12, barWidth, ratio, snapshot.in_gap and palette.warn or palette.good, colors.gray)
-    writeAt(device, 3, 13, ("Duration: %ds/%ds Track: %d/%d"):format(
-      shownElapsed, snapshot.duration or 0, snapshot.track_index or 0, snapshot.track_count or 0
-    ), colors.white, palette.panel)
-    if snapshot.in_gap then writeAt(device, 3, 16, "INTERMISSION", colors.yellow, palette.panel) end
-  else
-    writeAt(device, 3, 10, "Waiting for station...", colors.white, palette.panel)
-  end
+writeAt(device, 3, 6, fit(station and station.name or "No station selected", width - 6), colors.white, palette.panel)
+writeAt(device, 3, 7, fit(station and station.station_id or "", width - 6), colors.yellow, palette.panel)
 
-  -- Audio & Buffer Visualizers
-  if amplitude ~= nil and bufferRatio ~= nil then
-    local bufFill = math.max(0, math.min(bufferRatio or 0, 1))
-    local bufText = ("%4s"):format(math.floor(bufFill * 100) .. "%")
-    writeAt(device, 3, controls.bufferY, "BUFFER", colors.lightGray, palette.panel)
-    writeAt(device, width - #bufText - 2, controls.bufferY, bufText, palette.dim, palette.panel)
-    drawProgressBar(device, 10, controls.bufferY, width - 12 - #bufText - 2, bufFill, colors.lightBlue, colors.gray)
+if snapshot and snapshot.track then
+local elapsed = math.floor(util.trackElapsedMilliseconds(snapshot) / 1000)
+local shownElapsed = math.max(0, math.min(elapsed, snapshot.duration or 0))
+local barWidth = math.max(8, width - 8)
+local ratio = (snapshot.duration or 0) > 0 and (shownElapsed / snapshot.duration) or 0
+local artistWidth = (tracksButton.y == 9) and math.max(8, tracksButton.x - 5) or (width - 6)
+local titleWidth = getClientTitleWidth(width, tracksButton)
+writeAt(device, 3, 9, fit(snapshot.track.artist or "Unknown Artist", artistWidth), colors.white, palette.panel)
+writeAt(device, 3, 10, fit(snapshot.track.title or "Unknown Track", titleWidth), colors.cyan, palette.panel)
+writeAt(device, tracksButton.x, tracksButton.y, tracksButton.label, colors.black, colors.lightGray)
+drawProgressBar(device, 3, 12, barWidth, ratio, snapshot.in_gap and palette.warn or palette.good, colors.gray)
+writeAt(device, 3, 13, ("Duration: %ds/%ds Track: %d/%d"):format(
+shownElapsed, snapshot.duration or 0, snapshot.track_index or 0, snapshot.track_count or 0
+), colors.white, palette.panel)
+if snapshot.in_gap then writeAt(device, 3, 16, "INTERMISSION", colors.yellow, palette.panel) end
+else
+writeAt(device, 3, 10, fit("Waiting for station...", getClientTitleWidth(width, tracksButton)), colors.white, palette.panel)
+end
 
-    local visRatio, db = getVisualizerDisplay(amplitude)
-    local dbText = ("%5.1f dB"):format(db)
-    
-    local visColor = palette.good
-    if db > -3 then visColor = palette.accent elseif db > -12 then visColor = palette.warn end
+-- Audio & Buffer Visualizers
+if amplitude ~= nil and bufferRatio ~= nil then
+local bufFill = math.max(0, math.min(bufferRatio or 0, 1))
+local bufText = ("%4s"):format(math.floor(bufFill * 100) .. "%")
+writeAt(device, 3, controls.bufferY, "BUFFER", colors.lightGray, palette.panel)
+writeAt(device, width - #bufText - 2, controls.bufferY, bufText, palette.dim, palette.panel)
+drawProgressBar(device, 10, controls.bufferY, width - 12 - #bufText - 2, bufFill, colors.lightBlue, colors.gray)
 
-    writeAt(device, 4, controls.audioY, "AUDIO", colors.lightGray, palette.panel)
-    writeAt(device, width - #dbText - 2, controls.audioY, dbText, visColor, palette.panel)
-    drawProgressBar(device, 10, controls.audioY, width - 12 - #dbText - 2, visRatio, visColor, colors.gray)
-  end
+local visRatio, db = getVisualizerDisplay(amplitude)
+local dbText = ("%5.1f dB"):format(db)
 
-  writeAt(device, controls.rangeValueX - 4, controls.rangeY, "RNG", colors.white, palette.panel)
-  writeAt(device, controls.rangeValueX, controls.rangeY, fit(("%3d%%"):format(visualizerRangePercent or 100), 5), colors.white, palette.panel)
-  writeAt(device, controls.rangeMinusX, controls.rangeY, controls.rangeMinusLabel, colors.black, colors.lightGray)
-  writeAt(device, controls.rangePlusX, controls.rangeY, controls.rangePlusLabel, colors.black, colors.lightGray)
-  writeAt(device, controls.volumeValueX - 4, controls.volumeY, "VOL", colors.white, palette.panel)
-  writeAt(device, controls.volumeValueX, controls.volumeY, fit(("%3d%%"):format(volumePercent or 100), 5), colors.white, palette.panel)
-  writeAt(device, controls.volumeMinusX, controls.volumeY, controls.volumeMinusLabel, colors.black, colors.lightGray)
-  writeAt(device, controls.volumePlusX, controls.volumeY, controls.volumePlusLabel, colors.black, colors.lightGray)
-  
-  local updateBtn = getClientUpdateCheckButtonLayout(width, height)
-  local skipX = settingsButton.x - 7
-  local shuffleX = skipX - 7
- 
-  writeAt(device, updateBtn.x, updateBtn.y - 1, fit(updateStatus or playbackStatus or "idle", width - updateBtn.x - 2), colors.white, palette.panel)
-  
-  if width >= 25 then
-    writeAt(device, shuffleX, settingsButton.y, "[SHUF]", colors.black, snapshot and snapshot.shuffle_mode and colors.lime or colors.lightGray)
-    writeAt(device, skipX, settingsButton.y, "[SKIP]", colors.black, colors.lightGray)
-  end
-  writeAt(device, resyncButton.x, resyncButton.y, resyncButton.label, colors.black, colors.lightGray)
-  if width >= #updateBtn.label + 5 then
-    writeAt(device, updateBtn.x, updateBtn.y, updateBtn.label, colors.black, colors.lightGray)
-  end
-  writeAt(device, settingsButton.x, settingsButton.y, settingsButton.label, colors.black, colors.lightGray)
-  
-  drawUpdatePrompt(device, width, height, prompt)
-  
-  if snapshot and snapshot.message_prompt and snapshot.message_prompt.visible then
-    monitor.drawMessagePrompt(device, width, height, snapshot.message_prompt)
-  end
+local visColor = palette.good
+if db > -3 then visColor = palette.accent elseif db > -12 then visColor = palette.warn end
 
-  if snapshot and snapshot.eas_active then
-    -- Calculate box size
-    local boxWidth = math.max(26, math.min(width - 4, 34))
-    local boxHeight = 7
-    
-    -- center the box
-    local boxX = math.floor((width - boxWidth) / 2) + 1
-    local boxY = math.floor((height - boxHeight) / 2) - 1
+writeAt(device, 4, controls.audioY, "AUDIO", colors.lightGray, palette.panel)
+writeAt(device, width - #dbText - 2, controls.audioY, dbText, visColor, palette.panel)
+drawProgressBar(device, 10, controls.audioY, width - 12 - #dbText - 2, visRatio, visColor, colors.gray)
 
-    -- draw the solid red background box
-    fill(device, boxX, boxY, boxWidth, boxHeight, colors.red, colors.white)
+end
 
-    local lines = {
-      "NATIONAL WEATHER SERVICE",
-      "TORNADO WARNING",
-      "",
-      "SEEK SHELTER IMMEDIATELY"
-    }
+writeAt(device, controls.rangeValueX - 4, controls.rangeY, "RNG", colors.white, palette.panel)
+writeAt(device, controls.rangeValueX, controls.rangeY, fit(("%3d%%"):format(visualizerRangePercent or 100), 5), colors.white, palette.panel)
+writeAt(device, controls.rangeMinusX, controls.rangeY, controls.rangeMinusLabel, colors.black, colors.lightGray)
+writeAt(device, controls.rangePlusX, controls.rangeY, controls.rangePlusLabel, colors.black, colors.lightGray)
+writeAt(device, controls.volumeValueX - 4, controls.volumeY, "VOL", colors.white, palette.panel)
+writeAt(device, controls.volumeValueX, controls.volumeY, fit(("%3d%%"):format(volumePercent or 100), 5), colors.white, palette.panel)
+writeAt(device, controls.volumeMinusX, controls.volumeY, controls.volumeMinusLabel, colors.black, colors.lightGray)
+writeAt(device, controls.volumePlusX, controls.volumeY, controls.volumePlusLabel, colors.black, colors.lightGray)
 
-    -- centering
-    local textStartY = boxY + math.floor((boxHeight - #lines) / 2)
+local updateBtn = getClientUpdateCheckButtonLayout(width, height)
+local skipX = settingsButton.x - 7
+local shuffleX = skipX - 7
 
-    for i, line in ipairs(lines) do
-      local textX = boxX + math.floor((boxWidth - #line) / 2)
-      writeAt(device, textX, textStartY + i - 1, line, colors.white, colors.red)
-    end
-  end
+writeAt(device, updateBtn.x, updateBtn.y - 1, fit(updateStatus or playbackStatus or "idle", width - updateBtn.x - 2), colors.white, palette.panel)
+
+if width >= 25 then
+writeAt(device, shuffleX, settingsButton.y, "[SHUF]", colors.black, snapshot and snapshot.shuffle_mode and colors.lime or colors.lightGray)
+writeAt(device, skipX, settingsButton.y, "[SKIP]", colors.black, colors.lightGray)
+end
+writeAt(device, resyncButton.x, resyncButton.y, resyncButton.label, colors.black, colors.lightGray)
+if width >= #updateBtn.label + 5 then
+writeAt(device, updateBtn.x, updateBtn.y, updateBtn.label, colors.black, colors.lightGray)
+end
+writeAt(device, settingsButton.x, settingsButton.y, settingsButton.label, colors.black, colors.lightGray)
+
+drawUpdatePrompt(device, width, height, prompt)
+
+if snapshot and snapshot.message_prompt and snapshot.message_prompt.visible then
+monitor.drawMessagePrompt(device, width, height, snapshot.message_prompt)
+end
+
+if snapshot and snapshot.eas_active then
+-- Calculate box size
+local boxWidth = math.max(26, math.min(width - 4, 34))
+local boxHeight = 7
+
+-- center the box
+local boxX = math.floor((width - boxWidth) / 2) + 1
+local boxY = math.floor((height - boxHeight) / 2) - 1
+
+-- draw the solid red background box
+fill(device, boxX, boxY, boxWidth, boxHeight, colors.red, colors.white)
+
+local lines = {
+  "NATIONAL WEATHER SERVICE",
+  "TORNADO WARNING",
+  "",
+  "SEEK SHELTER IMMEDIATELY"
+}
+
+-- centering
+local textStartY = boxY + math.floor((boxHeight - #lines) / 2)
+
+for i, line in ipairs(lines) do
+  local textX = boxX + math.floor((boxWidth - #line) / 2)
+  writeAt(device, textX, textStartY + i - 1, line, colors.white, colors.red)
+end
+
+end
 end
 
 function monitor.renderClientTrackPicker(station, snapshot, page)
-  local device = getMonitor()
-  if not device then return end
+local device = getMonitor()
+if not device then return end
 
-  local width, height = drawFrame(device, "Select Track")
-  local tracks = snapshot and snapshot.track_list or {}
-  local pageSize = math.max(1, height - 11)
-  local totalPages = math.max(1, math.ceil(#tracks / pageSize))
-  local currentPage = math.max(1, math.min(page or 1, totalPages))
-  local startIndex = ((currentPage - 1) * pageSize) + 1
-  local endIndex = math.min(#tracks, startIndex + pageSize - 1)
-  local backLabel = "[BACK]"
-  local prevLabel = "[PREV]"
-  local nextLabel = "[NEXT]"
-  local backX = math.max(3, width - #backLabel - 2)
-  local prevX = 3
-  local nextX = math.max(prevX + #prevLabel + 2, backX - #nextLabel - 2)
+local width, height = drawFrame(device, "Select Track")
+local tracks = snapshot and snapshot.track_list or {}
+local pageSize = math.max(1, height - 11)
+local totalPages = math.max(1, math.ceil(#tracks / pageSize))
+local currentPage = math.max(1, math.min(page or 1, totalPages))
+local startIndex = ((currentPage - 1) * pageSize) + 1
+local endIndex = math.min(#tracks, startIndex + pageSize - 1)
+local backLabel = "[BACK]"
+local prevLabel = "[PREV]"
+local nextLabel = "[NEXT]"
+local backX = math.max(3, width - #backLabel - 2)
+local prevX = 3
+local nextX = math.max(prevX + #prevLabel + 2, backX - #nextLabel - 2)
 
-  writeAt(device, 3, 4, fit(station and station.name or "Station", width - 6), colors.white, palette.panel)
-  writeAt(device, 3, 5, fit(("Page %d/%d"):format(currentPage, totalPages), width - 6), colors.yellow, palette.panel)
+writeAt(device, 3, 4, fit(station and station.name or "Station", width - 6), colors.white, palette.panel)
+writeAt(device, 3, 5, fit(("Page %d/%d"):format(currentPage, totalPages), width - 6), colors.yellow, palette.panel)
 
-  if #tracks == 0 then
-    writeAt(device, 3, 8, fit("No track list available yet.", width - 6), colors.white, palette.panel)
-  else
-    local rowY = 7
-    for index = startIndex, endIndex do
-      local track = tracks[index]
-      local isCurrent = snapshot and snapshot.track_index == index
-      local prefix = isCurrent and ">" or " "
-      local label = ("%s%02d. %s"):format(prefix, index, track.title or track.id or "Untitled")
-      local artist = track.artist and track.artist ~= "" and (" - " .. track.artist) or ""
-      local fullLabel = label .. artist
-      local rowBg = isCurrent and palette.header or palette.panel
-      local rowFg = isCurrent and colors.black or palette.text
-      fill(device, 3, rowY, math.max(1, width - 5), 1, rowBg, rowFg)
-      writeAt(device, 4, rowY, fit(fullLabel, width - 8), rowFg, rowBg)
-      rowY = rowY + 1
-    end
-  end
+if #tracks == 0 then
+writeAt(device, 3, 8, fit("No track list available yet.", width - 6), colors.white, palette.panel)
+else
+local rowY = 7
+for index = startIndex, endIndex do
+local track = tracks[index]
+local isCurrent = snapshot and snapshot.track_index == index
+local prefix = isCurrent and ">" or " "
+local label = ("%s%02d. %s"):format(prefix, index, track.title or track.id or "Untitled")
+local artist = track.artist and track.artist ~= "" and (" - " .. track.artist) or ""
+local fullLabel = label .. artist
+local rowBg = isCurrent and palette.header or palette.panel
+local rowFg = isCurrent and colors.black or palette.text
+fill(device, 3, rowY, math.max(1, width - 5), 1, rowBg, rowFg)
+writeAt(device, 4, rowY, fit(fullLabel, width - 8), rowFg, rowBg)
+rowY = rowY + 1
+end
+end
 
-  writeAt(device, prevX, height - 2, prevLabel, colors.black, colors.lightGray)
-  writeAt(device, nextX, height - 2, nextLabel, colors.black, colors.lightGray)
-  writeAt(device, backX, height - 2, backLabel, colors.black, colors.lightGray)
+writeAt(device, prevX, height - 2, prevLabel, colors.black, colors.lightGray)
+writeAt(device, nextX, height - 2, nextLabel, colors.black, colors.lightGray)
+writeAt(device, backX, height - 2, backLabel, colors.black, colors.lightGray)
 end
 
 function monitor.updateVisualizerOnly(amplitude, bufferRatio, visualizerRangePercent)
-  local device = getMonitor()
-  if not device then return end
+local device = getMonitor()
+if not device then return end
 
-  local width, height = device.getSize()
-  local controls = getClientAudioControlLayout(width, height)
+local width, height = device.getSize()
+local controls = getClientAudioControlLayout(width, height)
 
-  if width < 20 then return end
+if width < 20 then return end
 
-  local bufFill = math.max(0, math.min(bufferRatio or 0, 1))
-  local bufText = ("%4s"):format(math.floor(bufFill * 100) .. "%")
-  writeAt(device, width - #bufText - 2, controls.bufferY, bufText, palette.dim, palette.panel)
-  drawProgressBar(device, 10, controls.bufferY, width - 12 - #bufText - 2, bufFill, colors.lightBlue, colors.gray)
+local bufFill = math.max(0, math.min(bufferRatio or 0, 1))
+local bufText = ("%4s"):format(math.floor(bufFill * 100) .. "%")
+writeAt(device, width - #bufText - 2, controls.bufferY, bufText, palette.dim, palette.panel)
+drawProgressBar(device, 10, controls.bufferY, width - 12 - #bufText - 2, bufFill, colors.lightBlue, colors.gray)
 
-  local visRatio, db = getVisualizerDisplay(amplitude)
-  local dbText = ("%5.1f dB"):format(db)
-  
-  local visColor = palette.good
-  if db > -3 then visColor = palette.accent elseif db > -12 then visColor = palette.warn end
+local visRatio, db = getVisualizerDisplay(amplitude)
+local dbText = ("%5.1f dB"):format(db)
 
-  writeAt(device, width - #dbText - 2, controls.audioY, dbText, visColor, palette.panel)
-  drawProgressBar(device, 10, controls.audioY, width - 12 - #dbText - 2, visRatio, visColor, colors.gray)
+local visColor = palette.good
+if db > -3 then visColor = palette.accent elseif db > -12 then visColor = palette.warn end
+
+writeAt(device, width - #dbText - 2, controls.audioY, dbText, visColor, palette.panel)
+drawProgressBar(device, 10, controls.audioY, width - 12 - #dbText - 2, visRatio, visColor, colors.gray)
+end
+
+function monitor.updateClientProgressOnly(snapshot, volumePercent, visualizerRangePercent)
+local device = getMonitor()
+if not device or not snapshot or not snapshot.track then return end
+
+local width, height = device.getSize()
+local controls = getClientAudioControlLayout(width, height)
+local elapsed = math.floor(util.trackElapsedMilliseconds(snapshot) / 1000)
+local shownElapsed = math.max(0, math.min(elapsed, snapshot.duration or 0))
+local barWidth = math.max(8, width - 8)
+local ratio = (snapshot.duration or 0) > 0 and (shownElapsed / snapshot.duration) or 0
+local tracksButton = getClientTracksButtonLayout(width, controls)
+local artistWidth = (tracksButton.y == 9) and math.max(8, tracksButton.x - 5) or (width - 6)
+local titleWidth = getClientTitleWidth(width, tracksButton)
+
+writeAt(device, 3, 9, fit(snapshot.track.artist or "Unknown Artist", artistWidth), colors.white, palette.panel)
+writeAt(device, 3, 10, fit(snapshot.track.title or "Unknown Track", titleWidth), colors.cyan, palette.panel)
+writeAt(device, tracksButton.x, tracksButton.y, tracksButton.label, colors.black, colors.lightGray)
+drawProgressBar(device, 3, 12, barWidth, ratio, snapshot.in_gap and palette.warn or palette.good, colors.gray)
+
+-- DRAW TEXT/FILLS FIRST to ensure they don't erase the controls underneath
+fill(device, 3, 13, math.max(1, width - 5), 1, palette.panel, palette.text)
+writeAt(device, 3, 13, ("Duration: %ds/%ds Track: %d/%d"):format(
+shownElapsed, snapshot.duration or 0, snapshot.track_index or 0, snapshot.track_count or 0
+), colors.white, palette.panel)
+
+fill(device, 3, 16, math.max(1, width - 5), 1, palette.panel, palette.text)
+if snapshot.in_gap then
+writeAt(device, 3, 16, "INTERMISSION", colors.yellow, palette.panel)
+end
+
+-- DRAW CONTROLS LAST so they overwrite any overlapping cleared space perfectly
+fill(device, controls.rangeValueX - 4, controls.rangeY, math.max(12, width - controls.rangeValueX + 2), 1, palette.panel, palette.text)
+writeAt(device, controls.rangeValueX - 4, controls.rangeY, "RNG", colors.white, palette.panel)
+writeAt(device, controls.rangeValueX, controls.rangeY, fit(("%3d%%"):format(visualizerRangePercent or 100), 5), colors.white, palette.panel)
+writeAt(device, controls.rangeMinusX, controls.rangeY, controls.rangeMinusLabel, colors.black, colors.lightGray)
+writeAt(device, controls.rangePlusX, controls.rangeY, controls.rangePlusLabel, colors.black, colors.lightGray)
+
+fill(device, controls.volumeValueX - 4, controls.volumeY, math.max(12, width - controls.volumeValueX + 2), 1, palette.panel, palette.text)
+writeAt(device, controls.volumeValueX - 4, controls.volumeY, "VOL", colors.white, palette.panel)
+writeAt(device, controls.volumeValueX, controls.volumeY, fit(("%3d%%"):format(volumePercent or 100), 5), colors.white, palette.panel)
+writeAt(device, controls.volumeMinusX, controls.volumeY, controls.volumeMinusLabel, colors.black, colors.lightGray)
+writeAt(device, controls.volumePlusX, controls.volumeY, controls.volumePlusLabel, colors.black, colors.lightGray)
+
 end
 
 local COLOR_NAMES = {
-  [1]="white", [2]="orange", [4]="magenta", [8]="lightBlue",
-  [16]="yellow", [32]="lime", [64]="pink", [128]="gray",
-  [256]="lightGray", [512]="cyan", [1024]="purple", [2048]="blue",
-  [4096]="brown", [8192]="green", [16384]="red", [32768]="black",
+[1]="white", [2]="orange", [4]="magenta", [8]="lightBlue",
+[16]="yellow", [32]="lime", [64]="pink", [128]="gray",
+[256]="lightGray", [512]="cyan", [1024]="purple", [2048]="blue",
+[4096]="brown", [8192]="green", [16384]="red", [32768]="black",
 }
 local ROLE_FULL_NAMES = {
-  bg="Background", panel="Panel", header="Header", accent="Accent",
-  text="Text", dim="Dim", good="Progress", warn="Warning",
+bg="Background", panel="Panel", header="Header", accent="Accent",
+text="Text", dim="Dim", good="Progress", warn="Warning",
 }
 
 function monitor.renderPaletteEditor(pal, selectedRole)
-  local device = getMonitor()
-  if not device then return end
+local device = getMonitor()
+if not device then return end
 
-  local width, height = drawFrame(device, "Palette Editor")
-  local p = pal or palette
+local width, height = drawFrame(device, "Palette Editor")
+local p = pal or palette
 
-  local btnW = 4
-  local roleRow1, roleRow2 = 5, 6
-  writeAt(device, 3, 4, fit("Roles:", width - 4), colors.white, palette.panel)
-  for i, role in ipairs(PALETTE_ROLE_ORDER) do
-    local col = (i - 1) % 4
-    local row = (i <= 4) and roleRow1 or roleRow2
-    local bx  = 3 + col * (btnW + 1)
-    local cv  = p[role] or 1
-    local tc  = (cv == 32768) and colors.white or colors.black
-    local lbl = " " .. (PALETTE_ROLE_ABBR[role] or "??") .. " "
-    if role == selectedRole then
-      writeAt(device, bx - 1, row, ">" .. lbl, tc, cv)
-    else
-      writeAt(device, bx, row, lbl, tc, cv)
-    end
-  end
+local btnW = 4
+local roleRow1, roleRow2 = 5, 6
+writeAt(device, 3, 4, fit("Roles:", width - 4), colors.white, palette.panel)
+for i, role in ipairs(PALETTE_ROLE_ORDER) do
+local col = (i - 1) % 4
+local row = (i <= 4) and roleRow1 or roleRow2
+local bx = 3 + col * (btnW + 1)
+local cv = p[role] or 1
+local tc = (cv == 32768) and colors.white or colors.black
+local lbl = " " .. (PALETTE_ROLE_ABBR[role] or "??") .. " "
+if role == selectedRole then
+writeAt(device, bx - 1, row, ">" .. lbl, tc, cv)
+else
+writeAt(device, bx, row, lbl, tc, cv)
+end
+end
 
-  local selCV   = p[selectedRole] or 1
-  local selName = COLOR_NAMES[selCV] or "?"
-  local roleLbl = ROLE_FULL_NAMES[selectedRole] or selectedRole
-  writeAt(device, 3, 8, fit(roleLbl .. ":", width - 4), colors.white, palette.panel)
-  local prevBtn = { x = 3,          y = 9, label = "[<]" }
-  local nextBtn = { x = width - 5,  y = 9, label = "[>]" }
-  local swatchW = math.max(1, nextBtn.x - prevBtn.x - #prevBtn.label - 2)
-  local swatchX = prevBtn.x + #prevBtn.label + 1
-  writeAt(device, prevBtn.x, prevBtn.y, prevBtn.label, colors.black, colors.lightGray)
-  local stc = (selCV == 32768) and colors.white or colors.black
-  writeAt(device, swatchX, prevBtn.y, fit(" "..selName.." ", swatchW), stc, selCV)
-  writeAt(device, nextBtn.x, nextBtn.y, nextBtn.label, colors.black, colors.lightGray)
+local selCV = p[selectedRole] or 1
+local selName = COLOR_NAMES[selCV] or "?"
+local roleLbl = ROLE_FULL_NAMES[selectedRole] or selectedRole
+writeAt(device, 3, 8, fit(roleLbl .. ":", width - 4), colors.white, palette.panel)
+local prevBtn = { x = 3, y = 9, label = "[<]" }
+local nextBtn = { x = width - 5, y = 9, label = "[>]" }
+local swatchW = math.max(1, nextBtn.x - prevBtn.x - #prevBtn.label - 2)
+local swatchX = prevBtn.x + #prevBtn.label + 1
+writeAt(device, prevBtn.x, prevBtn.y, prevBtn.label, colors.black, colors.lightGray)
+local stc = (selCV == 32768) and colors.white or colors.black
+writeAt(device, swatchX, prevBtn.y, fit(" "..selName.." ", swatchW), stc, selCV)
+writeAt(device, nextBtn.x, nextBtn.y, nextBtn.label, colors.black, colors.lightGray)
 
-  local pvX = 3
-  local pvY = 11
-  local pvW = math.min(width - 4, 20)
-  local pvH = 5
-  if pvY + pvH < height - 3 then
-    writeAt(device, 3, pvY - 1, fit("Preview:", width - 4), colors.white, palette.panel)
-    fill(device, pvX, pvY, pvW, pvH, p.bg or palette.bg, p.text or palette.text)
-    fill(device, pvX + 1, pvY + 1, pvW - 2, pvH - 2, p.panel or palette.panel, p.text or palette.text)
-    fill(device, pvX + 1, pvY + 1, pvW - 2, 1, p.header or palette.header, colors.black)
-    writeAt(device, pvX + 2, pvY + 1, fit("Radio", pvW - 4), colors.yellow, p.header or palette.header)
-    writeAt(device, pvX + 2, pvY + 2, fit("Artist - Title", pvW - 4), p.text or palette.text, p.panel or palette.panel)
-    local barW = math.max(2, pvW - 4)
-    fill(device, pvX + 2, pvY + 3, barW, 1, colors.gray, colors.gray)
-    fill(device, pvX + 2, pvY + 3, math.floor(barW * 0.45), 1, p.good or palette.good, p.good or palette.good)
-  end
+local pvX = 3
+local pvY = 11
+local pvW = math.min(width - 4, 20)
+local pvH = 5
+if pvY + pvH < height - 3 then
+writeAt(device, 3, pvY - 1, fit("Preview:", width - 4), colors.white, palette.panel)
+fill(device, pvX, pvY, pvW, pvH, p.bg or palette.bg, p.text or palette.text)
+fill(device, pvX + 1, pvY + 1, pvW - 2, pvH - 2, p.panel or palette.panel, p.text or palette.text)
+fill(device, pvX + 1, pvY + 1, pvW - 2, 1, p.header or palette.header, colors.black)
+writeAt(device, pvX + 2, pvY + 1, fit("Radio", pvW - 4), colors.yellow, p.header or palette.header)
+writeAt(device, pvX + 2, pvY + 2, fit("Artist - Title", pvW - 4), p.text or palette.text, p.panel or palette.panel)
+local barW = math.max(2, pvW - 4)
+fill(device, pvX + 2, pvY + 3, barW, 1, colors.gray, colors.gray)
+fill(device, pvX + 2, pvY + 3, math.floor(barW * 0.45), 1, p.good or palette.good, p.good or palette.good)
+end
 
-  local presetY = pvY + pvH + 1
-  if presetY < height - 2 then
-    local presets = {
-      { label = "[DEF]",   x = 3  },
-      { label = "[LIGHT]", x = 10 },
-      { label = "[DARK]",  x = 18 },
-    }
-    for _, pr in ipairs(presets) do
-      if pr.x + #pr.label - 1 <= width - 2 then
-        writeAt(device, pr.x, presetY, pr.label, colors.black, colors.lightGray)
-      end
-    end
-  end
+local presetY = pvY + pvH + 1
+if presetY < height - 2 then
+local presets = {
+{ label = "[DEF]", x = 3 },
+{ label = "[LIGHT]", x = 10 },
+{ label = "[DARK]", x = 18 },
+}
+for _, pr in ipairs(presets) do
+if pr.x + #pr.label - 1 <= width - 2 then
+writeAt(device, pr.x, presetY, pr.label, colors.black, colors.lightGray)
+end
+end
+end
 
-  local backLabel = "[BACK]"
-  local backY     = math.min(presetY + 1, height - 2)
-  writeAt(device, math.max(3, width - #backLabel - 2), backY, backLabel, colors.black, colors.lightGray)
+local backLabel = "[BACK]"
+local backY = math.min(presetY + 1, height - 2)
+writeAt(device, math.max(3, width - #backLabel - 2), backY, backLabel, colors.black, colors.lightGray)
 end
 
 function monitor.renderClientSettings(playbackStatus, settingsState)
-  local device = getMonitor()
-  if not device then return end
+local device = getMonitor()
+if not device then return end
 
-  local width, height = drawFrame(device, "Client Settings")
-  local layout = getSettingsScreenLayout(
-    width, height, settingsState and settingsState.show_never_option,
-    settingsState and settingsState.remind_later_minutes,
-    settingsState == nil or settingsState.enable_visualizer,
-    settingsState and settingsState.auto_update,
-    settingsState and settingsState.enable_stereo
-  )
-  writeAt(device, 3, 6, fit("Touch toggles save immediately.", width - 6), colors.white, palette.panel)
-  writeAt(device, 3, layout.toggleRow, fit("Show optional NEVER button", layout.toggleX - 5), colors.white, palette.panel)
-  writeAt(device, layout.toggleX, layout.toggleRow, layout.toggleLabel, colors.black, colors.lightGray)
-  
-  writeAt(device, 3, layout.visToggleRow, fit("Enable Audio Visualizer", layout.visToggleX - 5), colors.white, palette.panel)
-  writeAt(device, layout.visToggleX, layout.visToggleRow, layout.visToggleLabel, colors.black, colors.lightGray)
+local width, height = drawFrame(device, "Client Settings")
+local layout = getSettingsScreenLayout(
+width, height, settingsState and settingsState.show_never_option,
+settingsState and settingsState.remind_later_minutes,
+settingsState == nil or settingsState.enable_visualizer,
+settingsState and settingsState.auto_update,
+settingsState and settingsState.enable_stereo
+)
+writeAt(device, 3, 6, fit("Touch toggles save immediately.", width - 6), colors.white, palette.panel)
+writeAt(device, 3, layout.toggleRow, fit("Show optional NEVER button", layout.toggleX - 5), colors.white, palette.panel)
+writeAt(device, layout.toggleX, layout.toggleRow, layout.toggleLabel, colors.black, colors.lightGray)
 
-  writeAt(device, 3, layout.autoToggleRow, fit("Auto-Update (Hot Reload)", layout.autoToggleX - 5), colors.white, palette.panel)
-  writeAt(device, layout.autoToggleX, layout.autoToggleRow, layout.autoToggleLabel, colors.black, colors.lightGray)
+writeAt(device, 3, layout.visToggleRow, fit("Enable Audio Visualizer", layout.visToggleX - 5), colors.white, palette.panel)
+writeAt(device, layout.visToggleX, layout.visToggleRow, layout.visToggleLabel, colors.black, colors.lightGray)
 
-  writeAt(device, 3, layout.stereoToggleRow, fit("Enable Stereo (Experimental)", layout.stereoToggleX - 5), colors.white, palette.panel)
-  writeAt(device, layout.stereoToggleX, layout.stereoToggleRow, layout.stereoToggleLabel, colors.black, colors.lightGray)
-  
-  writeAt(device, 3, layout.reminderRow, fit("Remind me later delay", layout.reminderDownX - 5), colors.white, palette.panel)
-  writeAt(device, layout.reminderDownX, layout.reminderRow, layout.reminderDownLabel, colors.black, colors.lightGray)
-  writeAt(device, layout.reminderValueX, layout.reminderRow, layout.reminderValueLabel, colors.black, palette.panel)
-  writeAt(device, layout.reminderUpX, layout.reminderRow, layout.reminderUpLabel, colors.black, colors.lightGray)
-  if layout.updateRow <= height - 3 then
-    writeAt(device, 3, layout.updateRow, fit("Install packaged update", layout.updateX - 5), colors.white, palette.panel)
-    writeAt(device, layout.updateX, layout.updateRow, layout.updateLabel, colors.black, colors.lightGray)
-  end
-  if layout.colorsRow <= height - 3 then
-    writeAt(device, 3, layout.colorsRow, fit("Colour palette", layout.colorsX - 4), colors.white, palette.panel)
-    writeAt(device, layout.colorsX, layout.colorsRow, layout.colorsLabel, colors.black, colors.cyan)
-  end
-  writeAt(device, layout.backX, layout.backRow, layout.backLabel, colors.black, colors.lightGray)
-  writeAt(device, 3, height - 2, fit(playbackStatus or "idle", width - 6), colors.white, palette.panel)
+writeAt(device, 3, layout.autoToggleRow, fit("Auto-Update (Hot Reload)", layout.autoToggleX - 5), colors.white, palette.panel)
+writeAt(device, layout.autoToggleX, layout.autoToggleRow, layout.autoToggleLabel, colors.black, colors.lightGray)
+
+writeAt(device, 3, layout.stereoToggleRow, fit("Enable Stereo (Experimental)", layout.stereoToggleX - 5), colors.white, palette.panel)
+writeAt(device, layout.stereoToggleX, layout.stereoToggleRow, layout.stereoToggleLabel, colors.black, colors.lightGray)
+
+writeAt(device, 3, layout.reminderRow, fit("Remind me later delay", layout.reminderDownX - 5), colors.white, palette.panel)
+writeAt(device, layout.reminderDownX, layout.reminderRow, layout.reminderDownLabel, colors.black, colors.lightGray)
+writeAt(device, layout.reminderValueX, layout.reminderRow, layout.reminderValueLabel, colors.black, palette.panel)
+writeAt(device, layout.reminderUpX, layout.reminderRow, layout.reminderUpLabel, colors.black, colors.lightGray)
+if layout.updateRow <= height - 3 then
+writeAt(device, 3, layout.updateRow, fit("Install packaged update", layout.updateX - 5), colors.white, palette.panel)
+writeAt(device, layout.updateX, layout.updateRow, layout.updateLabel, colors.black, colors.lightGray)
+end
+if layout.colorsRow <= height - 3 then
+writeAt(device, 3, layout.colorsRow, fit("Colour palette", layout.colorsX - 4), colors.white, palette.panel)
+writeAt(device, layout.colorsX, layout.colorsRow, layout.colorsLabel, colors.black, colors.cyan)
+end
+writeAt(device, layout.backX, layout.backRow, layout.backLabel, colors.black, colors.lightGray)
+writeAt(device, 3, height - 2, fit(playbackStatus or "idle", width - 6), colors.white, palette.panel)
 end
 
 function monitor.renderHostSettings(stationName, allowRemoteSkip, allowRemoteShuffle, enableEAS, easSide)
-  local device = getMonitor()
-  if not device then return end
+local device = getMonitor()
+if not device then return end
 
-  local width, height = drawFrame(device, "Host Settings")
-  local layout = getHostSettingsScreenLayout(width, height, allowRemoteSkip, allowRemoteShuffle, enableEAS, easSide)
-  
-  writeAt(device, 3, 4, fit(stationName or "Station", width - 6), colors.white, palette.panel)
-  
-  writeAt(device, 3, layout.skipY, fit("Allow Remote Skip", width - 6), colors.white, palette.panel)
-  writeAt(device, layout.skipX, layout.skipY, layout.skipLabel, colors.black, colors.lightGray)
+local width, height = drawFrame(device, "Host Settings")
+local layout = getHostSettingsScreenLayout(width, height, allowRemoteSkip, allowRemoteShuffle, enableEAS, easSide)
 
-  writeAt(device, 3, layout.shuffleY, fit("Allow Remote Shuffle", width - 6), colors.white, palette.panel)
-  writeAt(device, layout.shuffleX, layout.shuffleY, layout.shuffleLabel, colors.black, colors.lightGray)
+writeAt(device, 3, 4, fit(stationName or "Station", width - 6), colors.white, palette.panel)
 
-  writeAt(device, 3, layout.easY, fit("Redstone Announce", width - 6), colors.white, palette.panel)
-  writeAt(device, layout.easX, layout.easY, layout.easLabel, colors.black, colors.lightGray)
+writeAt(device, 3, layout.skipY, fit("Allow Remote Skip", width - 6), colors.white, palette.panel)
+writeAt(device, layout.skipX, layout.skipY, layout.skipLabel, colors.black, colors.lightGray)
 
-  writeAt(device, 3, layout.sideY, fit("Signal Side", width - 6), colors.white, palette.panel)
-  writeAt(device, layout.sideX, layout.sideY, layout.sideLabel, colors.black, colors.lightGray)
-  
-  writeAt(device, layout.backX, layout.backY, layout.backLabel, colors.black, colors.lightGray)
+writeAt(device, 3, layout.shuffleY, fit("Allow Remote Shuffle", width - 6), colors.white, palette.panel)
+writeAt(device, layout.shuffleX, layout.shuffleY, layout.shuffleLabel, colors.black, colors.lightGray)
+
+writeAt(device, 3, layout.easY, fit("Redstone Announce", width - 6), colors.white, palette.panel)
+writeAt(device, layout.easX, layout.easY, layout.easLabel, colors.black, colors.lightGray)
+
+writeAt(device, 3, layout.sideY, fit("Signal Side", width - 6), colors.white, palette.panel)
+writeAt(device, layout.sideX, layout.sideY, layout.sideLabel, colors.black, colors.lightGray)
+
+writeAt(device, layout.backX, layout.backY, layout.backLabel, colors.black, colors.lightGray)
 end
 
 function monitor.renderHostPalettePicker(stationName, receivers, selectedReceiverId)
-  local device = getMonitor()
-  if not device then return end
+local device = getMonitor()
+if not device then return end
 
-  local width, height = drawFrame(device, "Host Palette Source")
-  local backLabel = "[BACK]"
-  local backX = math.max(3, width - #backLabel - 2)
-  local backY = height - 2
+local width, height = drawFrame(device, "Host Palette Source")
+local backLabel = "[BACK]"
+local backX = math.max(3, width - #backLabel - 2)
+local backY = height - 2
 
-  writeAt(device, 3, 4, fit(stationName or "Station", width - 6), colors.white, palette.panel)
-  writeAt(device, 3, 6, fit("Choose which receiver controls the host palette.", width - 6), colors.white, palette.panel)
+writeAt(device, 3, 4, fit(stationName or "Station", width - 6), colors.white, palette.panel)
+writeAt(device, 3, 6, fit("Choose which receiver controls the host palette.", width - 6), colors.white, palette.panel)
 
-  if not receivers or #receivers == 0 then
-    writeAt(device, 3, 9, fit("No receiver palettes received yet.", width - 6), colors.white, palette.panel)
-  else
-    local startY = 8
-    local maxRows = math.max(1, height - startY - 3)
-    local visibleCount = math.min(#receivers, maxRows)
+if not receivers or #receivers == 0 then
+writeAt(device, 3, 9, fit("No receiver palettes received yet.", width - 6), colors.white, palette.panel)
+else
+local startY = 8
+local maxRows = math.max(1, height - startY - 3)
+local visibleCount = math.min(#receivers, maxRows)
 
-    for index = 1, visibleCount do
-      local receiver = receivers[index]
-      local rowY = startY + (index - 1)
-      local rowPalette = receiver.palette or {}
-      local rowBg = rowPalette.panel or palette.panel
-      local rowText = rowPalette.text or palette.text
-      local buttonLabel = (receiver.id == selectedReceiverId) and "[ACTIVE]" or "[CHOOSE]"
-      local buttonX = math.max(3, width - #buttonLabel - 3)
-      local labelWidth = math.max(10, buttonX - 5)
-      local receiverLabel = ("%d. Receiver %s"):format(index, tostring(receiver.id))
+for index = 1, visibleCount do
+  local receiver = receivers[index]
+  local rowY = startY + (index - 1)
+  local rowPalette = receiver.palette or {}
+  local rowBg = rowPalette.panel or palette.panel
+  local rowText = rowPalette.text or palette.text
+  local buttonLabel = (receiver.id == selectedReceiverId) and "[ACTIVE]" or "[CHOOSE]"
+  local buttonX = math.max(3, width - #buttonLabel - 3)
+  local labelWidth = math.max(10, buttonX - 5)
+  local receiverLabel = ("%d. Receiver %s"):format(index, tostring(receiver.id))
 
-      fill(device, 3, rowY, math.max(1, width - 5), 1, rowBg, rowText)
-      writeAt(device, 4, rowY, fit(receiverLabel, labelWidth), rowText, rowBg)
-      writeAt(device, buttonX, rowY, buttonLabel, colors.black, colors.lightGray)
-    end
+  fill(device, 3, rowY, math.max(1, width - 5), 1, rowBg, rowText)
+  writeAt(device, 4, rowY, fit(receiverLabel, labelWidth), rowText, rowBg)
+  writeAt(device, buttonX, rowY, buttonLabel, colors.black, colors.lightGray)
+end
 
-    if #receivers > visibleCount then
-      writeAt(device, 3, startY + visibleCount + 1, fit(("Showing %d/%d receivers"):format(visibleCount, #receivers), width - 6), colors.white, palette.panel)
-    end
-  end
+if #receivers > visibleCount then
+  writeAt(device, 3, startY + visibleCount + 1, fit(("Showing %d/%d receivers"):format(visibleCount, #receivers), width - 6), colors.white, palette.panel)
+end
 
-  writeAt(device, backX, backY, backLabel, colors.black, colors.lightGray)
+end
+
+writeAt(device, backX, backY, backLabel, colors.black, colors.lightGray)
 end
 
 function monitor.getClientTouchAction(side, x, y, screenMode, prompt, settingsState)
-  local device = getMonitor()
-  if not device or peripheral.getName(device) ~= side then return nil end
+local device = getMonitor()
+if not device or peripheral.getName(device) ~= side then return nil end
 
-  local width, height = device.getSize()
-  if prompt and prompt.visible and screenMode ~= "settings" and screenMode ~= "palette" then
-    local layout = getUpdatePromptLayout(width, height, prompt.show_never_option)
-    if hitButton(x, y, layout.ok) then return "update_ok" end
-    if hitButton(x, y, layout.auto) then return "update_auto" end
-    if hitButton(x, y, layout.later) then return "update_later" end
-    if hitButton(x, y, layout.never) then return "update_never" end
-    return nil
-  end
+local width, height = device.getSize()
+if prompt and prompt.visible and screenMode ~= "settings" and screenMode ~= "palette" then
+local layout = getUpdatePromptLayout(width, height, prompt.show_never_option)
+if hitButton(x, y, layout.ok) then return "update_ok" end
+if hitButton(x, y, layout.auto) then return "update_auto" end
+if hitButton(x, y, layout.later) then return "update_later" end
+if hitButton(x, y, layout.never) then return "update_never" end
+return nil
+end
 
-  if screenMode == "main" and y == height - 2 then
-    local resyncButton = getClientResyncButtonLayout(height)
-    local settingsX = width - 9
-    local skipX = settingsX - 7
-    local shuffleX = skipX - 7
-    if x >= resyncButton.x and x < resyncButton.x + #resyncButton.label then return "stereo_resync" end
-    if width >= 28 then
-      if x >= skipX and x < skipX + 6 then return "skip_track" end
-      if x >= shuffleX and x < shuffleX + 6 then return "toggle_shuffle" end
-    end
-  end
+if screenMode == "main" and y == height - 2 then
+local resyncButton = getClientResyncButtonLayout(height)
+local settingsX = width - 9
+local skipX = settingsX - 7
+local shuffleX = skipX - 7
+if x >= resyncButton.x and x < resyncButton.x + #resyncButton.label then return "stereo_resync" end
+if width >= 28 then
+if x >= skipX and x < skipX + 6 then return "skip_track" end
+if x >= shuffleX and x < shuffleX + 6 then return "toggle_shuffle" end
+end
+end
 
-  if screenMode == "main" then
-    local tracksButton = getClientTracksButtonLayout(width)
-    if hitButton(x, y, tracksButton) then return "open_tracks" end
-  end
+if screenMode == "main" then
+local controls = getClientAudioControlLayout(width, height)
+local tracksButton = getClientTracksButtonLayout(width, controls)
+if hitButton(x, y, tracksButton) then return "open_tracks" end
+end
 
-  if screenMode == "tracks" then
-    local prevLabel = "[PREV]"
-    local nextLabel = "[NEXT]"
-    local backLabel = "[BACK]"
-    local backX = math.max(3, width - #backLabel - 2)
-    local prevX = 3
-    local nextX = math.max(prevX + #prevLabel + 2, backX - #nextLabel - 2)
-    if hitButton(x, y, { x = prevX, y = height - 2, label = prevLabel }) then return "tracks_prev" end
-    if hitButton(x, y, { x = nextX, y = height - 2, label = nextLabel }) then return "tracks_next" end
-    if hitButton(x, y, { x = backX, y = height - 2, label = backLabel }) then return "tracks_back" end
-    if y >= 7 and y < height - 2 then return "track_pick_row_" .. tostring(y - 6) end
-    return nil
-  end
+if screenMode == "tracks" then
+local prevLabel = "[PREV]"
+local nextLabel = "[NEXT]"
+local backLabel = "[BACK]"
+local backX = math.max(3, width - #backLabel - 2)
+local prevX = 3
+local nextX = math.max(prevX + #prevLabel + 2, backX - #nextLabel - 2)
+if hitButton(x, y, { x = prevX, y = height - 2, label = prevLabel }) then return "tracks_prev" end
+if hitButton(x, y, { x = nextX, y = height - 2, label = nextLabel }) then return "tracks_next" end
+if hitButton(x, y, { x = backX, y = height - 2, label = backLabel }) then return "tracks_back" end
+if y >= 7 and y < height - 2 then return "track_pick_row_" .. tostring(y - 6) end
+return nil
+end
 
-  if screenMode == "palette" then
-    local btnW = 4
-    local roleRow1, roleRow2 = 5, 6
-    for i, role in ipairs(PALETTE_ROLE_ORDER) do
-      local col = (i - 1) % 4
-      local row = (i <= 4) and roleRow1 or roleRow2
-      local bx  = 3 + col * (btnW + 1)
-      if y == row and x >= bx - 1 and x < bx + btnW then return "palette_select_" .. role end
-    end
-    if y == 9 then
-      if x >= 3 and x < 6 then return "palette_prev" end
-      if x >= width - 5 and x < width - 2 then return "palette_next" end
-    end
-    local presetY = 17
-    if y == presetY then
-      if x >= 3  and x < 9  then return "preset_default" end
-      if x >= 10 and x < 17 then return "preset_light"   end
-      if x >= 18 and x < 25 then return "preset_dark"    end
-    end
-    local backLabel = "[BACK]"
-    local backY     = math.min(presetY + 1, height - 2)
-    local backX     = math.max(3, width - #backLabel - 2)
-    if hitButton(x, y, { x = backX, y = backY, label = backLabel }) then return "palette_back" end
-    return nil
-  end
+if screenMode == "palette" then
+local btnW = 4
+local roleRow1, roleRow2 = 5, 6
+for i, role in ipairs(PALETTE_ROLE_ORDER) do
+local col = (i - 1) % 4
+local row = (i <= 4) and roleRow1 or roleRow2
+local bx = 3 + col * (btnW + 1)
+if y == row and x >= bx - 1 and x < bx + btnW then return "palette_select_" .. role end
+end
+if y == 9 then
+if x >= 3 and x < 6 then return "palette_prev" end
+if x >= width - 5 and x < width - 2 then return "palette_next" end
+end
+local presetY = 17
+if y == presetY then
+if x >= 3 and x < 9 then return "preset_default" end
+if x >= 10 and x < 17 then return "preset_light" end
+if x >= 18 and x < 25 then return "preset_dark" end
+end
+local backLabel = "[BACK]"
+local backY = math.min(presetY + 1, height - 2)
+local backX = math.max(3, width - #backLabel - 2)
+if hitButton(x, y, { x = backX, y = backY, label = backLabel }) then return "palette_back" end
+return nil
+end
 
-  if screenMode == "settings" then
-    local layout = getSettingsScreenLayout(
-      width, height, settingsState and settingsState.show_never_option,
-      settingsState and settingsState.remind_later_minutes,
-      settingsState == nil or settingsState.enable_visualizer,
-      settingsState and settingsState.auto_update,
-      settingsState and settingsState.enable_stereo
-    )
-    if hitButton(x, y, { x = layout.toggleX, y = layout.toggleRow, label = layout.toggleLabel }) then return "toggle_never_option" end
-    if hitButton(x, y, { x = layout.visToggleX, y = layout.visToggleRow, label = layout.visToggleLabel }) then return "toggle_visualizer" end
-    if hitButton(x, y, { x = layout.autoToggleX, y = layout.autoToggleRow, label = layout.autoToggleLabel }) then return "toggle_auto_update" end
-    if hitButton(x, y, { x = layout.stereoToggleX, y = layout.stereoToggleRow, label = layout.stereoToggleLabel }) then return "toggle_stereo" end
-    if hitButton(x, y, { x = layout.reminderDownX, y = layout.reminderRow, label = layout.reminderDownLabel }) then return "remind_delay_down" end
-    if hitButton(x, y, { x = layout.reminderUpX, y = layout.reminderRow, label = layout.reminderUpLabel }) then return "remind_delay_up" end
-    if hitButton(x, y, { x = layout.updateX, y = layout.updateRow, label = layout.updateLabel }) then return "update_now" end
-    if hitButton(x, y, { x = layout.colorsX, y = layout.colorsRow, label = layout.colorsLabel }) then return "open_palette" end
-    if hitButton(x, y, { x = layout.backX, y = layout.backRow, label = layout.backLabel }) then return "settings_back" end
-    return nil
-  end
+if screenMode == "settings" then
+local layout = getSettingsScreenLayout(
+width, height, settingsState and settingsState.show_never_option,
+settingsState and settingsState.remind_later_minutes,
+settingsState == nil or settingsState.enable_visualizer,
+settingsState and settingsState.auto_update,
+settingsState and settingsState.enable_stereo
+)
+if hitButton(x, y, { x = layout.toggleX, y = layout.toggleRow, label = layout.toggleLabel }) then return "toggle_never_option" end
+if hitButton(x, y, { x = layout.visToggleX, y = layout.visToggleRow, label = layout.visToggleLabel }) then return "toggle_visualizer" end
+if hitButton(x, y, { x = layout.autoToggleX, y = layout.autoToggleRow, label = layout.autoToggleLabel }) then return "toggle_auto_update" end
+if hitButton(x, y, { x = layout.stereoToggleX, y = layout.stereoToggleRow, label = layout.stereoToggleLabel }) then return "toggle_stereo" end
+if hitButton(x, y, { x = layout.reminderDownX, y = layout.reminderRow, label = layout.reminderDownLabel }) then return "remind_delay_down" end
+if hitButton(x, y, { x = layout.reminderUpX, y = layout.reminderRow, label = layout.reminderUpLabel }) then return "remind_delay_up" end
+if hitButton(x, y, { x = layout.updateX, y = layout.updateRow, label = layout.updateLabel }) then return "update_now" end
+if hitButton(x, y, { x = layout.colorsX, y = layout.colorsRow, label = layout.colorsLabel }) then return "open_palette" end
+if hitButton(x, y, { x = layout.backX, y = layout.backRow, label = layout.backLabel }) then return "settings_back" end
+return nil
+end
 
-  local controls = getClientAudioControlLayout(width, height)
-  local settingsButton = getClientSettingsButtonLayout(width, height)
-  if y ~= controls.volumeY and y ~= controls.rangeY then
-    if hitButton(x, y, { x = settingsButton.x, y = settingsButton.y, label = settingsButton.label }) then return "open_settings" end
-    local updateBtn = getClientUpdateCheckButtonLayout(width, height)
-    if hitButton(x, y, { x = updateBtn.x, y = updateBtn.y, label = updateBtn.label }) then return "check_updates" end
-    return nil
-  end
+local controls = getClientAudioControlLayout(width, height)
+local settingsButton = getClientSettingsButtonLayout(width, height)
+if y ~= controls.volumeY and y ~= controls.rangeY then
+if hitButton(x, y, { x = settingsButton.x, y = settingsButton.y, label = settingsButton.label }) then return "open_settings" end
+local updateBtn = getClientUpdateCheckButtonLayout(width, height)
+if hitButton(x, y, { x = updateBtn.x, y = updateBtn.y, label = updateBtn.label }) then return "check_updates" end
+return nil
+end
 
-  if snapshot and snapshot.message_prompt and snapshot.message_prompt.visible then
-    local layout = getMessagePromptLayout(width, height)
-    if hitButton(x, y, layout.ok) then return "message_ok" end
-    return nil
-  end
+if snapshot and snapshot.message_prompt and snapshot.message_prompt.visible then
+local layout = getMessagePromptLayout(width, height)
+if hitButton(x, y, layout.ok) then return "message_ok" end
+return nil
+end
 
-  if y == controls.volumeY then
-    if x >= controls.volumeMinusX and x < (controls.volumeMinusX + controls.volumeMinusWidth) then return "volume_down" end
-    if x >= controls.volumePlusX and x < (controls.volumePlusX + controls.volumePlusWidth) then return "volume_up" end
-  elseif y == controls.rangeY then
-    if x >= controls.rangeMinusX and x < (controls.rangeMinusX + controls.rangeMinusWidth) then return "range_down" end
-    if x >= controls.rangePlusX and x < (controls.rangePlusX + controls.rangePlusWidth) then return "range_up" end
-  end
+if y == controls.volumeY then
+if x >= controls.volumeMinusX and x < (controls.volumeMinusX + controls.volumeMinusWidth) then return "volume_down" end
+if x >= controls.volumePlusX and x < (controls.volumePlusX + controls.volumePlusWidth) then return "volume_up" end
+elseif y == controls.rangeY then
+if x >= controls.rangeMinusX and x < (controls.rangeMinusX + controls.rangeMinusWidth) then return "range_down" end
+if x >= controls.rangePlusX and x < (controls.rangePlusX + controls.rangePlusWidth) then return "range_up" end
+end
 
-  return nil
+return nil
 end
 
 function monitor.getHostTouchAction(x, y, mode, allowRemoteSkip, allowRemoteShuffle, enableEAS, easSide)
-  local device = getMonitor()
-  if not device then return nil end
-  local width, height = device.getSize()
+local device = getMonitor()
+if not device then return nil end
+local width, height = device.getSize()
 
-  if mode == "palette" then
-    local backLabel = "[BACK]"
-    local backX = math.max(3, width - #backLabel - 2)
-    local backY = height - 2
-    if hitButton(x, y, { x = backX, y = backY, label = backLabel }) then return "palette_back" end
+if mode == "palette" then
+local backLabel = "[BACK]"
+local backX = math.max(3, width - #backLabel - 2)
+local backY = height - 2
+if hitButton(x, y, { x = backX, y = backY, label = backLabel }) then return "palette_back" end
 
-    local startY = 8
-    if y >= startY and y < (height - 2) then
-      return "select_palette_receiver_" .. tostring(y - startY + 1)
-    end
-    return nil
-  end
+local startY = 8
+if y >= startY and y < (height - 2) then
+  return "select_palette_receiver_" .. tostring(y - startY + 1)
+end
+return nil
 
-  if mode == "settings" then
-    local layout = getHostSettingsScreenLayout(width, height, allowRemoteSkip, allowRemoteShuffle, enableEAS, easSide)
-    if hitButton(x, y, { x = layout.skipX, y = layout.skipY, label = layout.skipLabel }) then return "toggle_remote_skip" end
-    if hitButton(x, y, { x = layout.shuffleX, y = layout.shuffleY, label = layout.shuffleLabel }) then return "toggle_remote_shuffle" end
-    if hitButton(x, y, { x = layout.easX, y = layout.easY, label = layout.easLabel }) then return "toggle_eas" end
-    if hitButton(x, y, { x = layout.sideX, y = layout.sideY, label = layout.sideLabel }) then return "cycle_eas_side" end
-    if hitButton(x, y, { x = layout.backX, y = layout.backY, label = layout.backLabel }) then return "settings_back" end
-    return nil
-  end
+end
 
-  local settingsBtn = getHostSettingsButtonLayout(width, height)
-  if hitButton(x, y, settingsBtn) then return "open_settings" end
+if mode == "settings" then
+local layout = getHostSettingsScreenLayout(width, height, allowRemoteSkip, allowRemoteShuffle, enableEAS, easSide)
+if hitButton(x, y, { x = layout.skipX, y = layout.skipY, label = layout.skipLabel }) then return "toggle_remote_skip" end
+if hitButton(x, y, { x = layout.shuffleX, y = layout.shuffleY, label = layout.shuffleLabel }) then return "toggle_remote_shuffle" end
+if hitButton(x, y, { x = layout.easX, y = layout.easY, label = layout.easLabel }) then return "toggle_eas" end
+if hitButton(x, y, { x = layout.sideX, y = layout.sideY, label = layout.sideLabel }) then return "cycle_eas_side" end
+if hitButton(x, y, { x = layout.backX, y = layout.backY, label = layout.backLabel }) then return "settings_back" end
+return nil
+end
 
-  local paletteBtn = getHostPaletteButtonLayout(width, height)
-  if hitButton(x, y, paletteBtn) then return "open_palette" end
+local settingsBtn = getHostSettingsButtonLayout(width, height)
+if hitButton(x, y, settingsBtn) then return "open_settings" end
 
-  local updateBtn = getClientUpdateCheckButtonLayout(width, height)
-  if hitButton(x, y, { x = updateBtn.x, y = updateBtn.y, label = updateBtn.label }) then return "check_updates" end
+local paletteBtn = getHostPaletteButtonLayout(width, height)
+if hitButton(x, y, paletteBtn) then return "open_palette" end
 
-  return nil
+local updateBtn = getClientUpdateCheckButtonLayout(width, height)
+if hitButton(x, y, { x = updateBtn.x, y = updateBtn.y, label = updateBtn.label }) then return "check_updates" end
+
+return nil
 end
 
 function monitor.renderHost(station, snapshot, playlistSource, updateStatus)
-  local device = getMonitor()
-  if not device then return end
+local device = getMonitor()
+if not device then return end
 
-  local width, height = drawFrame(device, "Station Uplink")
-  local settingsBtn = getHostSettingsButtonLayout(width, height)
-  local paletteBtn = getHostPaletteButtonLayout(width, height)
-  writeAt(device, paletteBtn.x, paletteBtn.y, paletteBtn.label, colors.black, colors.lightGray)
-  writeAt(device, settingsBtn.x, settingsBtn.y, settingsBtn.label, colors.black, colors.lightGray)
-  
-  writeAt(device, 3, 6, fit(station and station.name or "Unknown station", width - 6), colors.white, palette.panel)
-  writeAt(device, 3, 7, fit(station and station.station_id or "", width - 6), colors.yellow, palette.panel)
+local width, height = drawFrame(device, "Station Uplink")
+local settingsBtn = getHostSettingsButtonLayout(width, height)
+local paletteBtn = getHostPaletteButtonLayout(width, height)
+writeAt(device, paletteBtn.x, paletteBtn.y, paletteBtn.label, colors.black, colors.lightGray)
+writeAt(device, settingsBtn.x, settingsBtn.y, settingsBtn.label, colors.black, colors.lightGray)
 
-  if snapshot and snapshot.track then
-    local elapsed = math.floor(util.trackElapsedMilliseconds(snapshot) / 1000)
-    local shownElapsed = math.max(0, math.min(elapsed, snapshot.duration or 0))
-    local ratio = (snapshot.duration or 0) > 0 and (shownElapsed / snapshot.duration) or 0
-    drawProgressBar(device, 3, 10, math.max(8, width - 8), ratio, snapshot.in_gap and palette.warn or palette.good, colors.gray)
-    writeAt(device, 3, 12, fit(snapshot.track.artist or "Unknown Artist", width - 6), colors.white, palette.panel)
-    writeAt(device, 3, 13, fit(snapshot.track.title or "Unknown Track", width - 6), colors.cyan, palette.panel)
-    writeAt(device, 3, 14, ("Track %d  %02ds / %02ds"):format(
-      snapshot.track_index or 0, shownElapsed, snapshot.duration or 0
-    ), colors.white, palette.panel)
-    writeAt(device, 3, 15, ("Queue %d / %d%s"):format(
-      snapshot.track_index or 0, snapshot.track_count or 0, snapshot.shuffle_mode and "  [Shuffle ON]" or ""
-    ), colors.yellow, palette.panel)
-    if snapshot.in_gap then writeAt(device, 3, 16, "Holding before next track", colors.yellow, palette.panel) end
-  else
-    writeAt(device, 3, 11, "No track loaded", colors.white, palette.panel)
-  end
+writeAt(device, 3, 6, fit(station and station.name or "Unknown station", width - 6), colors.white, palette.panel)
+writeAt(device, 3, 7, fit(station and station.station_id or "", width - 6), colors.yellow, palette.panel)
 
-  if playlistSource then writeAt(device, 3, height - 2, fit("Playlist: " .. tostring(playlistSource), width - 6), colors.white, palette.panel) end
+if snapshot and snapshot.track then
+local elapsed = math.floor(util.trackElapsedMilliseconds(snapshot) / 1000)
+local shownElapsed = math.max(0, math.min(elapsed, snapshot.duration or 0))
+local ratio = (snapshot.duration or 0) > 0 and (shownElapsed / snapshot.duration) or 0
+drawProgressBar(device, 3, 10, math.max(8, width - 8), ratio, snapshot.in_gap and palette.warn or palette.good, colors.gray)
+writeAt(device, 3, 12, fit(snapshot.track.artist or "Unknown Artist", width - 6), colors.white, palette.panel)
+writeAt(device, 3, 13, fit(snapshot.track.title or "Unknown Track", width - 6), colors.cyan, palette.panel)
+writeAt(device, 3, 14, ("Track %d %02ds / %02ds"):format(
+snapshot.track_index or 0, shownElapsed, snapshot.duration or 0
+), colors.white, palette.panel)
+writeAt(device, 3, 15, ("Queue %d / %d%s"):format(
+snapshot.track_index or 0, snapshot.track_count or 0, snapshot.shuffle_mode and " [Shuffle ON]" or ""
+), colors.yellow, palette.panel)
+if snapshot.in_gap then writeAt(device, 3, 16, "Holding before next track", colors.yellow, palette.panel) end
+else
+writeAt(device, 3, 11, "No track loaded", colors.white, palette.panel)
+end
 
-  local updateBtn = getClientUpdateCheckButtonLayout(width, height)
-  local status = updateStatus or "up to date"
-  
-  writeAt(device, updateBtn.x, updateBtn.y - 1, fit(status, width - updateBtn.x - 2), colors.white, palette.panel)
-  if width >= #updateBtn.label + 5 then writeAt(device, updateBtn.x, updateBtn.y, updateBtn.label, colors.black, colors.lightGray) end
+if playlistSource then writeAt(device, 3, height - 2, fit("Playlist: " .. tostring(playlistSource), width - 6), colors.white, palette.panel) end
+
+local updateBtn = getClientUpdateCheckButtonLayout(width, height)
+local status = updateStatus or "up to date"
+
+writeAt(device, updateBtn.x, updateBtn.y - 1, fit(status, width - updateBtn.x - 2), colors.white, palette.panel)
+if width >= #updateBtn.label + 5 then writeAt(device, updateBtn.x, updateBtn.y, updateBtn.label, colors.black, colors.lightGray) end
 end
 
 return monitor

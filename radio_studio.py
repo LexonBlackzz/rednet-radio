@@ -135,8 +135,27 @@ class RednetRadioStudio(tk.Tk):
         self.ffmpeg_available = False
         self.sub_tracks = []
 
-        self.notebook = ttk.Notebook(self)
-        self.notebook.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        self.main_container = ttk.Frame(self)
+        self.main_container.pack(fill=tk.BOTH, expand=True)
+
+        self.main_canvas = tk.Canvas(self.main_container, highlightthickness=0)
+        self.main_scrollbar = ttk.Scrollbar(
+            self.main_container, orient=tk.VERTICAL, command=self.main_canvas.yview
+        )
+        self.main_canvas.configure(yscrollcommand=self.main_scrollbar.set)
+
+        self.main_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        self.main_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        self.scroll_frame = ttk.Frame(self.main_canvas, padding=10)
+        self.canvas_window = self.main_canvas.create_window((0, 0), window=self.scroll_frame, anchor="nw")
+
+        self.scroll_frame.bind("<Configure>", self._on_scroll_frame_configure)
+        self.main_canvas.bind("<Configure>", self._on_canvas_configure)
+        self.bind_all("<MouseWheel>", self._on_mousewheel)
+
+        self.notebook = ttk.Notebook(self.scroll_frame)
+        self.notebook.pack(fill=tk.BOTH, expand=True)
 
         self.tab_stations = ttk.Frame(self.notebook)
         self.tab_playlist = ttk.Frame(self.notebook)
@@ -152,6 +171,20 @@ class RednetRadioStudio(tk.Tk):
 
         self.notebook.bind("<<NotebookTabChanged>>", self.on_tab_change)
         self.load_workspace(self.root_dir)
+
+    def _on_scroll_frame_configure(self, event=None):
+        self.main_canvas.configure(scrollregion=self.main_canvas.bbox("all"))
+
+    def _on_canvas_configure(self, event):
+        self.main_canvas.itemconfigure(self.canvas_window, width=event.width)
+
+    def _on_mousewheel(self, event):
+        target = self.focus_get()
+        while target is not None:
+            if isinstance(target, tk.Text):
+                return
+            target = target.master
+        self.main_canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
 
     # --- UI BUILDING ---
 
@@ -214,6 +247,18 @@ class RednetRadioStudio(tk.Tk):
             side=tk.RIGHT, padx=5
         )
 
+        intro = ttk.LabelFrame(self.tab_playlist, text="Workflow")
+        intro.pack(fill=tk.X, pady=(0, 8))
+        ttk.Label(
+            intro,
+            text=(
+                "1. Pick a station on the left.  2. Choose where audio should go.  "
+                "3. Convert or paste track URLs.  4. Fill metadata.  5. Add or update the playlist."
+            ),
+            justify=tk.LEFT,
+            wraplength=1080,
+        ).pack(anchor=tk.W, padx=10, pady=8)
+
         content = ttk.PanedWindow(self.tab_playlist, orient=tk.HORIZONTAL)
         content.pack(fill=tk.BOTH, expand=True)
 
@@ -222,8 +267,16 @@ class RednetRadioStudio(tk.Tk):
 
         list_frame = ttk.LabelFrame(left_container, text="Tracks in Playlist")
         list_frame.pack(fill=tk.BOTH, expand=True)
+        ttk.Label(
+            list_frame,
+            text="Select one track to edit it, or select multiple tracks to delete them together.",
+            justify=tk.LEFT,
+            wraplength=300,
+        ).pack(anchor=tk.W, padx=5, pady=(5, 0))
 
-        self.track_tree = ttk.Treeview(list_frame, columns=("title", "artist", "dur"), show="headings")
+        self.track_tree = ttk.Treeview(
+            list_frame, columns=("title", "artist", "dur"), show="headings", selectmode="extended"
+        )
         self.track_tree.heading("title", text="Title")
         self.track_tree.heading("artist", text="Artist")
         self.track_tree.heading("dur", text="Time")
@@ -240,9 +293,21 @@ class RednetRadioStudio(tk.Tk):
         right_container = ttk.Frame(content)
         content.add(right_container, weight=2)
 
-        form_frame = ttk.LabelFrame(right_container, text="Track Details")
+        summary_frame = ttk.LabelFrame(right_container, text="Current Task")
+        summary_frame.pack(fill=tk.X, expand=False, pady=(0, 8))
+        ttk.Label(
+            summary_frame,
+            text=(
+                "Use 'Add as New Track' for a new entry. Use 'Update Selected Track' after clicking a track on the left. "
+                "If you have a local audio file, start in 'Source Audio and Output'."
+            ),
+            justify=tk.LEFT,
+            wraplength=760,
+        ).pack(anchor=tk.W, padx=10, pady=8)
+
+        form_frame = ttk.Frame(right_container)
         form_frame.pack(fill=tk.X, expand=False)
-        form_frame.columnconfigure(1, weight=1)
+        form_frame.columnconfigure(0, weight=1)
 
         self.t_vars = {
             "url_l": tk.StringVar(),
@@ -263,11 +328,74 @@ class RednetRadioStudio(tk.Tk):
             "processing_limit": tk.StringVar(value=str(self.studio_config["processing_limit"])),
         }
 
-        ttk.Label(form_frame, text="Playback URL Left (.dfpwm):").grid(
-            row=0, column=0, sticky=tk.W, padx=10, pady=5
+        io_frame = ttk.LabelFrame(form_frame, text="1. Source Audio and Output")
+        io_frame.grid(row=0, column=0, sticky=tk.EW, padx=0, pady=(0, 8))
+        io_frame.columnconfigure(1, weight=1)
+        ttk.Label(
+            io_frame,
+            text=(
+                "Pick a local source file if you want the studio to convert audio for you. "
+                "Choose where the generated .dfpwm files should go, then use the convert buttons below."
+            ),
+            justify=tk.LEFT,
+            wraplength=760,
+        ).grid(row=0, column=0, columnspan=2, sticky=tk.W, padx=10, pady=(8, 4))
+
+        ttk.Label(io_frame, text="Source File:").grid(row=1, column=0, sticky=tk.W, padx=10, pady=5)
+        source_frame = ttk.Frame(io_frame)
+        source_frame.grid(row=1, column=1, sticky=tk.EW, padx=10, pady=5)
+        source_frame.columnconfigure(0, weight=1)
+        ttk.Entry(source_frame, textvariable=self.t_vars["source_file"]).grid(row=0, column=0, sticky=tk.EW)
+        ttk.Button(source_frame, text="Browse...", command=self.browse_source_file).grid(
+            row=0, column=1, padx=(6, 0)
         )
-        left_url_frame = ttk.Frame(form_frame)
-        left_url_frame.grid(row=0, column=1, sticky=tk.EW, padx=10, pady=5)
+
+        ttk.Label(io_frame, text="Output Destination:").grid(
+            row=2, column=0, sticky=tk.W, padx=10, pady=5
+        )
+        publish_frame = ttk.Frame(io_frame)
+        publish_frame.grid(row=2, column=1, sticky=tk.EW, padx=10, pady=5)
+        publish_frame.columnconfigure(0, weight=1)
+        self.publish_combo = ttk.Combobox(
+            publish_frame,
+            state="readonly",
+            values=("Local", "Catbox", "File Garden"),
+            textvariable=self.t_vars["publish_target"],
+        )
+        self.publish_combo.grid(row=0, column=0, sticky=tk.W)
+        self.publish_combo.bind("<<ComboboxSelected>>", self.on_publish_target_change)
+        ttk.Button(publish_frame, text="Open Upload Settings", command=self.open_uploader_settings).grid(
+            row=0, column=1, padx=(6, 0)
+        )
+
+        self.publish_target_help = ttk.Label(io_frame, text="", justify=tk.LEFT, wraplength=760)
+        self.publish_target_help.grid(row=3, column=0, columnspan=2, sticky=tk.W, padx=10, pady=(0, 5))
+
+        ttk.Label(io_frame, text="Local Output Folder:").grid(
+            row=4, column=0, sticky=tk.W, padx=10, pady=5
+        )
+        ttk.Entry(io_frame, textvariable=self.t_vars["output_subfolder"]).grid(
+            row=4, column=1, sticky=tk.EW, padx=10, pady=5
+        )
+
+        metadata_frame = ttk.LabelFrame(form_frame, text="2. Track Metadata and Playback URLs")
+        metadata_frame.grid(row=1, column=0, sticky=tk.EW, padx=0, pady=(0, 8))
+        metadata_frame.columnconfigure(1, weight=1)
+        ttk.Label(
+            metadata_frame,
+            text=(
+                "These are the values that will be saved into the playlist JSON. "
+                "If you already have URLs, paste them here. 'Auto-Fill Metadata' tries to infer title/artist from the left URL."
+            ),
+            justify=tk.LEFT,
+            wraplength=760,
+        ).grid(row=0, column=0, columnspan=2, sticky=tk.W, padx=10, pady=(8, 4))
+
+        ttk.Label(metadata_frame, text="Playback URL Left (.dfpwm):").grid(
+            row=1, column=0, sticky=tk.W, padx=10, pady=5
+        )
+        left_url_frame = ttk.Frame(metadata_frame)
+        left_url_frame.grid(row=1, column=1, sticky=tk.EW, padx=10, pady=5)
         left_url_frame.columnconfigure(0, weight=1)
         ttk.Entry(left_url_frame, textvariable=self.t_vars["url_l"]).grid(row=0, column=0, sticky=tk.EW)
         ttk.Button(
@@ -276,73 +404,48 @@ class RednetRadioStudio(tk.Tk):
             command=lambda: self.auto_fill_track(self.t_vars),
         ).grid(row=0, column=1, padx=(6, 0))
 
-        ttk.Label(form_frame, text="Playback URL Right (.dfpwm):").grid(
-            row=1, column=0, sticky=tk.W, padx=10, pady=5
+        ttk.Label(metadata_frame, text="Playback URL Right (.dfpwm):").grid(
+            row=2, column=0, sticky=tk.W, padx=10, pady=5
         )
-        ttk.Entry(form_frame, textvariable=self.t_vars["url_r"]).grid(
-            row=1, column=1, sticky=tk.EW, padx=10, pady=5
-        )
-
-        ttk.Label(form_frame, text="Source File:").grid(row=2, column=0, sticky=tk.W, padx=10, pady=5)
-        source_frame = ttk.Frame(form_frame)
-        source_frame.grid(row=2, column=1, sticky=tk.EW, padx=10, pady=5)
-        source_frame.columnconfigure(0, weight=1)
-        ttk.Entry(source_frame, textvariable=self.t_vars["source_file"]).grid(row=0, column=0, sticky=tk.EW)
-        ttk.Button(source_frame, text="Browse...", command=self.browse_source_file).grid(
-            row=0, column=1, padx=(6, 0)
+        ttk.Entry(metadata_frame, textvariable=self.t_vars["url_r"]).grid(
+            row=2, column=1, sticky=tk.EW, padx=10, pady=5
         )
 
-        ttk.Label(form_frame, text="Publishing Target:").grid(
-            row=3, column=0, sticky=tk.W, padx=10, pady=5
-        )
-        publish_frame = ttk.Frame(form_frame)
-        publish_frame.grid(row=3, column=1, sticky=tk.EW, padx=10, pady=5)
-        publish_frame.columnconfigure(0, weight=1)
-        publish_combo = ttk.Combobox(
-            publish_frame,
-            state="readonly",
-            values=("Local", "Catbox", "File Garden"),
-            textvariable=self.t_vars["publish_target"],
-        )
-        publish_combo.grid(row=0, column=0, sticky=tk.W)
-        ttk.Button(publish_frame, text="Edit Upload Settings", command=self.open_uploader_settings).grid(
-            row=0, column=1, padx=(6, 0)
-        )
-
-        ttk.Label(form_frame, text="Output Subfolder:").grid(
-            row=4, column=0, sticky=tk.W, padx=10, pady=5
-        )
-        ttk.Entry(form_frame, textvariable=self.t_vars["output_subfolder"]).grid(
-            row=4, column=1, sticky=tk.EW, padx=10, pady=5
-        )
-
-        processing_frame = ttk.LabelFrame(form_frame, text="Optional Audio Processing")
-        processing_frame.grid(row=5, column=0, columnspan=2, sticky=tk.EW, padx=10, pady=8)
+        processing_frame = ttk.LabelFrame(form_frame, text="3. Audio Processing")
+        processing_frame.grid(row=2, column=0, sticky=tk.EW, padx=0, pady=(0, 8))
         processing_frame.columnconfigure(1, weight=1)
         processing_frame.columnconfigure(3, weight=1)
+        ttk.Label(
+            processing_frame,
+            text=(
+                "These options affect conversion only. Leave them off if you just want a straightforward stereo DFPWM export."
+            ),
+            justify=tk.LEFT,
+            wraplength=760,
+        ).grid(row=0, column=0, columnspan=6, sticky=tk.W, padx=8, pady=(8, 4))
 
         ttk.Checkbutton(
             processing_frame, text="Normalize Loudness", variable=self.t_vars["processing_normalize"]
-        ).grid(row=0, column=0, sticky=tk.W, padx=8, pady=4)
+        ).grid(row=1, column=0, sticky=tk.W, padx=8, pady=4)
         ttk.Checkbutton(
             processing_frame, text="Tame Highs", variable=self.t_vars["processing_tame_highs"]
-        ).grid(row=0, column=2, sticky=tk.W, padx=8, pady=4)
-        ttk.Label(processing_frame, text="Lowpass Hz:").grid(row=0, column=4, sticky=tk.W, padx=(8, 4), pady=4)
+        ).grid(row=1, column=2, sticky=tk.W, padx=8, pady=4)
+        ttk.Label(processing_frame, text="Lowpass Hz:").grid(row=1, column=4, sticky=tk.W, padx=(8, 4), pady=4)
         ttk.Entry(processing_frame, textvariable=self.t_vars["processing_lowpass_hz"], width=8).grid(
-            row=0, column=5, sticky=tk.W, padx=(0, 8), pady=4
+            row=1, column=5, sticky=tk.W, padx=(0, 8), pady=4
         )
 
         ttk.Checkbutton(
             processing_frame, text="8-bit Dither", variable=self.t_vars["processing_dither_8bit"]
-        ).grid(row=1, column=0, sticky=tk.W, padx=8, pady=4)
+        ).grid(row=2, column=0, sticky=tk.W, padx=8, pady=4)
         ttk.Checkbutton(
             processing_frame, text="Limiter", variable=self.t_vars["processing_limiter"]
-        ).grid(row=1, column=2, sticky=tk.W, padx=8, pady=4)
+        ).grid(row=2, column=2, sticky=tk.W, padx=8, pady=4)
         ttk.Label(processing_frame, text="Limiter Ceiling:").grid(
-            row=1, column=4, sticky=tk.W, padx=(8, 4), pady=4
+            row=2, column=4, sticky=tk.W, padx=(8, 4), pady=4
         )
         ttk.Entry(processing_frame, textvariable=self.t_vars["processing_limit"], width=8).grid(
-            row=1, column=5, sticky=tk.W, padx=(0, 8), pady=4
+            row=2, column=5, sticky=tk.W, padx=(0, 8), pady=4
         )
 
         fields = [
@@ -352,38 +455,54 @@ class RednetRadioStudio(tk.Tk):
             ("Original Source URL (Opt):", "source"),
             ("Cover Art URL (Opt):", "art"),
         ]
-        for index, (label, key) in enumerate(fields, start=6):
-            ttk.Label(form_frame, text=label).grid(row=index, column=0, sticky=tk.W, padx=10, pady=5)
-            ttk.Entry(form_frame, textvariable=self.t_vars[key]).grid(
+        for index, (label, key) in enumerate(fields, start=3):
+            ttk.Label(metadata_frame, text=label).grid(row=index, column=0, sticky=tk.W, padx=10, pady=5)
+            ttk.Entry(metadata_frame, textvariable=self.t_vars[key]).grid(
                 row=index, column=1, sticky=tk.EW, padx=10, pady=5
             )
 
-        action_frame = ttk.Frame(form_frame)
-        action_frame.grid(row=11, column=0, columnspan=2, pady=16, sticky=tk.EW, padx=10)
-        ttk.Button(action_frame, text="Clear Form", command=self.clear_form).pack(side=tk.LEFT, padx=5)
+        actions_frame = ttk.LabelFrame(form_frame, text="4. Actions")
+        actions_frame.grid(row=3, column=0, sticky=tk.EW, padx=0, pady=(0, 8))
+
+        conversion_actions = ttk.Frame(actions_frame)
+        conversion_actions.pack(fill=tk.X, padx=10, pady=(8, 4))
+        ttk.Label(conversion_actions, text="Prepare audio:", width=18).pack(side=tk.LEFT)
         ttk.Button(
-            action_frame, text="Convert + Fill Current Track", command=self.convert_and_fill_current_track
-        ).pack(side=tk.LEFT, padx=5)
-        ttk.Button(action_frame, text="Batch Convert Folder", command=self.batch_convert_folder).pack(
-            side=tk.LEFT, padx=5
+            conversion_actions, text="Convert Source to Stereo URLs", command=self.convert_and_fill_current_track
+        ).pack(side=tk.LEFT, padx=4)
+        ttk.Button(conversion_actions, text="Batch Convert Folder", command=self.batch_convert_folder).pack(
+            side=tk.LEFT, padx=4
+        )
+
+        url_actions = ttk.Frame(actions_frame)
+        url_actions.pack(fill=tk.X, padx=10, pady=4)
+        ttk.Label(url_actions, text="Build/fill URLs:", width=18).pack(side=tk.LEFT)
+        ttk.Button(url_actions, text="Build URLs from File Garden Folder", command=self.fill_urls_from_filegarden).pack(
+            side=tk.LEFT, padx=4
         )
         ttk.Button(
-            action_frame, text="Fill URLs from File Garden", command=self.fill_urls_from_filegarden
-        ).pack(side=tk.LEFT, padx=5)
-        ttk.Button(
-            action_frame, text="Auto-Fill Playlist from Folder", command=self.autofill_playlist_from_folder
-        ).pack(side=tk.LEFT, padx=5)
-        ttk.Button(action_frame, text="Update Selected Track", command=self.update_track).pack(
-            side=tk.RIGHT, padx=5
+            url_actions, text="Auto-Fill Playlist from Folder", command=self.autofill_playlist_from_folder
+        ).pack(side=tk.LEFT, padx=4)
+        ttk.Button(url_actions, text="Upload Folder to Catbox + Set Track URLs", command=self.upload_all_track_audio).pack(
+            side=tk.LEFT, padx=4
         )
-        ttk.Button(action_frame, text="Add as New Track", command=self.add_track_to_playlist).pack(
-            side=tk.RIGHT, padx=5
+
+        playlist_actions = ttk.Frame(actions_frame)
+        playlist_actions.pack(fill=tk.X, padx=10, pady=(4, 10))
+        ttk.Label(playlist_actions, text="Save to playlist:", width=18).pack(side=tk.LEFT)
+        ttk.Button(playlist_actions, text="Clear Form", command=self.clear_form).pack(side=tk.LEFT, padx=4)
+        ttk.Button(playlist_actions, text="Add as New Track", command=self.add_track_to_playlist).pack(
+            side=tk.LEFT, padx=4
+        )
+        ttk.Button(playlist_actions, text="Update Selected Track", command=self.update_track).pack(
+            side=tk.LEFT, padx=4
         )
 
         log_frame = ttk.LabelFrame(right_container, text="Conversion / Upload Log")
         log_frame.pack(fill=tk.BOTH, expand=True, pady=(10, 0))
         self.playlist_log = scrolledtext.ScrolledText(log_frame, height=14, wrap=tk.WORD, state=tk.DISABLED)
         self.playlist_log.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        self.refresh_publish_target_help()
 
     def build_submit_tab(self):
         content = ttk.PanedWindow(self.tab_submit, orient=tk.HORIZONTAL)
@@ -523,7 +642,7 @@ class RednetRadioStudio(tk.Tk):
         dialog.title("Uploader Settings")
         dialog.transient(self)
         dialog.grab_set()
-        dialog.columnconfigure(1, weight=1)
+        dialog.columnconfigure(0, weight=1)
 
         vars_map = {
             "filegarden_user_id": tk.StringVar(value=self.studio_config.get("filegarden_user_id", "")),
@@ -551,53 +670,117 @@ class RednetRadioStudio(tk.Tk):
             ),
         }
 
-        labels = [
-            ("File Garden User ID:", "filegarden_user_id"),
-            ("File Garden Auth Cookie:", "filegarden_auth_cookie"),
-            ("File Garden Base Folder URL:", "filegarden_base_url"),
-            ("Local DFPWM Folder:", "local_dfpwm_folder"),
-            ("Catbox Userhash (Optional):", "catbox_userhash"),
-            ("Default Output Subfolder:", "default_output_subfolder"),
-        ]
-        for row, (label, key) in enumerate(labels):
-            ttk.Label(dialog, text=label).grid(row=row, column=0, sticky=tk.W, padx=10, pady=6)
-            ttk.Entry(dialog, textvariable=vars_map[key], width=60).grid(
-                row=row, column=1, sticky=tk.EW, padx=10, pady=6
-            )
-
-        ttk.Label(dialog, text="Default Publishing Target:").grid(
-            row=len(labels), column=0, sticky=tk.W, padx=10, pady=6
-        )
-        ttk.Combobox(
+        intro = ttk.Label(
             dialog,
+            text=(
+                "Only fill in the services you actually plan to use. "
+                "Local saves files into your repo folder. Catbox uploads public files. "
+                "File Garden can upload and also auto-build playlist URLs from a public folder."
+            ),
+            justify=tk.LEFT,
+            wraplength=760,
+        )
+        intro.grid(row=0, column=0, sticky=tk.EW, padx=10, pady=(10, 6))
+
+        notebook = ttk.Notebook(dialog)
+        notebook.grid(row=1, column=0, sticky=tk.NSEW, padx=10, pady=4)
+        dialog.rowconfigure(1, weight=1)
+
+        local_tab = ttk.Frame(notebook)
+        catbox_tab = ttk.Frame(notebook)
+        fg_tab = ttk.Frame(notebook)
+        defaults_tab = ttk.Frame(notebook)
+        notebook.add(local_tab, text="Local")
+        notebook.add(catbox_tab, text="Catbox")
+        notebook.add(fg_tab, text="File Garden")
+        notebook.add(defaults_tab, text="Defaults")
+
+        for frame in (local_tab, catbox_tab, fg_tab, defaults_tab):
+            frame.columnconfigure(1, weight=1)
+
+        ttk.Label(
+            local_tab,
+            text="Use Local if you want converted .dfpwm files saved directly into your workspace.",
+            justify=tk.LEFT,
+            wraplength=720,
+        ).grid(row=0, column=0, columnspan=2, sticky=tk.W, padx=10, pady=(10, 6))
+        ttk.Label(local_tab, text="Local DFPWM Folder:").grid(row=1, column=0, sticky=tk.W, padx=10, pady=6)
+        ttk.Entry(local_tab, textvariable=vars_map["local_dfpwm_folder"], width=60).grid(
+            row=1, column=1, sticky=tk.EW, padx=10, pady=6
+        )
+        ttk.Label(local_tab, text="Default Output Subfolder:").grid(row=2, column=0, sticky=tk.W, padx=10, pady=6)
+        ttk.Entry(local_tab, textvariable=vars_map["default_output_subfolder"], width=60).grid(
+            row=2, column=1, sticky=tk.EW, padx=10, pady=6
+        )
+
+        ttk.Label(
+            catbox_tab,
+            text=(
+                "Catbox uploads files publicly. The userhash is optional, but if you have one, "
+                "Catbox will associate uploads with your account."
+            ),
+            justify=tk.LEFT,
+            wraplength=720,
+        ).grid(row=0, column=0, columnspan=2, sticky=tk.W, padx=10, pady=(10, 6))
+        ttk.Label(catbox_tab, text="Catbox Userhash:").grid(row=1, column=0, sticky=tk.W, padx=10, pady=6)
+        ttk.Entry(catbox_tab, textvariable=vars_map["catbox_userhash"], width=60).grid(
+            row=1, column=1, sticky=tk.EW, padx=10, pady=6
+        )
+
+        ttk.Label(
+            fg_tab,
+            text=(
+                "File Garden needs account credentials to upload. The Base Folder URL is the public folder URL "
+                "used for auto-building left/right playback URLs later."
+            ),
+            justify=tk.LEFT,
+            wraplength=720,
+        ).grid(row=0, column=0, columnspan=2, sticky=tk.W, padx=10, pady=(10, 6))
+        ttk.Label(fg_tab, text="File Garden User ID:").grid(row=1, column=0, sticky=tk.W, padx=10, pady=6)
+        ttk.Entry(fg_tab, textvariable=vars_map["filegarden_user_id"], width=60).grid(
+            row=1, column=1, sticky=tk.EW, padx=10, pady=6
+        )
+        ttk.Label(fg_tab, text="File Garden Auth Cookie:").grid(row=2, column=0, sticky=tk.W, padx=10, pady=6)
+        ttk.Entry(fg_tab, textvariable=vars_map["filegarden_auth_cookie"], width=60).grid(
+            row=2, column=1, sticky=tk.EW, padx=10, pady=6
+        )
+        ttk.Label(fg_tab, text="File Garden Base Folder URL:").grid(row=3, column=0, sticky=tk.W, padx=10, pady=6)
+        ttk.Entry(fg_tab, textvariable=vars_map["filegarden_base_url"], width=60).grid(
+            row=3, column=1, sticky=tk.EW, padx=10, pady=6
+        )
+
+        ttk.Label(
+            defaults_tab,
+            text="These values pre-fill the editor so you do not need to re-enter them for every track.",
+            justify=tk.LEFT,
+            wraplength=720,
+        ).grid(row=0, column=0, columnspan=2, sticky=tk.W, padx=10, pady=(10, 6))
+        ttk.Label(defaults_tab, text="Default Publishing Target:").grid(row=1, column=0, sticky=tk.W, padx=10, pady=6)
+        ttk.Combobox(
+            defaults_tab,
             state="readonly",
             values=("Local", "Catbox", "File Garden"),
             textvariable=vars_map["default_publish_target"],
-        ).grid(row=len(labels), column=1, sticky=tk.W, padx=10, pady=6)
-
+        ).grid(row=1, column=1, sticky=tk.W, padx=10, pady=6)
         ttk.Checkbutton(
-            dialog, text="Default Normalize Loudness", variable=vars_map["processing_normalize"]
-        ).grid(row=len(labels) + 1, column=0, sticky=tk.W, padx=10, pady=4)
+            defaults_tab, text="Default Normalize Loudness", variable=vars_map["processing_normalize"]
+        ).grid(row=2, column=0, sticky=tk.W, padx=10, pady=4)
         ttk.Checkbutton(
-            dialog, text="Default Tame Highs", variable=vars_map["processing_tame_highs"]
-        ).grid(row=len(labels) + 1, column=1, sticky=tk.W, padx=10, pady=4)
+            defaults_tab, text="Default Tame Highs", variable=vars_map["processing_tame_highs"]
+        ).grid(row=2, column=1, sticky=tk.W, padx=10, pady=4)
         ttk.Checkbutton(
-            dialog, text="Default 8-bit Dither", variable=vars_map["processing_dither_8bit"]
-        ).grid(row=len(labels) + 2, column=0, sticky=tk.W, padx=10, pady=4)
+            defaults_tab, text="Default 8-bit Dither", variable=vars_map["processing_dither_8bit"]
+        ).grid(row=3, column=0, sticky=tk.W, padx=10, pady=4)
         ttk.Checkbutton(
-            dialog, text="Default Limiter", variable=vars_map["processing_limiter"]
-        ).grid(row=len(labels) + 2, column=1, sticky=tk.W, padx=10, pady=4)
-        ttk.Label(dialog, text="Default Lowpass Hz:").grid(
-            row=len(labels) + 3, column=0, sticky=tk.W, padx=10, pady=6
+            defaults_tab, text="Default Limiter", variable=vars_map["processing_limiter"]
+        ).grid(row=3, column=1, sticky=tk.W, padx=10, pady=4)
+        ttk.Label(defaults_tab, text="Default Lowpass Hz:").grid(row=4, column=0, sticky=tk.W, padx=10, pady=6)
+        ttk.Entry(defaults_tab, textvariable=vars_map["processing_lowpass_hz"], width=16).grid(
+            row=4, column=1, sticky=tk.W, padx=10, pady=6
         )
-        ttk.Entry(dialog, textvariable=vars_map["processing_lowpass_hz"], width=16).grid(
-            row=len(labels) + 3, column=1, sticky=tk.W, padx=10, pady=6
-        )
-        ttk.Label(dialog, text="Default Limiter Ceiling:").grid(
-            row=len(labels) + 4, column=0, sticky=tk.W, padx=10, pady=6
-        )
-        ttk.Entry(dialog, textvariable=vars_map["processing_limit"], width=16).grid(
-            row=len(labels) + 4, column=1, sticky=tk.W, padx=10, pady=6
+        ttk.Label(defaults_tab, text="Default Limiter Ceiling:").grid(row=5, column=0, sticky=tk.W, padx=10, pady=6)
+        ttk.Entry(defaults_tab, textvariable=vars_map["processing_limit"], width=16).grid(
+            row=5, column=1, sticky=tk.W, padx=10, pady=6
         )
 
         def save_and_close():
@@ -615,13 +798,40 @@ class RednetRadioStudio(tk.Tk):
             self.t_vars["processing_dither_8bit"].set(self.studio_config["processing_dither_8bit"])
             self.t_vars["processing_limiter"].set(self.studio_config["processing_limiter"])
             self.t_vars["processing_limit"].set(str(self.studio_config["processing_limit"]))
+            self.refresh_publish_target_help()
             self.append_log("Saved uploader settings.")
             dialog.destroy()
 
         button_frame = ttk.Frame(dialog)
-        button_frame.grid(row=len(labels) + 5, column=0, columnspan=2, sticky=tk.E, padx=10, pady=12)
+        button_frame.grid(row=2, column=0, sticky=tk.E, padx=10, pady=12)
         ttk.Button(button_frame, text="Cancel", command=dialog.destroy).pack(side=tk.RIGHT, padx=5)
         ttk.Button(button_frame, text="Save", command=save_and_close).pack(side=tk.RIGHT, padx=5)
+
+    def get_publish_target_help_text(self, target: str) -> str:
+        if target == "Local":
+            subfolder = self.t_vars["output_subfolder"].get().strip() or "audio"
+            return (
+                f"Local: converted .dfpwm files are copied into your workspace under '{subfolder}/'. "
+                "Use this when you host audio files yourself."
+            )
+        if target == "Catbox":
+            return (
+                "Catbox: uploads each generated channel as a public file and uses those returned URLs in the playlist."
+            )
+        if target == "File Garden":
+            return (
+                "File Garden: uploads files to your File Garden account. "
+                "You can also use the configured public folder URL to auto-build left/right playback URLs."
+            )
+        return ""
+
+    def refresh_publish_target_help(self):
+        if hasattr(self, "publish_target_help"):
+            target = self.t_vars["publish_target"].get().strip() or "Local"
+            self.publish_target_help.config(text=self.get_publish_target_help_text(target))
+
+    def on_publish_target_change(self, event=None):
+        self.refresh_publish_target_help()
 
     def refresh_station_list(self):
         self.station_tree.delete(*self.station_tree.get_children())
@@ -688,6 +898,44 @@ class RednetRadioStudio(tk.Tk):
                 return f"{parsed.scheme}://{parsed.netloc}"
         return DEFAULT_PUBLIC_BASE
 
+    def resolve_track_audio_path(self, value: str) -> Path | None:
+        raw = (value or "").strip()
+        if not raw:
+            return None
+
+        parsed = urlparse(raw)
+        if parsed.scheme and parsed.scheme not in {"file"}:
+            return None
+
+        direct = Path(unquote(raw))
+        candidates = [direct]
+        if not direct.is_absolute():
+            candidates.append(self.root_dir / direct)
+
+        for candidate in candidates:
+            if candidate.exists() and candidate.is_file():
+                return candidate
+        return None
+
+    def extract_track_filename(self, value: str) -> str:
+        raw = (value or "").strip()
+        if not raw:
+            return ""
+
+        parsed = urlparse(raw)
+        if parsed.scheme and parsed.scheme not in {"file"}:
+            if parsed.fragment:
+                frag = unquote(parsed.fragment)
+                frag_name = Path(frag).name
+                if frag_name:
+                    return frag_name
+            return Path(unquote(parsed.path)).name
+
+        resolved = self.resolve_track_audio_path(raw)
+        if resolved:
+            return resolved.name
+        return Path(unquote(raw)).name
+
     def auto_fill_track(self, var_dict):
         primary_key = "url_l" if "url_l" in var_dict else "url"
         source_file = var_dict["source_file"].get().strip() if "source_file" in var_dict else ""
@@ -696,10 +944,13 @@ class RednetRadioStudio(tk.Tk):
             var_dict[primary_key].set(url)
 
         name_source = ""
+        metadata_artist = ""
+        metadata_title = ""
         if url:
             name_source = unquote(url.split("/")[-1])
         elif source_file:
             name_source = Path(source_file).name
+            metadata_artist, metadata_title = self.get_media_metadata_tags(Path(source_file))
         else:
             messagebox.showwarning("Warning", "Enter a playback URL or pick a source file first.")
             return
@@ -709,6 +960,14 @@ class RednetRadioStudio(tk.Tk):
                 name_source = name_source[: -len(suffix)]
                 break
 
+        if metadata_artist and not var_dict["artist"].get():
+            var_dict["artist"].set(metadata_artist)
+        if metadata_title and not var_dict["title"].get():
+            var_dict["title"].set(metadata_title)
+
+        if metadata_artist or metadata_title:
+            return
+
         if " - " in name_source:
             artist, title = name_source.split(" - ", 1)
             if not var_dict["artist"].get():
@@ -717,6 +976,32 @@ class RednetRadioStudio(tk.Tk):
                 var_dict["title"].set(title.strip())
         elif not var_dict["title"].get():
             var_dict["title"].set(name_source.replace("_", " ").strip())
+
+    def get_media_metadata_tags(self, source_path: Path) -> tuple[str, str]:
+        ffprobe_path = shutil.which("ffprobe")
+        if not ffprobe_path or not source_path.exists():
+            return "", ""
+
+        cmd = [
+            ffprobe_path,
+            "-v",
+            "error",
+            "-show_entries",
+            "format_tags=title,artist",
+            "-of",
+            "json",
+            str(source_path),
+        ]
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            payload = json.loads(result.stdout or "{}")
+        except (subprocess.SubprocessError, json.JSONDecodeError, OSError):
+            return "", ""
+
+        tags = payload.get("format", {}).get("tags", {})
+        title = str(tags.get("title", "")).strip()
+        artist = str(tags.get("artist", "")).strip()
+        return artist, title
 
     def fill_urls_from_filegarden(self):
         """Build File Garden playback URLs for the current track from the configured base folder URL.
@@ -777,6 +1062,82 @@ class RednetRadioStudio(tk.Tk):
 
         # Also run the standard metadata auto-fill so title/artist are populated from the stem
         self.auto_fill_track(self.t_vars)
+
+    def upload_all_track_audio(self):
+        target_name = self.t_vars["publish_target"].get().strip() or "Local"
+        if target_name != "Catbox":
+            messagebox.showerror(
+                "Upload All",
+                "This bulk upload mode is for Catbox.\n\nSet Output Destination to Catbox first.",
+            )
+            return
+
+        chosen_folder = filedialog.askdirectory(title="Select Folder Containing Track DFPWM Files")
+        if not chosen_folder:
+            return
+        chosen_folder_path = Path(chosen_folder)
+        files = sorted(path for path in chosen_folder_path.rglob("*.dfpwm") if path.is_file())
+        if not files:
+            messagebox.showinfo("Upload All", f"No .dfpwm files were found in:\n{chosen_folder_path}")
+            return
+
+        station_id = self.cb_playlist_station.get().strip()
+        if not station_id:
+            messagebox.showerror("Upload All", "Select a station first.")
+            return
+
+        path, doc, target = self.get_playlist_doc_and_target(station_id)
+        tracks = target.setdefault("tracks", [])
+        if not tracks:
+            messagebox.showinfo("Upload All", "This playlist has no tracks.")
+            return
+
+        if not messagebox.askyesno(
+            "Upload All",
+            (
+                f"Upload all {len(files)} .dfpwm file(s) in this folder to Catbox and update matching playlist URLs?\n\n{chosen_folder}"
+            ),
+        ):
+            return
+
+        uploaded = 0
+        failed = 0
+        matched_fields = 0
+        uploaded_map: dict[str, str] = {}
+        for file_path in files:
+            try:
+                self.append_log(f"Uploading {file_path.name} to Catbox...")
+                uploaded_map[file_path.name] = self.upload_to_catbox(file_path)
+                uploaded += 1
+            except Exception as exc:
+                failed += 1
+                self.append_log(f"Upload failed for {file_path.name}: {exc}")
+
+        for track in tracks:
+            for key in ("playback_url", "playback_url_r"):
+                current_value = str(track.get(key, "") or "").strip()
+                if not current_value:
+                    continue
+                filename = self.extract_track_filename(current_value)
+                if filename in uploaded_map:
+                    track[key] = uploaded_map[filename]
+                    matched_fields += 1
+
+        if matched_fields > 0:
+            target["version"] = bump_version(target.get("version", "0"))
+            save_json(path, doc)
+            self.load_playlist_tracks()
+            self.append_log(f"Updated {matched_fields} playlist URL field(s) to Catbox URLs.")
+
+        messagebox.showinfo(
+            "Upload All",
+            (
+                f"Uploaded {uploaded} file(s) to Catbox.\n"
+                f"Failed: {failed}\n"
+                f"Updated playlist URL fields: {matched_fields}\n\n"
+                f"Folder uploaded:\n{chosen_folder_path}"
+            ),
+        )
 
     def autofill_playlist_from_folder(self):
         """Scan a local DFPWM folder and bulk-add every *_L.dfpwm file as a track.
@@ -1433,25 +1794,32 @@ class RednetRadioStudio(tk.Tk):
         messagebox.showinfo("Success", "Track updated successfully!")
 
     def delete_track(self):
-        selected = self.track_tree.selection()
+        selected = list(self.track_tree.selection())
         if not selected:
-            messagebox.showerror("Error", "Please select a track to delete.")
+            messagebox.showerror("Error", "Please select one or more tracks to delete.")
             return
 
         if not messagebox.askyesno(
-            "Confirm Delete", "Are you sure you want to completely remove this track from the playlist?"
+            "Confirm Delete",
+            (
+                "Are you sure you want to completely remove "
+                f"{len(selected)} track(s) from the playlist?"
+            ),
         ):
             return
 
-        track_id = selected[0]
         station_id = self.cb_playlist_station.get()
         path, doc, target = self.get_playlist_doc_and_target(station_id)
         tracks = target.get("tracks", [])
+        selected_ids = set(selected)
         target["tracks"] = [
-            track for index, track in enumerate(tracks) if track.get("id", f"idx_{index}") != track_id
+            track
+            for index, track in enumerate(tracks)
+            if track.get("id", f"idx_{index}") not in selected_ids
         ]
         target["version"] = bump_version(target.get("version", "0"))
         save_json(path, doc)
+        self.editing_track_id = None
         self.load_playlist_tracks()
 
     # --- SUBMISSION LOGIC ---

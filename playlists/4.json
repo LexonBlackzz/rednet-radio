@@ -1,222 +1,206 @@
 {
   "name": "Mepple's Goon Station Playlist",
-  "version": "7",
+  "version": "40",
   "tracks": [
     {
       "id": "track_01",
-      "title": "Vague Voices",
-      "artist": "Kelly Bailey",
-      "duration": 132,
-      "source_url": "https://file.garden/ad_jTPVIV3ilAFpI/02.%20Vague%20Voices.dfpwm",
-      "playback_url": "https://file.garden/ad_jTPVIV3ilAFpI/02.%20Vague%20Voices.dfpwm",
-      "art_url": "-"
+      "title": "A Rose's Lament",
+      "artist": "Vincennt Diamente",
+      "duration": 116,
+      "playback_url": "https://files.catbox.moe/mcurrb.dfpwm",
+      "playback_url_r": "https://files.catbox.moe/swgaul.dfpwm"
     },
     {
       "id": "track_02",
-      "title": "Klaxon Beat",
-      "artist": "Kelly Bailey",
-      "duration": 60,
-      "source_url": "https://file.garden/ad_jTPVIV3ilAFpI/03.%20Klaxon%20Beat.dfpwm",
-      "playback_url": "https://file.garden/ad_jTPVIV3ilAFpI/03.%20Klaxon%20Beat.dfpwm",
-      "art_url": "-"
-    },
-    {
-      "id": "track_03",
-      "title": "Valve Theme",
-      "artist": "Kelly Bailey",
-      "duration": 82,
-      "source_url": "https://file.garden/ad_jTPVIV3ilAFpI/10.%20Valve%20Theme.dfpwm",
-      "playback_url": "https://file.garden/ad_jTPVIV3ilAFpI/10.%20Valve%20Theme.dfpwm",
-      "art_url": "-"
-    },
-    {
-      "id": "track_04",
-      "title": "Nepal Monastery",
-      "artist": "Kelly Bailey",
-      "duration": 128,
-      "source_url": "https://file.garden/ad_jTPVIV3ilAFpI/11.%20Nepal%20Monastery.dfpwm",
-      "playback_url": "https://file.garden/ad_jTPVIV3ilAFpI/11.%20Nepal%20Monastery.dfpwm",
-      "art_url": "-"
-    },
-    {
-      "id": "track_05",
-      "title": "Nuclear Mission Jam",
-      "artist": "Kelly Bailey",
-      "duration": 120,
-      "source_url": "https://file.garden/ad_jTPVIV3ilAFpI/14.%20Nuclear%20Mission%20Jam.dfpwm",
-      "playback_url": "https://file.garden/ad_jTPVIV3ilAFpI/14.%20Nuclear%20Mission%20Jam.dfpwm",
-      "art_url": "-"
-    },
-    {
-      "id": "track_06",
-      "title": "Drums and Riffs",
-      "artist": "Kelly Bailey",
-      "duration": 123,
-      "source_url": "https://file.garden/ad_jTPVIV3ilAFpI/16.%20Drums%20and%20Riffs.dfpwm",
-      "playback_url": "https://file.garden/ad_jTPVIV3ilAFpI/16.%20Drums%20and%20Riffs.dfpwm",
-      "art_url": "-"
-    },
-    {
-      "id": "track_07",
-      "title": "Electric Guitar Ambience",
-      "artist": "Kelly Bailey",
-      "duration": 84,
-      "source_url": "https://file.garden/ad_jTPVIV3ilAFpI/19.%20Electric%20Guitar%20Ambience.dfpwm",
-      "playback_url": "https://file.garden/ad_jTPVIV3ilAFpI/19.%20Electric%20Guitar%20Ambience.dfpwm",
-      "art_url": "-"
-    },
-    {
-      "id": "track_08",
-      "title": "Dimensionless Deepness",
-      "artist": "Kelly Bailey",
-      "duration": 84,
-      "source_url": "https://file.garden/ad_jTPVIV3ilAFpI/20.%20Dimensionless%20Deepness.dfpwm",
-      "playback_url": "https://file.garden/ad_jTPVIV3ilAFpI/20.%20Dimensionless%20Deepness.dfpwm",
-      "art_url": "-"
-    },
-    {
-      "id": "track_09",
-      "title": "Military Precision",
-      "artist": "Kelly Bailey",
-      "duration": 80,
-      "source_url": "https://file.garden/ad_jTPVIV3ilAFpI/21.%20Military%20Precision.dfpwm",
-      "playback_url": "https://file.garden/ad_jTPVIV3ilAFpI/21.%20Military%20Precision.dfpwm",
-      "art_url": "-"
-    },
-    {
-      "id": "track_10",
-      "title": "Jungle Drums",
-      "artist": "Kelly Bailey",
-      "duration": 109,
-      "source_url": "https://file.garden/ad_jTPVIV3ilAFpI/22.%20Jungle%20Drums.dfpwm",
-      "playback_url": "https://file.garden/ad_jTPVIV3ilAFpI/22.%20Jungle%20Drums.dfpwm",
-      "art_url": "-"
-    },
-    {
-      "id": "track_11",
-      "title": "Credits Closing Theme",
-      "artist": "Kelly Bailey",
-      "duration": 99,
-      "source_url": "https://file.garden/ad_jTPVIV3ilAFpI/24.%20Credits%20Closing%20Theme.dfpwm",
-      "playback_url": "https://file.garden/ad_jTPVIV3ilAFpI/24.%20Credits%20Closing%20Theme.dfpwm",
-      "art_url": "-"
-    },
-    {
-      "id": "track_12",
-      "title": "Trace a Ray Reflection",
-      "artist": "North Bridge",
-      "duration": 202,
-      "source_url": "https://file.garden/ad_jTPVIV3ilAFpI/09.%20Trace%20a%20Ray%20Reflection.dfpwm",
-      "playback_url": "https://file.garden/ad_jTPVIV3ilAFpI/09.%20Trace%20a%20Ray%20Reflection.dfpwm",
-      "art_url": "-"
-    },
-    {
-      "id": "track_13",
-      "title": "Smearing Thermal Compound",
-      "artist": "Hard Drive",
-      "duration": 182,
-      "source_url": "https://file.garden/ad_jTPVIV3ilAFpI/02.%20Smearing%20Thermal%20Compound.dfpwm",
-      "playback_url": "https://file.garden/ad_jTPVIV3ilAFpI/02.%20Smearing%20Thermal%20Compound.dfpwm",
-      "art_url": "-"
-    },
-    {
-      "id": "track_14",
-      "title": "Upload Download",
-      "artist": "Petabyte",
-      "duration": 224,
-      "source_url": "https://file.garden/ad_jTPVIV3ilAFpI/07.%20Upload%20Download.dfpwm",
-      "playback_url": "https://file.garden/ad_jTPVIV3ilAFpI/07.%20Upload%20Download.dfpwm",
-      "art_url": "-"
-    },
-    {
-      "id": "track_15",
-      "title": "Linear Feedback Shift Register",
-      "artist": "Universal Serial Bus",
-      "duration": 252,
-      "source_url": "https://file.garden/ad_jTPVIV3ilAFpI/05.%20Linear%20Feedback%20Shift%20Register.dfpwm",
-      "playback_url": "https://file.garden/ad_jTPVIV3ilAFpI/05.%20Linear%20Feedback%20Shift%20Register.dfpwm",
-      "art_url": "-"
-    },
-    {
-      "id": "track_16",
-      "title": "Light",
-      "artist": "Diode",
-      "duration": 228,
-      "source_url": "https://file.garden/ad_jTPVIV3ilAFpI/06.%20Light.dfpwm",
-      "playback_url": "https://file.garden/ad_jTPVIV3ilAFpI/06.%20Light.dfpwm",
-      "art_url": "-"
-    },
-    {
-      "id": "track_17",
-      "title": "RAM Out of Luck",
-      "artist": "Motherboard",
-      "duration": 202,
-      "source_url": "https://file.garden/ad_jTPVIV3ilAFpI/03.%20RAM%20Out%20of%20Luck.dfpwm",
-      "playback_url": "https://file.garden/ad_jTPVIV3ilAFpI/03.%20RAM%20Out%20of%20Luck.dfpwm",
-      "art_url": "-"
-    },
-    {
-      "id": "track_18",
       "title": "A Thousand GigaFLOPs Without You",
       "artist": "C.P.U.",
       "duration": 185,
-      "source_url": "https://file.garden/ad_jTPVIV3ilAFpI/04.%20A%20Thousand%20GigaFLOPs%20Without%20You.dfpwm",
-      "playback_url": "https://file.garden/ad_jTPVIV3ilAFpI/04.%20A%20Thousand%20GigaFLOPs%20Without%20You.dfpwm",
-      "art_url": "-"
+      "playback_url": "https://files.catbox.moe/6gp3oj.dfpwm",
+      "playback_url_r": "https://files.catbox.moe/92e5gd.dfpwm"
+    },
+    {
+      "id": "track_03",
+      "title": "All Is Soft Inside",
+      "artist": "AURORA",
+      "duration": 310,
+      "playback_url": "https://files.catbox.moe/sihcvk.dfpwm",
+      "playback_url_r": "https://files.catbox.moe/2vyhqf.dfpwm"
+    },
+    {
+      "id": "track_04",
+      "title": "Cure For Me",
+      "artist": "AURORA",
+      "duration": 201,
+      "playback_url": "https://files.catbox.moe/b9adzk.dfpwm",
+      "playback_url_r": "https://files.catbox.moe/tnon1b.dfpwm"
+    },
+    {
+      "id": "track_05",
+      "title": "Credits Closing Theme",
+      "artist": "Kelly Bailey",
+      "duration": 99,
+      "playback_url": "https://files.catbox.moe/37m77u.dfpwm",
+      "playback_url_r": "https://files.catbox.moe/9bdw5a.dfpwm"
+    },
+    {
+      "id": "track_06",
+      "title": "Dimensionless Deepness",
+      "artist": "Kelly Bailey",
+      "duration": 84,
+      "playback_url": "https://files.catbox.moe/hbaspa.dfpwm",
+      "playback_url_r": "https://files.catbox.moe/s549gy.dfpwm"
+    },
+    {
+      "id": "track_07",
+      "title": "Drums and Riffs",
+      "artist": "Kelly Bailey",
+      "duration": 123,
+      "playback_url": "https://files.catbox.moe/9q2kfy.dfpwm",
+      "playback_url_r": "https://files.catbox.moe/yr4ra2.dfpwm"
+    },
+    {
+      "id": "track_08",
+      "title": "Electric Guitar Ambience",
+      "artist": "Kelly Bailey",
+      "duration": 84,
+      "playback_url": "https://files.catbox.moe/h8a4b9.dfpwm",
+      "playback_url_r": "https://files.catbox.moe/j6397u.dfpwm"
+    },
+    {
+      "id": "track_09",
+      "title": "Jungle Drums",
+      "artist": "Kelly Bailey",
+      "duration": 109,
+      "playback_url": "https://files.catbox.moe/k5uo9s.dfpwm",
+      "playback_url_r": "https://files.catbox.moe/34flz4.dfpwm"
+    },
+    {
+      "id": "track_10",
+      "title": "Klaxon Beat",
+      "artist": "Kelly Bailey",
+      "duration": 60,
+      "playback_url": "https://files.catbox.moe/raqv9u.dfpwm",
+      "playback_url_r": "https://files.catbox.moe/osy7ws.dfpwm"
+    },
+    {
+      "id": "track_11",
+      "title": "Light",
+      "artist": "Diode",
+      "duration": 228,
+      "playback_url": "https://files.catbox.moe/gh414z.dfpwm",
+      "playback_url_r": "https://files.catbox.moe/1y712p.dfpwm"
+    },
+    {
+      "id": "track_12",
+      "title": "Linear Feedback Shift Register",
+      "artist": "Universal Serial Bus",
+      "duration": 252,
+      "playback_url": "https://files.catbox.moe/crfd5p.dfpwm",
+      "playback_url_r": "https://files.catbox.moe/jf78yv.dfpwm"
+    },
+    {
+      "id": "track_13",
+      "title": "Military Precision",
+      "artist": "Kelly Bailey",
+      "duration": 80,
+      "playback_url": "https://files.catbox.moe/v9f9ui.dfpwm",
+      "playback_url_r": "https://files.catbox.moe/rqhyed.dfpwm"
+    },
+    {
+      "id": "track_14",
+      "title": "Nepal Monastery",
+      "artist": "Kelly Bailey",
+      "duration": 128,
+      "playback_url": "https://files.catbox.moe/iiafjc.dfpwm",
+      "playback_url_r": "https://files.catbox.moe/ybba86.dfpwm"
+    },
+    {
+      "id": "track_15",
+      "title": "Nuclear Mission Jam",
+      "artist": "Kelly Bailey",
+      "duration": 120,
+      "playback_url": "https://files.catbox.moe/nas2c6.dfpwm",
+      "playback_url_r": "https://files.catbox.moe/3kik7f.dfpwm"
+    },
+    {
+      "id": "track_16",
+      "title": "RAM Out of Luck",
+      "artist": "Motherboard",
+      "duration": 202,
+      "playback_url": "https://files.catbox.moe/yzo2wy.dfpwm",
+      "playback_url_r": "https://files.catbox.moe/vvyyh1.dfpwm"
+    },
+    {
+      "id": "track_17",
+      "title": "Returns",
+      "artist": "Vincent Diamante",
+      "duration": 159,
+      "playback_url": "https://files.catbox.moe/jbeju9.dfpwm",
+      "playback_url_r": "https://files.catbox.moe/3jvdxm.dfpwm"
+    },
+    {
+      "id": "track_18",
+      "title": "Smearing Thermal Compound",
+      "artist": "Hard Drive",
+      "duration": 182,
+      "playback_url": "https://files.catbox.moe/quaprm.dfpwm",
+      "playback_url_r": "https://files.catbox.moe/9ijxf5.dfpwm"
     },
     {
       "id": "track_19",
       "title": "The Light Beyond",
       "artist": "AURORA",
       "duration": 201,
-      "source_url": "https://file.garden/ad_jTPVIV3ilAFpI/15.%20The%20Light%20Beyond.dfpwm",
-      "playback_url": "https://file.garden/ad_jTPVIV3ilAFpI/15.%20The%20Light%20Beyond.dfpwm",
-      "art_url": "-"
+      "playback_url": "https://files.catbox.moe/ukfqzu.dfpwm",
+      "playback_url_r": "https://files.catbox.moe/v52h42.dfpwm"
     },
     {
       "id": "track_20",
-      "title": "Warrior",
-      "artist": "AURORA",
-      "duration": 221,
-      "source_url": "https://file.garden/ad_jTPVIV3ilAFpI/10.%20Warrior.dfpwm",
-      "playback_url": "https://file.garden/ad_jTPVIV3ilAFpI/10.%20Warrior.dfpwm",
-      "art_url": "-"
+      "title": "Trace a Ray Reflection",
+      "artist": "North Bridge",
+      "duration": 202,
+      "playback_url": "https://files.catbox.moe/lqb4sn.dfpwm",
+      "playback_url_r": "https://files.catbox.moe/b6ith6.dfpwm"
     },
     {
       "id": "track_21",
-      "title": "A Rose's Lament",
-      "artist": "Vincent Diamente",
-      "duration": 116,
-      "source_url": "https://file.garden/ad_jTPVIV3ilAFpI/31.%20A%20Rose's%20Lament.dfpwm",
-      "playback_url": "https://file.garden/ad_jTPVIV3ilAFpI/31.%20A%20Rose's%20Lament.dfpwm",
-      "art_url": "-"
+      "title": "Upload Download",
+      "artist": "Petabyte",
+      "duration": 224,
+      "playback_url": "https://files.catbox.moe/nnz80k.dfpwm",
+      "playback_url_r": "https://files.catbox.moe/30cgtz.dfpwm"
     },
     {
       "id": "track_22",
-      "title": "Cure For Me",
-      "artist": "AURORA",
-      "duration": 201,
-      "source_url": "https://file.garden/ad_jTPVIV3ilAFpI/AURORA%20-%20Cure%20For%20Me%20-%20iamAURORAVEVO.dfpwm",
-      "playback_url": "https://file.garden/ad_jTPVIV3ilAFpI/AURORA%20-%20Cure%20For%20Me%20-%20iamAURORAVEVO.dfpwm",
-      "art_url": "-"
+      "title": "Vague Voices",
+      "artist": "Kelly Bailey",
+      "duration": 131,
+      "playback_url": "https://files.catbox.moe/wtzpnc.dfpwm",
+      "playback_url_r": "https://files.catbox.moe/sxq01i.dfpwm"
     },
     {
       "id": "track_23",
-      "title": "Oblivios",
-      "artist": "\u2606 Angels \u2606",
-      "duration": 118,
-      "source_url": "https://file.garden/ad_jTPVIV3ilAFpI/%E2%98%86%20Angels%20%E2%98%86%20-%20Oblivios.dfpwm",
-      "playback_url": "https://file.garden/ad_jTPVIV3ilAFpI/%E2%98%86%20Angels%20%E2%98%86%20-%20Oblivios.dfpwm",
-      "art_url": "-"
+      "title": "Valve Theme",
+      "artist": "Kelly Bailey",
+      "duration": 82,
+      "playback_url": "https://files.catbox.moe/yzml0y.dfpwm",
+      "playback_url_r": "https://files.catbox.moe/aefoqp.dfpwm"
     },
     {
       "id": "track_24",
-      "title": "Returns",
-      "artist": "Vincent Diamente",
-      "duration": 159,
-      "source_url": "https://file.garden/ad_jTPVIV3ilAFpI/Returns%20-%20Vincent%20Diamante(1).dfpwm",
-      "playback_url": "https://file.garden/ad_jTPVIV3ilAFpI/Returns%20-%20Vincent%20Diamante(1).dfpwm",
-      "art_url": "-"
+      "title": "Warrior",
+      "artist": "AURORA",
+      "duration": 221,
+      "playback_url": "https://files.catbox.moe/d27yj9.dfpwm",
+      "playback_url_r": "https://files.catbox.moe/1fync6.dfpwm"
+    },
+    {
+      "id": "track_25",
+      "title": "Oblivios",
+      "artist": "\u2606 Angels \u2606",
+      "duration": 118,
+      "playback_url": "https://files.catbox.moe/vsy8bg.dfpwm",
+      "playback_url_r": "https://files.catbox.moe/kzko55.dfpwm"
     }
   ]
 }

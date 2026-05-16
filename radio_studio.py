@@ -20,7 +20,9 @@ STUDIO_CONFIG_NAME = "radio_studio.local.json"
 DEFAULT_STUDIO_CONFIG = {
     "filegarden_user_id": "",
     "filegarden_auth_cookie": "",
+    "filegarden_base_url": "",
     "catbox_userhash": "",
+    "local_dfpwm_folder": "",
     "default_publish_target": "Local",
     "default_output_subfolder": "audio",
     "processing_normalize": False,
@@ -365,6 +367,12 @@ class RednetRadioStudio(tk.Tk):
         ttk.Button(action_frame, text="Batch Convert Folder", command=self.batch_convert_folder).pack(
             side=tk.LEFT, padx=5
         )
+        ttk.Button(
+            action_frame, text="Fill URLs from File Garden", command=self.fill_urls_from_filegarden
+        ).pack(side=tk.LEFT, padx=5)
+        ttk.Button(
+            action_frame, text="Auto-Fill Playlist from Folder", command=self.autofill_playlist_from_folder
+        ).pack(side=tk.LEFT, padx=5)
         ttk.Button(action_frame, text="Update Selected Track", command=self.update_track).pack(
             side=tk.RIGHT, padx=5
         )
@@ -520,7 +528,9 @@ class RednetRadioStudio(tk.Tk):
         vars_map = {
             "filegarden_user_id": tk.StringVar(value=self.studio_config.get("filegarden_user_id", "")),
             "filegarden_auth_cookie": tk.StringVar(value=self.studio_config.get("filegarden_auth_cookie", "")),
+            "filegarden_base_url": tk.StringVar(value=self.studio_config.get("filegarden_base_url", "")),
             "catbox_userhash": tk.StringVar(value=self.studio_config.get("catbox_userhash", "")),
+            "local_dfpwm_folder": tk.StringVar(value=self.studio_config.get("local_dfpwm_folder", "")),
             "default_publish_target": tk.StringVar(
                 value=self.studio_config.get("default_publish_target", "Local")
             ),
@@ -544,6 +554,8 @@ class RednetRadioStudio(tk.Tk):
         labels = [
             ("File Garden User ID:", "filegarden_user_id"),
             ("File Garden Auth Cookie:", "filegarden_auth_cookie"),
+            ("File Garden Base Folder URL:", "filegarden_base_url"),
+            ("Local DFPWM Folder:", "local_dfpwm_folder"),
             ("Catbox Userhash (Optional):", "catbox_userhash"),
             ("Default Output Subfolder:", "default_output_subfolder"),
         ]
@@ -705,6 +717,192 @@ class RednetRadioStudio(tk.Tk):
                 var_dict["title"].set(title.strip())
         elif not var_dict["title"].get():
             var_dict["title"].set(name_source.replace("_", " ").strip())
+
+    def fill_urls_from_filegarden(self):
+        """Build File Garden playback URLs for the current track from the configured base folder URL.
+
+        Priority for determining the file stem:
+          1. Source file field (most reliable — uses the actual local filename).
+          2. Strip _L/_R suffix from an existing left URL (useful when editing an existing track).
+
+        The stem is then URL-encoded and appended to the base folder URL as
+        ``{stem}_L.dfpwm`` and ``{stem}_R.dfpwm``, matching the naming convention
+        produced by the batch converter (e.g.
+        ``https://file.garden/USER/FOLDER/01%20-%20Song%20Title_L.dfpwm``).
+        """
+        base_url = self.studio_config.get("filegarden_base_url", "").strip().rstrip("/")
+        if not base_url:
+            messagebox.showerror(
+                "File Garden Auto-Fill",
+                "No File Garden Base Folder URL is configured.\n\n"
+                "Open Uploader Settings and fill in the 'File Garden Base Folder URL' field\n"
+                "(e.g. https://file.garden/USER_ID/my_folder).",
+            )
+            return
+
+        # --- Determine the file stem ---
+        stem = ""
+        source_file = self.t_vars["source_file"].get().strip()
+        if source_file:
+            # Use the source file name before the extension (same stem the converter uses)
+            stem = Path(source_file).stem
+        else:
+            # Fall back: strip channel suffix from an existing URL
+            existing_url = self.t_vars["url_l"].get().strip()
+            if existing_url:
+                filename = unquote(existing_url.split("/")[-1])
+                for suffix in ("_L.dfpwm", "_R.dfpwm", ".dfpwm"):
+                    if filename.lower().endswith(suffix.lower()):
+                        stem = filename[: -len(suffix)]
+                        break
+                if not stem:
+                    stem = Path(filename).stem
+
+        if not stem:
+            messagebox.showerror(
+                "File Garden Auto-Fill",
+                "Cannot determine the file name.\n\n"
+                "Either browse a local source file or paste a partial playback URL first.",
+            )
+            return
+
+        left_name = f"{stem}_L.dfpwm"
+        right_name = f"{stem}_R.dfpwm"
+        left_url = base_url + "/" + quote(left_name)
+        right_url = base_url + "/" + quote(right_name)
+
+        self.t_vars["url_l"].set(left_url)
+        self.t_vars["url_r"].set(right_url)
+        self.append_log(f"File Garden URLs filled for '{stem}'.")
+
+        # Also run the standard metadata auto-fill so title/artist are populated from the stem
+        self.auto_fill_track(self.t_vars)
+
+    def autofill_playlist_from_folder(self):
+        """Scan a local DFPWM folder and bulk-add every *_L.dfpwm file as a track.
+
+        For each ``{stem}_L.dfpwm`` found:
+        - Title / artist are parsed from the stem using the ``Artist - Title`` convention.
+        - Playback URLs are built from the configured File Garden base folder URL (optional —
+          the track is still added without URLs if the base is not set, so you can paste
+          them in later).
+        - Duration is probed via ffprobe if available; falls back to 0 so the track is
+          always inserted (you can edit durations individually afterwards).
+
+        The folder choice is remembered in ``radio_studio.local.json`` so you don't have
+        to re-select it every time.
+        """
+        station_id = self.cb_playlist_station.get()
+        if not station_id:
+            messagebox.showerror("Error", "Select a station first.")
+            return
+
+        # --- Resolve the DFPWM folder ---
+        folder_str = self.studio_config.get("local_dfpwm_folder", "").strip()
+        if folder_str and Path(folder_str).is_dir():
+            dfpwm_folder = Path(folder_str)
+        else:
+            chosen = filedialog.askdirectory(title="Select Local DFPWM Folder")
+            if not chosen:
+                return
+            dfpwm_folder = Path(chosen)
+            self.studio_config["local_dfpwm_folder"] = str(dfpwm_folder)
+            self.save_studio_config()
+
+        # --- Scan for _L.dfpwm files (sorted = track order) ---
+        left_files = sorted(dfpwm_folder.glob("*_L.dfpwm"))
+        if not left_files:
+            messagebox.showinfo(
+                "Auto-Fill Playlist",
+                f"No *_L.dfpwm files found in:\n{dfpwm_folder}",
+            )
+            return
+
+        base_url = self.studio_config.get("filegarden_base_url", "").strip().rstrip("/")
+
+        if not messagebox.askyesno(
+            "Auto-Fill Playlist",
+            f"Found {len(left_files)} track(s) in:\n{dfpwm_folder}\n\n"
+            f"{'File Garden URLs will be generated from:\n' + base_url if base_url else 'No File Garden base URL configured — tracks will be added without playback URLs.'}\n\n"
+            "Add all tracks to the playlist now?",
+        ):
+            return
+
+        # --- Load playlist once, bulk-append, save once ---
+        path, doc, target = self.get_playlist_doc_and_target(station_id)
+        tracks = target.setdefault("tracks", [])
+
+        highest = 0
+        for track in tracks:
+            track_id = str(track.get("id", ""))
+            if track_id.startswith("track_"):
+                try:
+                    highest = max(highest, int(track_id.split("_", 1)[1]))
+                except ValueError:
+                    pass
+
+        added = 0
+        skipped = 0
+        for left_file in left_files:
+            stem = left_file.name[: -len("_L.dfpwm")]
+            right_file = left_file.with_name(f"{stem}_R.dfpwm")
+
+            # Parse artist / title from stem
+            if " - " in stem:
+                raw_artist, raw_title = stem.split(" - ", 1)
+            else:
+                raw_artist = ""
+                raw_title = stem.replace("_", " ")
+
+            # Probe duration (best-effort)
+            duration = 0
+            if self.ffmpeg_available or shutil.which("ffprobe"):
+                try:
+                    result = subprocess.run(
+                        [
+                            "ffprobe",
+                            "-v", "error",
+                            "-select_streams", "a:0",
+                            "-show_entries", "format=duration",
+                            "-of", "default=noprint_wrappers=1:nokey=1",
+                            str(left_file),
+                        ],
+                        capture_output=True,
+                        text=True,
+                    )
+                    raw_dur = result.stdout.strip()
+                    if raw_dur:
+                        duration = max(0, int(float(raw_dur)))
+                except Exception:
+                    pass
+
+            # Build the track dict
+            track: dict = {
+                "id": f"track_{highest + added + 1:02d}",
+                "title": raw_title.strip(),
+                "artist": raw_artist.strip(),
+                "duration": duration,
+            }
+            if base_url:
+                track["playback_url"] = base_url + "/" + quote(f"{stem}_L.dfpwm")
+                if right_file.exists() or base_url:
+                    track["playback_url_r"] = base_url + "/" + quote(f"{stem}_R.dfpwm")
+
+            tracks.append(track)
+            added += 1
+            self.append_log(
+                f"Queued: '{raw_title.strip()}'"
+                + (f" by {raw_artist.strip()}" if raw_artist else "")
+                + (f" ({format_duration(duration)})" if duration else " (duration unknown)")
+            )
+
+        target["version"] = bump_version(target.get("version", "0"))
+        save_json(path, doc)
+        self.load_playlist_tracks()
+
+        summary = f"Auto-fill complete: {added} track(s) added, {skipped} skipped."
+        self.append_log(summary)
+        messagebox.showinfo("Auto-Fill Playlist", summary)
 
     def create_station(self):
         if not self.stations_file or not self.stations_file.exists():

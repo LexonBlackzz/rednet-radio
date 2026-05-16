@@ -98,6 +98,9 @@ python radio_studio.py
 - **Workspace Initialization:** Run the tool in an empty folder and it will offer to automatically build your `stations.json` and `playlists/` layout for you.
 - **Station Manager:** Create and configure stations directly in the UI.
 - **Playlist Editor:** Add, edit, or delete tracks seamlessly.
+- **Stereo Track Prep:** Pick a local source file, convert it into `_L.dfpwm` and `_R.dfpwm`, then auto-fill both playback URLs directly in the track editor.
+- **Publishing Targets:** Publish converted stereo pairs locally, to Catbox, or to File Garden from inside the Playlist Editor.
+- **Audio Processing Options:** Optional loudness normalization, high-frequency taming, 8-bit dither, and limiting can be applied before DFPWM conversion.
 - **Auto-Fill:** Paste a GitHub `.dfpwm` link and click Auto-Fill. It automatically converts the URL to a raw download link, and guesses the Artist and Title directly from the filename.
 - **Smart Duration Parser:** You no longer need to calculate seconds manually. Type natural durations like `3:45` or `1:05:20` and the app handles the math automatically.
 - **Standalone Submissions:** Allows community contributors to build ready-to-send JSON playlists to submit to you, without needing write-access to your workspace.
@@ -141,3 +144,46 @@ This project now supports client-side `.dfpwm` playback through the speaker peri
 Normal MP3 links are still just source assets and metadata. For in-game playback, tracks should provide a `playback_url` pointing to a `.dfpwm` file.
 
 If you use GitHub-hosted audio, use raw file URLs, not `github.com/.../blob/...` page URLs. The Radio Studio GUI will convert common GitHub blob links to `raw.githubusercontent.com` automatically for you!
+
+Radio Studio now also supports stereo tracks using:
+
+- `playback_url` for the left channel
+- `playback_url_r` for the right channel
+
+Uploader preferences for Radio Studio are stored locally in:
+
+```text
+radio_studio.local.json
+```
+
+That file is ignored by git so uploader credentials do not get committed by default.
+
+## Stereo Conversion Tool
+
+If you want to prepare stereo-ready tracks in bulk, use:
+
+```text
+python convert_stereo_dfpwm.py <input-folder>
+```
+
+This script:
+
+- scans a folder of files and uses `ffprobe` to detect readable audio streams
+- splits each track into left and right mono channels
+- converts both channels to `.dfpwm`
+- writes files as `<name>_L.dfpwm` and `<name>_R.dfpwm`
+
+Useful options:
+
+```text
+python convert_stereo_dfpwm.py music --recursive --overwrite
+python convert_stereo_dfpwm.py music --output exported_dfpwm
+python convert_stereo_dfpwm.py music --normalize --tame-highs --dither-8bit --limiter
+```
+
+Notes:
+
+- Requires `ffmpeg` and `ffprobe` to be installed and available on `PATH`
+- Accepts any source FFmpeg can decode, including `.opus`, `.webm`, `.m4a`, `.ogg`, and more
+- Mono files are duplicated to both `_L` and `_R`
+- Output defaults to a `dfpwm_stereo/` folder inside the input directory

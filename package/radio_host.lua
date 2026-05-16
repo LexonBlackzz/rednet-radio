@@ -84,7 +84,16 @@ local function main(...)
   end
 
   local function getSelectedPaletteReceiverId()
-    return settings.getHostPaletteReceiverId()
+    if type(settings.getHostPaletteReceiverId) == "function" then
+      return settings.getHostPaletteReceiverId()
+    end
+
+    local currentSettings = settings.get and settings.get() or {}
+    local value = currentSettings and currentSettings.host_palette_receiver_id
+    if value == nil or value == "" then
+      return nil
+    end
+    return tonumber(value) or value
   end
 
   local function getReceiverPaletteEntries()
@@ -108,7 +117,17 @@ local function main(...)
       return false
     end
 
-    settings.setHostPaletteReceiverId(receiverId)
+    if type(settings.setHostPaletteReceiverId) == "function" then
+      settings.setHostPaletteReceiverId(receiverId)
+    else
+      local currentSettings = settings.get and settings.get() or nil
+      if currentSettings then
+        currentSettings.host_palette_receiver_id = tonumber(receiverId) or receiverId
+      end
+      if type(settings.save) == "function" then
+        settings.save()
+      end
+    end
     settings.setPalette(receiver.palette)
     monitor.setPalette(receiver.palette)
     return true

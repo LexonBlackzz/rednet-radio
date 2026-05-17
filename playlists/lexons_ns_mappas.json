@@ -1,0 +1,502 @@
+{
+  "name": "Lexon's n' Mappa's",
+  "version": "44",
+  "tracks": [
+    {
+      "id": "track_01",
+      "title": "I Could Be The One (Nicktim - Instrumental Mix)",
+      "artist": "Avicii vs Nicky Romero",
+      "duration": 455,
+      "playback_url": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/01%20-%20I%20Could%20Be%20The%20One%20%5BAvicii%20vs%20Nicky%20Romero%5D%20%28Nicktim%20-%20Instrumental%20Mix%29_L.dfpwm",
+      "playback_url_r": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/01%20-%20I%20Could%20Be%20The%20One%20%5BAvicii%20vs%20Nicky%20Romero%5D%20%28Nicktim%20-%20Instrumental%20Mix%29_R.dfpwm"
+    },
+    {
+      "id": "track_02",
+      "title": "Wish You Were Mine (Radio Edit)",
+      "artist": "Philip George",
+      "duration": 177,
+      "playback_url": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/02%20-%20Wish%20You%20Were%20Mine%20%28Radio%20Edit%29_L.dfpwm",
+      "playback_url_r": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/02%20-%20Wish%20You%20Were%20Mine%20%28Radio%20Edit%29_R.dfpwm"
+    },
+    {
+      "id": "track_03",
+      "title": "I Love It",
+      "artist": "Icona Pop (feat. Charli XCX)",
+      "duration": 154,
+      "playback_url": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/05%20-%20Icona%20Pop%20-%20I%20Love%20It%20%28feat.%20Charli%20XCX%29%20%5BOFFICIAL%20VIDEO%5D_L.dfpwm",
+      "playback_url_r": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/05%20-%20Icona%20Pop%20-%20I%20Love%20It%20%28feat.%20Charli%20XCX%29%20%5BOFFICIAL%20VIDEO%5D_R.dfpwm"
+    },
+    {
+      "id": "track_04",
+      "title": "The Lost Soul Down",
+      "artist": "NBSPLV",
+      "duration": 193,
+      "playback_url": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/08%20-%20NBSPLV%20-%20The%20Lost%20Soul%20Down_L.dfpwm",
+      "playback_url_r": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/08%20-%20NBSPLV%20-%20The%20Lost%20Soul%20Down_R.dfpwm"
+    },
+    {
+      "id": "track_05",
+      "title": "Bumba Bass",
+      "artist": "TV Noise & Henry Fong",
+      "duration": 133,
+      "playback_url": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/09%20-%20TV%20Noise%20%26%20Henry%20Fong%20-%20Bumba%20Bass_L.dfpwm",
+      "playback_url_r": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/09%20-%20TV%20Noise%20%26%20Henry%20Fong%20-%20Bumba%20Bass_R.dfpwm"
+    },
+    {
+      "id": "track_06",
+      "title": "What's the Move",
+      "artist": "Henry Fong & Knock2 (feat. General Degree)",
+      "duration": 171,
+      "playback_url": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/10%20-%20Henry%20Fong%20%26%20Knock2%20-%20What%27s%20the%20Move%20%28feat.%20General%20Degree%29_L.dfpwm",
+      "playback_url_r": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/10%20-%20Henry%20Fong%20%26%20Knock2%20-%20What%27s%20the%20Move%20%28feat.%20General%20Degree%29_R.dfpwm"
+    },
+    {
+      "id": "track_07",
+      "title": "Levels (Radio Edit)",
+      "artist": "Avicii",
+      "duration": 201,
+      "playback_url": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/12%20-%20Levels%20%28Radio%20Edit%29_L.dfpwm",
+      "playback_url_r": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/12%20-%20Levels%20%28Radio%20Edit%29_R.dfpwm"
+    },
+    {
+      "id": "track_08",
+      "title": "Brotherman Bill",
+      "artist": "TerribleTim",
+      "duration": 233,
+      "playback_url": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/14%20-%20Brotherman%20Bill_L.dfpwm",
+      "playback_url_r": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/14%20-%20Brotherman%20Bill_R.dfpwm"
+    },
+    {
+      "id": "track_09",
+      "title": "Party Rock Anthem",
+      "artist": "LMFAO (ft. Lauren Bennett, GoonRock)",
+      "duration": 257,
+      "playback_url": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/16%20-%20LMFAO%20-%20Party%20Rock%20Anthem%20ft.%20Lauren%20Bennett%2C%20GoonRock_L.dfpwm",
+      "playback_url_r": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/16%20-%20LMFAO%20-%20Party%20Rock%20Anthem%20ft.%20Lauren%20Bennett%2C%20GoonRock_R.dfpwm"
+    },
+    {
+      "id": "track_10",
+      "title": "Better Off Alone (Official Video)",
+      "artist": "Alice Deejay",
+      "duration": 175,
+      "playback_url": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/19%20-%20Alice%20Deejay%20-%20Better%20Off%20Alone%20%28Official%20Video%29_L.dfpwm",
+      "playback_url_r": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/19%20-%20Alice%20Deejay%20-%20Better%20Off%20Alone%20%28Official%20Video%29_R.dfpwm"
+    },
+    {
+      "id": "track_11",
+      "title": "L'AMOUR TOUJOURS",
+      "artist": "GIGI D'AGOSTINO",
+      "duration": 242,
+      "playback_url": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/20%20-%20GIGI%20D%27AGOSTINO%20-%20L%27AMOUR%20TOUJOURS%20%28%20OFFICIAL%20VIDEO%20%29_L.dfpwm",
+      "playback_url_r": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/20%20-%20GIGI%20D%27AGOSTINO%20-%20L%27AMOUR%20TOUJOURS%20%28%20OFFICIAL%20VIDEO%20%29_R.dfpwm"
+    },
+    {
+      "id": "track_12",
+      "title": "Sandstorm",
+      "artist": "Darude",
+      "duration": 232,
+      "playback_url": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/21%20-%20Darude%20-%20Sandstorm_L.dfpwm",
+      "playback_url_r": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/21%20-%20Darude%20-%20Sandstorm_R.dfpwm"
+    },
+    {
+      "id": "track_13",
+      "title": "Beauty And A Beat",
+      "artist": "Justin Bieber (ft. Nicki Minaj)",
+      "duration": 292,
+      "playback_url": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/27%20-%20Justin%20Bieber%20-%20Beauty%20And%20A%20Beat%20%28Official%20Music%20Video%29%20ft.%20Nicki%20Minaj_L.dfpwm",
+      "playback_url_r": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/27%20-%20Justin%20Bieber%20-%20Beauty%20And%20A%20Beat%20%28Official%20Music%20Video%29%20ft.%20Nicki%20Minaj_R.dfpwm"
+    },
+    {
+      "id": "track_14",
+      "title": "Five Hours",
+      "artist": "Deorro",
+      "duration": 329,
+      "playback_url": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/29%20-%20Deorro%20-%20Five%20Hours%20%28Static%20Video%29%20%5BLE7ELS%5D_L.dfpwm",
+      "playback_url_r": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/29%20-%20Deorro%20-%20Five%20Hours%20%28Static%20Video%29%20%5BLE7ELS%5D_R.dfpwm"
+    },
+    {
+      "id": "track_15",
+      "title": "I Took A Pill In Ibiza (Seeb Remix)",
+      "artist": "Mike Posner",
+      "duration": 236,
+      "playback_url": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/31%20-%20Mike%20Posner%20-%20I%20Took%20A%20Pill%20In%20Ibiza%20%28Seeb%20Remix%29%20%28Explicit%29_L.dfpwm",
+      "playback_url_r": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/31%20-%20Mike%20Posner%20-%20I%20Took%20A%20Pill%20In%20Ibiza%20%28Seeb%20Remix%29%20%28Explicit%29_R.dfpwm"
+    },
+    {
+      "id": "track_16",
+      "title": "BLA BLA BLA",
+      "artist": "GIGI D'AGOSTINO",
+      "duration": 191,
+      "playback_url": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/37%20-%20GIGI%20D%27AGOSTINO%20-%20BLA%20BLA%20BLA%20%28%20OFFICIAL%20VIDEO%20%29_L.dfpwm",
+      "playback_url_r": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/37%20-%20GIGI%20D%27AGOSTINO%20-%20BLA%20BLA%20BLA%20%28%20OFFICIAL%20VIDEO%20%29_R.dfpwm"
+    },
+    {
+      "id": "track_17",
+      "title": "Levels (Original Version)",
+      "artist": "Avicii",
+      "duration": 338,
+      "playback_url": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/39%20-%20Levels%20%28Original%20Version%29_L.dfpwm",
+      "playback_url_r": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/39%20-%20Levels%20%28Original%20Version%29_R.dfpwm"
+    },
+    {
+      "id": "track_18",
+      "title": "Summer Vibe",
+      "artist": "42NA",
+      "duration": 106,
+      "playback_url": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/41%20-%2042NA%20-%20Summer%20Vibe_L.dfpwm",
+      "playback_url_r": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/41%20-%2042NA%20-%20Summer%20Vibe_R.dfpwm"
+    },
+    {
+      "id": "track_19",
+      "title": "Poker Face",
+      "artist": "Lady Gaga",
+      "duration": 213,
+      "playback_url": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/43%20-%20Lady%20Gaga%20-%20Poker%20Face%20%28Official%20Music%20Video%29_L.dfpwm",
+      "playback_url_r": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/43%20-%20Lady%20Gaga%20-%20Poker%20Face%20%28Official%20Music%20Video%29_R.dfpwm"
+    },
+    {
+      "id": "track_20",
+      "title": "La Guitarra",
+      "artist": "Los Aut\u00e9nticos Decadentes",
+      "duration": 206,
+      "playback_url": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/44%20-%20Los%20Aut%C3%A9nticos%20Decadentes%20-%20La%20Guitarra%20%28Official%20Video%29_L.dfpwm",
+      "playback_url_r": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/44%20-%20Los%20Aut%C3%A9nticos%20Decadentes%20-%20La%20Guitarra%20%28Official%20Video%29_R.dfpwm"
+    },
+    {
+      "id": "track_21",
+      "title": "Everytime We Touch (Hardwell & Maurice West Remix)",
+      "artist": "Cascada",
+      "duration": 216,
+      "playback_url": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/49%20-%20Cascada%20-%20Everytime%20We%20Touch%20%28Hardwell%20%26%20Maurice%20West%20Remix%29_L.dfpwm",
+      "playback_url_r": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/49%20-%20Cascada%20-%20Everytime%20We%20Touch%20%28Hardwell%20%26%20Maurice%20West%20Remix%29_R.dfpwm"
+    },
+    {
+      "id": "track_22",
+      "title": "Waiting For Love",
+      "artist": "Avicii",
+      "duration": 230,
+      "playback_url": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/50%20-%20Avicii%20-%20Waiting%20For%20Love_L.dfpwm",
+      "playback_url_r": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/50%20-%20Avicii%20-%20Waiting%20For%20Love_R.dfpwm"
+    },
+    {
+      "id": "track_23",
+      "title": "Applause",
+      "artist": "Lady Gaga",
+      "duration": 214,
+      "playback_url": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/53%20-%20Lady%20Gaga%20-%20Applause_L.dfpwm",
+      "playback_url_r": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/53%20-%20Lady%20Gaga%20-%20Applause_R.dfpwm"
+    },
+    {
+      "id": "track_24",
+      "title": "Without You",
+      "artist": "Avicii, Sandro Cavazza",
+      "duration": 183,
+      "playback_url": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/54%20-%20Avicii%2C%20Sandro%20Cavazza%20-%20Without%20You%20%E2%80%9CAudio%E2%80%9D_L.dfpwm",
+      "playback_url_r": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/54%20-%20Avicii%2C%20Sandro%20Cavazza%20-%20Without%20You%20%E2%80%9CAudio%E2%80%9D_R.dfpwm"
+    },
+    {
+      "id": "track_25",
+      "title": "International Love",
+      "artist": "Pitbull (ft. Chris Brown)",
+      "duration": 248,
+      "playback_url": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/57%20-%20Pitbull%20-%20International%20Love%20%28Official%20Video%29_L.dfpwm",
+      "playback_url_r": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/57%20-%20Pitbull%20-%20International%20Love%20%28Official%20Video%29_R.dfpwm"
+    },
+    {
+      "id": "track_26",
+      "title": "Tonight (Franco Lippi Remix)",
+      "artist": "DJ Emi B.",
+      "duration": 337,
+      "playback_url": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/59%20-%20Tonight%20Franco%20Lippi%20Remix_L.dfpwm",
+      "playback_url_r": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/59%20-%20Tonight%20Franco%20Lippi%20Remix_R.dfpwm"
+    },
+    {
+      "id": "track_27",
+      "title": "Ta Malutka Blondynka",
+      "artist": "Mig",
+      "duration": 231,
+      "playback_url": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/60%20-%20Mig%20-%20Ta%20Malutka%20Blondynka%20%28Official%20Video%29_L.dfpwm",
+      "playback_url_r": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/60%20-%20Mig%20-%20Ta%20Malutka%20Blondynka%20%28Official%20Video%29_R.dfpwm"
+    },
+    {
+      "id": "track_28",
+      "title": "Icarus",
+      "artist": "Madeon",
+      "duration": 217,
+      "playback_url": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/62%20-%20Madeon%20-%20Icarus_L.dfpwm",
+      "playback_url_r": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/62%20-%20Madeon%20-%20Icarus_R.dfpwm"
+    },
+    {
+      "id": "track_29",
+      "title": "9Pm (Till I Come)",
+      "artist": "ATB",
+      "duration": 193,
+      "playback_url": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/63%20-%209Pm%20%28Till%20I%20Come%29_L.dfpwm",
+      "playback_url_r": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/63%20-%209Pm%20%28Till%20I%20Come%29_R.dfpwm"
+    },
+    {
+      "id": "track_30",
+      "title": "Everytime We Touch",
+      "artist": "Cascada",
+      "duration": 197,
+      "playback_url": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/64%20-%20Everytime%20We%20Touch_L.dfpwm",
+      "playback_url_r": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/64%20-%20Everytime%20We%20Touch_R.dfpwm"
+    },
+    {
+      "id": "track_31",
+      "title": "Lady (Hear Me Tonight)",
+      "artist": "Modjo",
+      "duration": 307,
+      "playback_url": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/65%20-%20Lady%20%28Hear%20Me%20Tonight%29_L.dfpwm",
+      "playback_url_r": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/65%20-%20Lady%20%28Hear%20Me%20Tonight%29_R.dfpwm"
+    },
+    {
+      "id": "track_32",
+      "title": "Clarity",
+      "artist": "Zedd (ft. Foxes)",
+      "duration": 271,
+      "playback_url": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/66%20-%20Clarity_L.dfpwm",
+      "playback_url_r": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/66%20-%20Clarity_R.dfpwm"
+    },
+    {
+      "id": "track_33",
+      "title": "Pika Girl",
+      "artist": "S3RL",
+      "duration": 225,
+      "playback_url": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/67%20-%20Pika%20Girl_L.dfpwm",
+      "playback_url_r": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/67%20-%20Pika%20Girl_R.dfpwm"
+    },
+    {
+      "id": "track_34",
+      "title": "Little Kandi Raver (Original Mix)",
+      "artist": "S3RL",
+      "duration": 384,
+      "playback_url": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/68%20-%20Little%20Kandi%20Raver%20%28Original%20Mix%29_L.dfpwm",
+      "playback_url_r": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/68%20-%20Little%20Kandi%20Raver%20%28Original%20Mix%29_R.dfpwm"
+    },
+    {
+      "id": "track_35",
+      "title": "Bromance (Avicii’s Arena Mix)",
+      "artist": "Tim Berg",
+      "duration": 497,
+      "playback_url": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/69%20-%20Bromance%20%28Avicii%E2%80%99s%20Arena%20Mix%29_L.dfpwm",
+      "playback_url_r": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/69%20-%20Bromance%20%28Avicii%E2%80%99s%20Arena%20Mix%29_R.dfpwm"
+    },
+    {
+      "id": "track_36",
+      "title": "Beautiful Now",
+      "artist": "Zedd, Jon Bellion",
+      "duration": 218,
+      "playback_url": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/70%20-%20Beautiful%20Now_L.dfpwm",
+      "playback_url_r": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/70%20-%20Beautiful%20Now_R.dfpwm"
+    },
+    {
+      "id": "track_37",
+      "title": "STAY",
+      "artist": "The Kid LAROI, Justin Bieber",
+      "duration": 141,
+      "playback_url": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/71%20-%20STAY_L.dfpwm",
+      "playback_url_r": "https://file.garden/adrOmj8ZxlwaPhB3/real_hits_stereo/71%20-%20STAY_R.dfpwm"
+    },
+    {
+      "id": "track_38",
+      "title": "A Rose's Lament",
+      "artist": "Vincennt Diamente",
+      "duration": 116,
+      "playback_url": "https://files.catbox.moe/mcurrb.dfpwm",
+      "playback_url_r": "https://files.catbox.moe/swgaul.dfpwm"
+    },
+    {
+      "id": "track_39",
+      "title": "A Thousand GigaFLOPs Without You",
+      "artist": "C.P.U.",
+      "duration": 185,
+      "playback_url": "https://files.catbox.moe/6gp3oj.dfpwm",
+      "playback_url_r": "https://files.catbox.moe/92e5gd.dfpwm"
+    },
+    {
+      "id": "track_40",
+      "title": "All Is Soft Inside",
+      "artist": "AURORA",
+      "duration": 310,
+      "playback_url": "https://files.catbox.moe/sihcvk.dfpwm",
+      "playback_url_r": "https://files.catbox.moe/2vyhqf.dfpwm"
+    },
+    {
+      "id": "track_41",
+      "title": "Cure For Me",
+      "artist": "AURORA",
+      "duration": 201,
+      "playback_url": "https://files.catbox.moe/b9adzk.dfpwm",
+      "playback_url_r": "https://files.catbox.moe/tnon1b.dfpwm"
+    },
+    {
+      "id": "track_42",
+      "title": "Credits Closing Theme",
+      "artist": "Kelly Bailey",
+      "duration": 99,
+      "playback_url": "https://files.catbox.moe/37m77u.dfpwm",
+      "playback_url_r": "https://files.catbox.moe/9bdw5a.dfpwm"
+    },
+    {
+      "id": "track_43",
+      "title": "Dimensionless Deepness",
+      "artist": "Kelly Bailey",
+      "duration": 84,
+      "playback_url": "https://files.catbox.moe/hbaspa.dfpwm",
+      "playback_url_r": "https://files.catbox.moe/s549gy.dfpwm"
+    },
+    {
+      "id": "track_44",
+      "title": "Drums and Riffs",
+      "artist": "Kelly Bailey",
+      "duration": 123,
+      "playback_url": "https://files.catbox.moe/9q2kfy.dfpwm",
+      "playback_url_r": "https://files.catbox.moe/yr4ra2.dfpwm"
+    },
+    {
+      "id": "track_45",
+      "title": "Electric Guitar Ambience",
+      "artist": "Kelly Bailey",
+      "duration": 84,
+      "playback_url": "https://files.catbox.moe/h8a4b9.dfpwm",
+      "playback_url_r": "https://files.catbox.moe/j6397u.dfpwm"
+    },
+    {
+      "id": "track_46",
+      "title": "Jungle Drums",
+      "artist": "Kelly Bailey",
+      "duration": 109,
+      "playback_url": "https://files.catbox.moe/k5uo9s.dfpwm",
+      "playback_url_r": "https://files.catbox.moe/34flz4.dfpwm"
+    },
+    {
+      "id": "track_47",
+      "title": "Klaxon Beat",
+      "artist": "Kelly Bailey",
+      "duration": 60,
+      "playback_url": "https://files.catbox.moe/raqv9u.dfpwm",
+      "playback_url_r": "https://files.catbox.moe/osy7ws.dfpwm"
+    },
+    {
+      "id": "track_48",
+      "title": "Light",
+      "artist": "Diode",
+      "duration": 228,
+      "playback_url": "https://files.catbox.moe/gh414z.dfpwm",
+      "playback_url_r": "https://files.catbox.moe/1y712p.dfpwm"
+    },
+    {
+      "id": "track_49",
+      "title": "Linear Feedback Shift Register",
+      "artist": "Universal Serial Bus",
+      "duration": 252,
+      "playback_url": "https://files.catbox.moe/crfd5p.dfpwm",
+      "playback_url_r": "https://files.catbox.moe/jf78yv.dfpwm"
+    },
+    {
+      "id": "track_50",
+      "title": "Military Precision",
+      "artist": "Kelly Bailey",
+      "duration": 80,
+      "playback_url": "https://files.catbox.moe/v9f9ui.dfpwm",
+      "playback_url_r": "https://files.catbox.moe/rqhyed.dfpwm"
+    },
+    {
+      "id": "track_51",
+      "title": "Nepal Monastery",
+      "artist": "Kelly Bailey",
+      "duration": 128,
+      "playback_url": "https://files.catbox.moe/iiafjc.dfpwm",
+      "playback_url_r": "https://files.catbox.moe/ybba86.dfpwm"
+    },
+    {
+      "id": "track_52",
+      "title": "Nuclear Mission Jam",
+      "artist": "Kelly Bailey",
+      "duration": 120,
+      "playback_url": "https://files.catbox.moe/nas2c6.dfpwm",
+      "playback_url_r": "https://files.catbox.moe/3kik7f.dfpwm"
+    },
+    {
+      "id": "track_53",
+      "title": "RAM Out of Luck",
+      "artist": "Motherboard",
+      "duration": 202,
+      "playback_url": "https://files.catbox.moe/yzo2wy.dfpwm",
+      "playback_url_r": "https://files.catbox.moe/vvyyh1.dfpwm"
+    },
+    {
+      "id": "track_54",
+      "title": "Returns",
+      "artist": "Vincent Diamante",
+      "duration": 159,
+      "playback_url": "https://files.catbox.moe/jbeju9.dfpwm",
+      "playback_url_r": "https://files.catbox.moe/3jvdxm.dfpwm"
+    },
+    {
+      "id": "track_55",
+      "title": "Smearing Thermal Compound",
+      "artist": "Hard Drive",
+      "duration": 182,
+      "playback_url": "https://files.catbox.moe/quaprm.dfpwm",
+      "playback_url_r": "https://files.catbox.moe/9ijxf5.dfpwm"
+    },
+    {
+      "id": "track_56",
+      "title": "The Light Beyond",
+      "artist": "AURORA",
+      "duration": 201,
+      "playback_url": "https://files.catbox.moe/ukfqzu.dfpwm",
+      "playback_url_r": "https://files.catbox.moe/v52h42.dfpwm"
+    },
+    {
+      "id": "track_57",
+      "title": "Trace a Ray Reflection",
+      "artist": "North Bridge",
+      "duration": 202,
+      "playback_url": "https://files.catbox.moe/lqb4sn.dfpwm",
+      "playback_url_r": "https://files.catbox.moe/b6ith6.dfpwm"
+    },
+    {
+      "id": "track_58",
+      "title": "Upload Download",
+      "artist": "Petabyte",
+      "duration": 224,
+      "playback_url": "https://files.catbox.moe/nnz80k.dfpwm",
+      "playback_url_r": "https://files.catbox.moe/30cgtz.dfpwm"
+    },
+    {
+      "id": "track_59",
+      "title": "Vague Voices",
+      "artist": "Kelly Bailey",
+      "duration": 131,
+      "playback_url": "https://files.catbox.moe/wtzpnc.dfpwm",
+      "playback_url_r": "https://files.catbox.moe/sxq01i.dfpwm"
+    },
+    {
+      "id": "track_60",
+      "title": "Valve Theme",
+      "artist": "Kelly Bailey",
+      "duration": 82,
+      "playback_url": "https://files.catbox.moe/yzml0y.dfpwm",
+      "playback_url_r": "https://files.catbox.moe/aefoqp.dfpwm"
+    },
+    {
+      "id": "track_61",
+      "title": "Warrior",
+      "artist": "AURORA",
+      "duration": 221,
+      "playback_url": "https://files.catbox.moe/d27yj9.dfpwm",
+      "playback_url_r": "https://files.catbox.moe/1fync6.dfpwm"
+    },
+    {
+      "id": "track_62",
+      "title": "Oblivios",
+      "artist": "\u2606 Angels \u2606",
+      "duration": 118,
+      "playback_url": "https://files.catbox.moe/vsy8bg.dfpwm",
+      "playback_url_r": "https://files.catbox.moe/kzko55.dfpwm"
+    }
+  ]
+}

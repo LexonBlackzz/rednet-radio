@@ -55,6 +55,14 @@
       "playlist_url": "https://raw.githubusercontent.com/LexonBlackzz/rednet-radio/main/playlists/lexons_realer_hits.json",
       "rednet_channel": "rednet_radio_v1:station:lexons_realer_hits",
       "host_label": "user-submitted"
+    },
+    {
+      "station_id": "lexons_n_mappas",
+      "name": "Lexon's n' Mappa's",
+      "description": "Merged goodness...",
+      "playlist_url": "https://raw.githubusercontent.com/LexonBlackzz/rednet-radio/main/playlists/lexons_n_mappas.json",
+      "rednet_channel": "rednet_radio_v1:station:empty",
+      "host_label": "user-submitted"
     }
   ]
 }
